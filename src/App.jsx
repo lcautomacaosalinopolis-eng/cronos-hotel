@@ -135,6 +135,7 @@ function App() {
   const [telaAtiva, setTelaAtiva] = useState('dashboard')
 
   const [reservaContaId, setReservaContaId] = useState('')
+  const [centralReservaId, setCentralReservaId] = useState('')
   const [descricaoConsumo, setDescricaoConsumo] = useState('')
   const [valorConsumo, setValorConsumo] = useState('')
   const [valorPagamento, setValorPagamento] = useState('')
@@ -173,6 +174,14 @@ function App() {
   const [caixaDescricao, setCaixaDescricao] = useState('')
   const [caixaValor, setCaixaValor] = useState('')
   const [caixaFormaPagamento, setCaixaFormaPagamento] = useState('Dinheiro')
+  const [avisoSistema, setAvisoSistema] = useState(null)
+
+  function mostrarAviso(mensagem, tipo = 'info') {
+    setAvisoSistema({ mensagem, tipo })
+    window.setTimeout(() => {
+      setAvisoSistema(null)
+    }, 3200)
+  }
 
   async function entrarSistema() {
     if (!login || !senha) {
@@ -630,7 +639,7 @@ function App() {
 
   async function lancarCaixa() {
     if (!caixaDescricao || !caixaValor) {
-      alert('Informe a descrição e o valor')
+      mostrarAviso('Informe a descrição e o valor do lançamento.', 'erro')
       return
     }
 
@@ -644,7 +653,7 @@ function App() {
       })
 
     if (error) {
-      alert('Erro ao lançar caixa')
+      mostrarAviso('Erro ao lançar caixa. Tente novamente.', 'erro')
       console.log(error)
       return
     }
@@ -660,7 +669,7 @@ function App() {
     setCaixaFormaPagamento('Dinheiro')
 
     carregarCaixa()
-    alert('Lançamento registrado')
+    mostrarAviso('Lançamento registrado no caixa.', 'sucesso')
   }
 
   function saldoCaixa() {
@@ -780,7 +789,35 @@ function App() {
       return
     }
 
+    if (status === 'livre') {
+      const reservasAbertas = (Array.isArray(reservas) ? reservas : []).filter((reserva) => {
+        return String(reserva.quarto_id) === String(id) &&
+          !reserva.checkout &&
+          reserva.status !== 'finalizada' &&
+          reserva.status !== 'cancelada'
+      })
+
+      if (reservasAbertas.length > 0) {
+        const idsReservasAbertas = reservasAbertas.map((reserva) => reserva.id)
+
+        const { error: erroReservas } = await supabase
+          .from('reservas')
+          .update({
+            checkout: true,
+            status: 'finalizada',
+            observacao_checkout: 'Quarto liberado manualmente. Conta encerrada automaticamente.'
+          })
+          .in('id', idsReservasAbertas)
+
+        if (erroReservas) {
+          alert('Quarto liberado, mas houve erro ao encerrar a conta da reserva')
+          console.log(erroReservas)
+        }
+      }
+    }
+
     carregarQuartos()
+    carregarReservas()
   }
 
   function calcularDiarias() {
@@ -916,7 +953,7 @@ function App() {
 
   async function lancarConsumo() {
     if (!reservaContaId || !descricaoConsumo || !valorConsumo) {
-      alert('Selecione a reserva, informe a descrição e o valor do consumo')
+      mostrarAviso('Selecione uma reserva e informe descrição e valor do consumo.', 'erro')
       return
     }
 
@@ -927,7 +964,7 @@ function App() {
     })
 
     if (error) {
-      alert('Erro ao lançar consumo')
+      mostrarAviso('Erro ao lançar consumo. Tente novamente.', 'erro')
       console.log(error)
       return
     }
@@ -935,12 +972,12 @@ function App() {
     setDescricaoConsumo('')
     setValorConsumo('')
     carregarConsumos()
-    alert('Consumo lançado com sucesso')
+    mostrarAviso('Consumo lançado na conta da reserva.', 'sucesso')
   }
 
   async function registrarPagamento() {
     if (!reservaContaId || !valorPagamento || !formaPagamento) {
-      alert('Selecione a reserva, informe o valor e a forma de pagamento')
+      mostrarAviso('Selecione a reserva, informe o valor e a forma de pagamento.', 'erro')
       return
     }
 
@@ -951,7 +988,7 @@ function App() {
     })
 
     if (error) {
-      alert('Erro ao registrar pagamento')
+      mostrarAviso('Erro ao registrar pagamento. Tente novamente.', 'erro')
       console.log(error)
       return
     }
@@ -973,7 +1010,7 @@ function App() {
     setFormaPagamento('Dinheiro')
     carregarPagamentos()
     carregarCaixa()
-    alert('Pagamento registrado com sucesso')
+    mostrarAviso('Pagamento registrado com sucesso.', 'sucesso')
   }
 
   function totalConsumosReserva(reservaId) {
@@ -986,6 +1023,22 @@ function App() {
     return pagamentos
       .filter((pagamento) => pagamento.reserva_id === reservaId)
       .reduce((total, pagamento) => total + Number(pagamento.valor || 0), 0)
+  }
+
+  function reservaEncerrada(reserva) {
+    return Boolean(reserva?.checkout) ||
+      reserva?.status === 'finalizada' ||
+      reserva?.status === 'cancelada'
+  }
+
+  function calcularSaldoReserva(reserva) {
+    if (!reserva || reservaEncerrada(reserva)) return 0
+
+    const totalReserva = Number(reserva.valor_total || 0)
+    const totalConsumos = totalConsumosReserva(reserva.id)
+    const totalPagamentos = totalPagamentosReserva(reserva.id)
+
+    return Math.max(0, totalReserva + totalConsumos - totalPagamentos)
   }
 
   function formatarMoeda(valor) {
@@ -1010,6 +1063,29 @@ function App() {
     ).length
   }
 
+  function obterDataLocalISO(data = new Date()) {
+    const ano = data.getFullYear()
+    const mes = String(data.getMonth() + 1).padStart(2, '0')
+    const dia = String(data.getDate()).padStart(2, '0')
+
+    return `${ano}-${mes}-${dia}`
+  }
+
+  function obterDataPagamento(pagamento) {
+    return String(
+      pagamento?.data_pagamento ||
+      pagamento?.criado_em ||
+      pagamento?.created_at ||
+      ''
+    ).slice(0, 10)
+  }
+
+  function dataRelativaISO(dias) {
+    const data = new Date()
+    data.setDate(data.getDate() + dias)
+    return obterDataLocalISO(data)
+  }
+
   function faturamentoTotal() {
     return pagamentos.reduce(
       (total, pagamento) =>
@@ -1018,16 +1094,35 @@ function App() {
     )
   }
 
+  function faturamentoPorData(dataReferencia) {
+    return (Array.isArray(pagamentos) ? pagamentos : [])
+      .filter((pagamento) => obterDataPagamento(pagamento) === dataReferencia)
+      .reduce((total, pagamento) => total + Number(pagamento.valor || 0), 0)
+  }
+
+  function percentualReceitaDia(valorHoje, valorOntem) {
+    const hoje = Number(valorHoje || 0)
+    const ontem = Number(valorOntem || 0)
+
+    if (hoje <= 0 && ontem <= 0) return 0
+    if (hoje > 0 && ontem <= 0) return 100
+
+    return Math.round(((hoje - ontem) / ontem) * 100)
+  }
+
+  function percentualSeguro(valor, total) {
+    const numeroValor = Number(valor || 0)
+    const numeroTotal = Number(total || 0)
+
+    if (numeroTotal <= 0) return 0
+
+    const percentual = Math.round((numeroValor / numeroTotal) * 100)
+
+    return Math.min(100, Math.max(0, percentual))
+  }
+
   function ocupacaoPercentual() {
-    if (quartos.length === 0) return 0
-
-    const ocupados =
-      totalQuartosStatus('ocupado') +
-      totalQuartosStatus('reservado')
-
-    return Math.round(
-      (ocupados / quartos.length) * 100
-    )
+    return percentualSeguro(totalQuartosStatus('ocupado'), quartos.length)
   }
 
   useEffect(() => {
@@ -1137,13 +1232,165 @@ function App() {
   }
 
   const proximasReservas = reservas.slice(0, 5)
-  const totalQuartos = quartos.length || 1
+  const totalQuartosReal = quartos.length
+  const totalQuartos = totalQuartosReal || 1
   const ocupados = totalQuartosStatus('ocupado')
+  const reservados = totalQuartosStatus('reservado')
   const disponiveis = totalQuartosStatus('livre')
   const percentualOcupacao = ocupacaoPercentual()
+  const percentualHospedes = percentualSeguro(
+    reservas.reduce((total, reserva) => total + Number(reserva.qtd_hospedes || 0), 0),
+    Math.max(totalQuartosReal * 4, 1)
+  )
+  const percentualReservasHoje = percentualSeguro(reservasHoje(), Math.max(reservas.length, 1))
+  const percentualCheckouts = percentualSeguro(
+    reservas.filter((reserva) => reserva.checkout).length,
+    Math.max(reservas.length, 1)
+  )
+  const receitaHoje = faturamentoPorData(obterDataLocalISO())
+  const receitaOntem = faturamentoPorData(dataRelativaISO(-1))
+  const percentualReceitaHoje = percentualReceitaDia(receitaHoje, receitaOntem)
+  const receitaSubiu = percentualReceitaHoje >= 0
+  const reservaContaSelecionada = reservas.find((reserva) => String(reserva.id) === String(reservaContaId))
+  const totalDiariasConta = Number(reservaContaSelecionada?.valor_total || 0)
+  const totalConsumosConta = reservaContaSelecionada ? totalConsumosReserva(reservaContaSelecionada.id) : 0
+  const totalPagamentosConta = reservaContaSelecionada ? totalPagamentosReserva(reservaContaSelecionada.id) : 0
+  const saldoContaSelecionada = reservaContaSelecionada ? calcularSaldoReserva(reservaContaSelecionada) : 0
+  const reservaCentralSelecionada = (Array.isArray(reservas) ? reservas : []).find((reserva) => String(reserva.id) === String(centralReservaId))
+  const totalDiariasCentral = Number(reservaCentralSelecionada?.valor_total || 0)
+  const totalConsumosCentral = reservaCentralSelecionada ? totalConsumosReserva(reservaCentralSelecionada.id) : 0
+  const totalPagamentosCentral = reservaCentralSelecionada ? totalPagamentosReserva(reservaCentralSelecionada.id) : 0
+  const saldoCentralSelecionada = reservaCentralSelecionada ? calcularSaldoReserva(reservaCentralSelecionada) : 0
+
+
+  function calcularNoitesReserva(reserva) {
+    if (!reserva?.data_entrada || !reserva?.data_saida) return 1
+
+    const entrada = new Date(`${reserva.data_entrada}T12:00:00`)
+    const saida = new Date(`${reserva.data_saida}T12:00:00`)
+    const dias = Math.round((saida - entrada) / (1000 * 60 * 60 * 24))
+
+    return Math.max(1, dias || 1)
+  }
+
+  function formatarDataCurta(dataISO) {
+    if (!dataISO) return '-'
+    const partes = String(dataISO).slice(0, 10).split('-')
+    if (partes.length !== 3) return dataISO
+    return `${partes[2]}/${partes[1]}/${partes[0].slice(2)}`
+  }
+
+  function gerarLinhasContaReserva(reserva) {
+    if (!reserva) return []
+
+    const noites = calcularNoitesReserva(reserva)
+    const valorDiaria = Number(reserva.valor_total || 0) / noites
+    const linhasDiarias = []
+
+    if (reserva.data_entrada) {
+      const dataBase = new Date(`${reserva.data_entrada}T12:00:00`)
+      for (let indice = 0; indice < noites; indice++) {
+        const dataLinha = new Date(dataBase)
+        dataLinha.setDate(dataBase.getDate() + indice)
+        linhasDiarias.push({
+          tipo: 'despesa',
+          data: obterDataLocalISO(dataLinha),
+          produto: `${indice + 1} - Diária`,
+          quantidade: 1,
+          valor: valorDiaria
+        })
+      }
+    } else if (Number(reserva.valor_total || 0) > 0) {
+      linhasDiarias.push({
+        tipo: 'despesa',
+        data: '',
+        produto: '1 - Diária',
+        quantidade: 1,
+        valor: Number(reserva.valor_total || 0)
+      })
+    }
+
+    const linhasConsumo = consumos
+      .filter((consumo) => consumo.reserva_id === reserva.id)
+      .map((consumo, indice) => ({
+        tipo: 'despesa',
+        data: String(consumo.criado_em || consumo.created_at || '').slice(0, 10),
+        produto: `${100 + indice} - ${consumo.descricao || 'Consumo'}`,
+        quantidade: 1,
+        valor: Number(consumo.valor || 0)
+      }))
+
+    const linhasPagamento = pagamentos
+      .filter((pagamento) => pagamento.reserva_id === reserva.id)
+      .map((pagamento, indice) => ({
+        tipo: 'pagamento',
+        data: obterDataPagamento(pagamento),
+        produto: `${300 + indice} - ${pagamento.forma_pagamento || 'Pagamento'} recebido`,
+        quantidade: 1,
+        valor: -Math.abs(Number(pagamento.valor || 0))
+      }))
+
+    return [...linhasDiarias, ...linhasConsumo, ...linhasPagamento]
+  }
+
+
+  function abrirCentralReserva(reserva) {
+    if (!reserva) return
+    setCentralReservaId(reserva.id)
+    setReservaContaId(reserva.id)
+    setTelaAtiva('operacao')
+  }
+
+  function abrirCentralQuarto(quarto) {
+    const reserva = reservaAbertaDoQuarto(quarto.id)
+    if (reserva) {
+      abrirCentralReserva(reserva)
+      return
+    }
+
+    setQuartoId(quarto.id)
+    setTelaAtiva('reservas')
+  }
+
+  function statusOperacionalReserva(reserva) {
+    if (!reserva) return 'Livre'
+    if (reserva.checkout) return 'Check-out finalizado'
+    if (reserva.checkin) return calcularSaldoReserva(reserva) > 0 ? 'Hospedado com saldo' : 'Hospedado pago'
+    return 'Reservado aguardando check-in'
+  }
+
+  function alertasOperacionais() {
+    const hoje = obterDataLocalISO()
+    const lista = []
+
+    ;(Array.isArray(reservas) ? reservas : []).forEach((reserva) => {
+      const saldo = calcularSaldoReserva(reserva)
+
+      if (!reserva.checkout && reserva.data_saida === hoje) {
+        lista.push({ tipo: 'checkout', titulo: 'Check-out hoje', detalhe: `${reserva.nome_hospede || 'Hóspede'} - Quarto ${reserva.quartos?.numero || '-'}`, reserva })
+      }
+
+      if (!reserva.checkout && saldo > 0) {
+        lista.push({ tipo: 'saldo', titulo: 'Saldo pendente', detalhe: `${reserva.nome_hospede || 'Hóspede'} deve ${formatarMoeda(saldo)}`, reserva })
+      }
+
+      if (!reserva.checkout && reserva.data_saida && reserva.data_saida < hoje) {
+        lista.push({ tipo: 'vencida', titulo: 'Reserva vencida', detalhe: `${reserva.nome_hospede || 'Hóspede'} passou da saída prevista`, reserva })
+      }
+    })
+
+    ;(Array.isArray(quartos) ? quartos : []).forEach((quarto) => {
+      if (quarto.status === 'limpeza') {
+        lista.push({ tipo: 'limpeza', titulo: 'Quarto em limpeza', detalhe: `Quarto ${quarto.numero || '-'} aguardando liberação`, quarto })
+      }
+    })
+
+    return lista.slice(0, 12)
+  }
 
   function tituloTela() {
     if (telaAtiva === 'dashboard') return 'Dashboard'
+    if (telaAtiva === 'operacao') return 'Operação Hotel'
     if (telaAtiva === 'reservas') return 'Reservas'
     if (telaAtiva === 'recepcao') return 'Check-in / Check-out'
     if (telaAtiva === 'financeiro') return 'Financeiro'
@@ -1159,6 +1406,7 @@ function App() {
 
   function subtituloTela() {
     if (telaAtiva === 'dashboard') return 'Visão geral do hotel'
+    if (telaAtiva === 'operacao') return 'Central operacional com quartos, reservas, conta, saldo e alertas'
     if (telaAtiva === 'reservas') return 'Gerenciamento de reservas'
     if (telaAtiva === 'recepcao') return 'Entrada, saída e quartos'
     if (telaAtiva === 'financeiro') return 'Recebimentos e contas'
@@ -1416,7 +1664,7 @@ function App() {
       })
 
     if (erroConsumo) {
-      alert('Erro ao lançar consumo')
+      mostrarAviso('Erro ao lançar consumo. Tente novamente.', 'erro')
       console.log(erroConsumo)
       return
     }
@@ -1528,9 +1776,738 @@ function App() {
     )
   }
 
+  function renderizarQuartosOperacionalPorAndar(andar) {
+    const quartosDoAndar = quartos.filter((quarto) => quarto.andar === andar)
+
+    return (
+      <div className="operacional-andar" key={`operacional-${andar}`}>
+        <div className="andar-cabecalho operacional-cabecalho">
+          <h2>{andar}</h2>
+          <span>{quartosDoAndar.length} quarto{quartosDoAndar.length === 1 ? '' : 's'}</span>
+        </div>
+
+        <div className="operacional-grid">
+          {quartosDoAndar.map((quarto) => {
+            const reservaAtual = reservaAbertaDoQuarto(quarto.id)
+            const saldoAtual = reservaAtual ? calcularSaldoReserva(reservaAtual) : 0
+            const consumoAberto = totalConsumoAbertoQuarto(quarto.id)
+            const statusAtual = quarto.status || 'livre'
+
+            return (
+              <div key={quarto.id} className={`operacional-card ${statusAtual}`}>
+                <div className="operacional-card-topo">
+                  <div>
+                    <span className="operacional-label">Quarto</span>
+                    <h3>{quarto.numero}</h3>
+                  </div>
+
+                  <span className={`status-quarto ${statusAtual}`}>{statusAtual}</span>
+                </div>
+
+                <div className="operacional-info">
+                  <p><strong>Tipo:</strong> {quarto.tipo || 'A definir'}</p>
+                  <p><strong>Diária:</strong> {formatarMoeda(quarto.valor_diaria)}</p>
+
+                  {reservaAtual ? (
+                    <>
+                      <p><strong>Hóspede:</strong> {reservaAtual.nome_hospede || 'Hóspede'}</p>
+                      <p><strong>Período:</strong> {reservaAtual.data_entrada || '-'} até {reservaAtual.data_saida || '-'}</p>
+                      <p><strong>Saldo:</strong> <span className={saldoAtual > 0 ? 'saldo-alerta' : 'saldo-ok'}>{formatarMoeda(saldoAtual)}</span></p>
+                      {consumoAberto > 0 && <p><strong>Consumo aberto:</strong> {formatarMoeda(consumoAberto)}</p>}
+                    </>
+                  ) : (
+                    <p className="operacional-vazio">Sem hóspede vinculado no momento.</p>
+                  )}
+                </div>
+
+                <div className="operacional-acoes">
+                  {reservaAtual && !reservaAtual.checkin && !reservaAtual.checkout && (
+                    <button className="acao-primaria" onClick={() => fazerCheckin(reservaAtual)}>Fazer check-in</button>
+                  )}
+
+                  {reservaAtual && reservaAtual.checkin && !reservaAtual.checkout && (
+                    <button className="acao-perigo" onClick={() => fazerCheckout(reservaAtual)}>Fazer check-out</button>
+                  )}
+
+                  {!reservaAtual && (
+                    <button className="acao-primaria" onClick={() => setTelaAtiva('reservas')}>Criar reserva</button>
+                  )}
+
+                  <button onClick={() => alterarStatus(quarto.id, 'livre')}>Livre</button>
+                  <button onClick={() => alterarStatus(quarto.id, 'limpeza')}>Limpeza</button>
+                </div>
+              </div>
+            )
+          })}
+
+          {quartosDoAndar.length === 0 && (
+            <p className="sem-quartos">Nenhum quarto cadastrado neste andar.</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+
 
   return (
     <div className="hotel-layout">
+      <style>{`
+        .operacional-resumo {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+          gap: 16px;
+          margin-bottom: 18px;
+        }
+
+        .operacional-resumo-card {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 18px;
+          padding: 18px;
+          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+          border-left: 7px solid #2563eb;
+        }
+
+        .operacional-resumo-card span,
+        .operacional-label {
+          display: block;
+          color: #64748b;
+          font-size: 13px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: .04em;
+        }
+
+        .operacional-resumo-card strong {
+          display: block;
+          color: #0f172a;
+          font-size: 34px;
+          margin: 6px 0 2px;
+        }
+
+        .operacional-resumo-card small {
+          color: #64748b;
+          font-weight: 700;
+        }
+
+        .operacional-resumo-card.livre { border-left-color: #16a34a; }
+        .operacional-resumo-card.ocupado { border-left-color: #dc2626; }
+        .operacional-resumo-card.reservado { border-left-color: #f59e0b; }
+        .operacional-resumo-card.limpeza { border-left-color: #7c3aed; }
+
+        .panel-subtitle {
+          margin: 6px 0 0;
+          color: #64748b;
+          font-weight: 600;
+        }
+
+        .operacional-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+          gap: 16px;
+        }
+
+        .operacional-card {
+          background: linear-gradient(180deg, #ffffff, #f8fafc);
+          border: 1px solid #e5e7eb;
+          border-left: 8px solid #2563eb;
+          border-radius: 18px;
+          padding: 18px;
+          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .operacional-card.livre { border-left-color: #16a34a; }
+        .operacional-card.ocupado { border-left-color: #dc2626; }
+        .operacional-card.reservado { border-left-color: #f59e0b; }
+        .operacional-card.limpeza { border-left-color: #7c3aed; }
+
+        .operacional-card-topo {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 14px;
+        }
+
+        .operacional-card h3 {
+          margin: 2px 0 0;
+          color: #020617;
+          font-size: 28px;
+        }
+
+        .operacional-info {
+          background: #f1f5f9;
+          border-radius: 14px;
+          padding: 12px;
+          min-height: 142px;
+        }
+
+        .operacional-info p {
+          margin: 0 0 8px;
+          color: #334155;
+        }
+
+        .operacional-vazio {
+          color: #64748b !important;
+          font-weight: 700;
+        }
+
+        .saldo-alerta {
+          color: #dc2626;
+          font-weight: 900;
+        }
+
+        .saldo-ok {
+          color: #16a34a;
+          font-weight: 900;
+        }
+
+        .operacional-acoes {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 14px;
+        }
+
+        .operacional-acoes button {
+          border: 0;
+          border-radius: 10px;
+          padding: 10px 12px;
+          background: #e2e8f0;
+          color: #0f172a;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .operacional-acoes .acao-primaria {
+          background: #2563eb;
+          color: #ffffff;
+        }
+
+        .operacional-acoes .acao-perigo {
+          background: #dc2626;
+          color: #ffffff;
+        }
+
+
+        .central-modal-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 9998;
+          background: rgba(15, 23, 42, 0.55);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+        }
+
+        .central-modal {
+          width: min(1180px, 100%);
+          max-height: 92vh;
+          overflow: auto;
+          background: #f8fafc;
+          border-radius: 24px;
+          box-shadow: 0 30px 90px rgba(2, 6, 23, 0.35);
+          border: 1px solid #e2e8f0;
+        }
+
+        .central-modal-header {
+          position: sticky;
+          top: 0;
+          z-index: 2;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 20px 22px;
+          background: linear-gradient(135deg, #0f172a, #1d4ed8);
+          color: #ffffff;
+        }
+
+        .central-modal-header h2 { margin: 0; font-size: 24px; }
+        .central-modal-header p { margin: 4px 0 0; color: rgba(255,255,255,0.78); }
+        .central-modal-header button { border: 0; border-radius: 12px; background: rgba(255,255,255,0.16); color: #fff; padding: 10px 14px; font-weight: 900; cursor: pointer; }
+
+        .central-modal-body {
+          display: grid;
+          grid-template-columns: 1.25fr 0.75fr;
+          gap: 18px;
+          padding: 18px;
+        }
+
+        .central-card {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 18px;
+          padding: 16px;
+          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+          margin-bottom: 14px;
+        }
+
+        .central-card h3 { margin: 0 0 12px; color: #0f172a; }
+        .central-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+        .central-info { padding: 12px; border-radius: 14px; background: #f1f5f9; }
+        .central-info span { display: block; font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 900; }
+        .central-info strong { display: block; margin-top: 4px; color: #0f172a; }
+
+        .central-resumo-lateral {
+          position: sticky;
+          top: 88px;
+          align-self: start;
+        }
+
+        .central-total-box {
+          border-radius: 22px;
+          padding: 20px;
+          color: #ffffff;
+          background: linear-gradient(135deg, #1e3a8a, #2563eb);
+          box-shadow: 0 18px 40px rgba(37, 99, 235, 0.28);
+        }
+
+        .central-total-box span { display: block; color: rgba(255,255,255,0.78); font-weight: 800; }
+        .central-total-box strong { display: block; font-size: 32px; margin: 6px 0 14px; }
+        .central-total-row { display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.18); padding-top: 10px; margin-top: 10px; }
+
+        .central-acoes-rapidas { display: grid; gap: 10px; margin-top: 14px; }
+        .central-acoes-rapidas button { border: 0; border-radius: 14px; padding: 12px; font-weight: 900; cursor: pointer; background: #e2e8f0; color: #0f172a; }
+        .central-acoes-rapidas .primary { background: #16a34a; color: #fff; }
+        .central-acoes-rapidas .danger { background: #dc2626; color: #fff; }
+        .central-acoes-rapidas .blue { background: #2563eb; color: #fff; }
+
+        .operacao-alertas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .operacao-alerta { border: 0; text-align: left; background: #ffffff; border-left: 7px solid #f59e0b; border-radius: 16px; padding: 14px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); cursor: pointer; }
+        .operacao-alerta.saldo { border-left-color: #dc2626; }
+        .operacao-alerta.checkout { border-left-color: #2563eb; }
+        .operacao-alerta.vencida { border-left-color: #7f1d1d; }
+        .operacao-alerta.limpeza { border-left-color: #7c3aed; }
+        .operacao-alerta strong { display: block; color: #0f172a; margin-bottom: 4px; }
+        .operacao-alerta span { color: #64748b; font-weight: 700; }
+
+        .operacao-quarto-card { cursor: pointer; }
+        .operacao-quarto-card:hover { transform: translateY(-2px); box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12); }
+
+        .central-mini-form { display: grid; grid-template-columns: 1fr 150px auto; gap: 10px; margin-top: 10px; }
+        .central-mini-form input, .central-mini-form select { width: 100%; min-height: 40px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 0 10px; }
+        .central-mini-form button { border: 0; border-radius: 12px; background: #2563eb; color: #fff; font-weight: 900; padding: 0 14px; cursor: pointer; }
+
+        @media (max-width: 980px) {
+          .central-modal-body { grid-template-columns: 1fr; }
+          .central-resumo-lateral { position: static; }
+          .central-mini-form { grid-template-columns: 1fr; }
+        }
+
+        .toast-cronos {
+          position: fixed;
+          top: 22px;
+          right: 24px;
+          z-index: 9999;
+          min-width: 320px;
+          max-width: 430px;
+          padding: 16px 18px;
+          border-radius: 18px;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          animation: toastEntrada 0.22s ease-out;
+        }
+
+        .toast-cronos.sucesso { border-left: 7px solid #16a34a; }
+        .toast-cronos.erro { border-left: 7px solid #dc2626; }
+        .toast-cronos.info { border-left: 7px solid #2563eb; }
+
+        .toast-icone {
+          width: 32px;
+          height: 32px;
+          border-radius: 999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 900;
+          color: #ffffff;
+          background: #2563eb;
+          flex: 0 0 auto;
+        }
+
+        .toast-cronos.sucesso .toast-icone { background: #16a34a; }
+        .toast-cronos.erro .toast-icone { background: #dc2626; }
+
+        .toast-conteudo strong {
+          display: block;
+          font-size: 15px;
+          margin-bottom: 3px;
+          color: #0f172a;
+        }
+
+        .toast-conteudo span {
+          display: block;
+          font-size: 14px;
+          color: #475569;
+          line-height: 1.35;
+        }
+
+        @keyframes toastEntrada {
+          from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .financeiro-facil-grid {
+          display: grid;
+          grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.6fr);
+          gap: 18px;
+          align-items: stretch;
+        }
+
+        .financeiro-card {
+          border: 1px solid #e5e7eb;
+          border-radius: 22px;
+          padding: 18px;
+          background: #f8fafc;
+        }
+
+        .financeiro-card h3 { margin: 0 0 4px; }
+        .financeiro-card p { margin: 0 0 14px; color: #64748b; }
+
+        .financeiro-conta-resumo {
+          background: linear-gradient(135deg, #1d4ed8, #2563eb);
+          color: #ffffff;
+          border-radius: 22px;
+          padding: 20px;
+          box-shadow: 0 18px 40px rgba(37, 99, 235, 0.22);
+        }
+
+        .financeiro-conta-resumo .muted { color: rgba(255,255,255,0.78); }
+        .financeiro-conta-resumo h3 { margin: 6px 0 12px; font-size: 24px; }
+
+        .financeiro-resumo-linhas {
+          display: grid;
+          gap: 10px;
+          margin-top: 16px;
+        }
+
+        .financeiro-resumo-linhas div {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 10px 12px;
+          border-radius: 14px;
+          background: rgba(255,255,255,0.12);
+        }
+
+        .saldo-grande {
+          font-size: 30px;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+        }
+
+        .financeiro-acoes {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 14px;
+        }
+
+        .financeiro-form-simples {
+          display: grid;
+          gap: 10px;
+        }
+
+        .financeiro-form-simples button,
+        .financeiro-form-simples select,
+        .financeiro-form-simples input {
+          width: 100%;
+        }
+
+        .financeiro-dica {
+          margin-top: 12px;
+          padding: 12px 14px;
+          border-radius: 16px;
+          background: #eff6ff;
+          color: #1d4ed8;
+          font-weight: 700;
+          font-size: 13px;
+        }
+
+        @media (max-width: 980px) {
+          .financeiro-facil-grid,
+          .financeiro-acoes {
+            grid-template-columns: 1fr;
+          }
+        }
+
+
+
+        .fasthotel-window {
+          background: #f3f0df;
+          border: 1px solid #9ca3af;
+          box-shadow: 0 14px 36px rgba(15, 23, 42, 0.16);
+          margin-bottom: 18px;
+          font-size: 14px;
+        }
+
+        .fasthotel-titlebar {
+          height: 44px;
+          background: linear-gradient(180deg, #eef2ff 0%, #dbe4f0 100%);
+          border-bottom: 1px solid #9ca3af;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 14px;
+          color: #111827;
+          font-size: 18px;
+        }
+
+        .fasthotel-window-actions {
+          display: flex;
+          gap: 5px;
+        }
+
+        .fasthotel-window-actions button {
+          width: 25px;
+          height: 25px;
+          border-radius: 4px;
+          border: 1px solid #6b7280;
+          background: #584a3f;
+          color: #ffffff;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .fasthotel-toolbar {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 12px;
+          padding: 10px 14px;
+          border-bottom: 1px solid #c7c7b4;
+          color: #111827;
+          flex-wrap: wrap;
+        }
+
+        .fasthotel-toolbar label {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 13px;
+          color: #111827;
+        }
+
+        .fasthotel-toolbar input[type="checkbox"] {
+          width: 20px;
+          height: 20px;
+          accent-color: #65518f;
+        }
+
+        .fasthotel-link {
+          margin-right: auto;
+          background: transparent;
+          border: 0;
+          color: #334155;
+          text-decoration: underline;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .fasthotel-reserva-select {
+          display: grid;
+          grid-template-columns: 140px 1fr;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 14px;
+          background: #f6f2dc;
+          border-bottom: 1px solid #c7c7b4;
+        }
+
+        .fasthotel-reserva-select span {
+          font-weight: 800;
+          color: #111827;
+        }
+
+        .fasthotel-reserva-select select,
+        .fasthotel-mini-form input,
+        .fasthotel-mini-form select {
+          border: 1px solid #9ca3af;
+          border-radius: 3px;
+          min-height: 36px;
+          padding: 0 10px;
+          background: #ffffff;
+          color: #111827;
+        }
+
+        .fasthotel-account-box {
+          margin: 12px 14px 18px;
+          border: 1px solid #79808a;
+          background: #fffdee;
+        }
+
+        .fasthotel-account-header {
+          background: #b5b2bd;
+          border-bottom: 1px solid #7f7b88;
+          padding: 10px 14px;
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .fasthotel-account-header h2 {
+          margin: 0 0 8px;
+          font-size: 22px;
+          color: #3f3a46;
+        }
+
+        .fasthotel-account-header h2 span {
+          font-weight: 500;
+        }
+
+        .fasthotel-meta {
+          display: flex;
+          gap: 18px;
+          flex-wrap: wrap;
+          font-size: 13px;
+          color: #1f2937;
+        }
+
+        .checkedin-pill {
+          background: #3b39e6;
+          color: #ffffff;
+          padding: 6px 18px;
+          border-radius: 999px;
+          font-weight: 800;
+          white-space: nowrap;
+        }
+
+        .fasthotel-table-wrap {
+          padding: 10px 10px 0;
+          overflow-x: auto;
+        }
+
+        .fasthotel-table {
+          width: 100%;
+          border-collapse: collapse;
+          min-width: 760px;
+          font-size: 13px;
+        }
+
+        .fasthotel-table th {
+          background: #65518f;
+          color: #ffffff;
+          text-align: left;
+          padding: 7px 8px;
+          border-right: 1px solid rgba(255,255,255,0.18);
+        }
+
+        .fasthotel-table td {
+          padding: 7px 8px;
+          border: 1px solid #c9c4a9;
+          background: #f9f5dc;
+          color: #111827;
+        }
+
+        .fasthotel-table tr:nth-child(even) td {
+          background: #ebe7cd;
+        }
+
+        .fasthotel-table .payment-line td {
+          background: #dbeafe;
+        }
+
+        .fasthotel-table tfoot td {
+          background: #65518f !important;
+          color: #ffffff;
+          font-weight: 900;
+        }
+
+        .delete-line {
+          color: #b91c1c !important;
+          font-weight: 900;
+          text-align: center;
+        }
+
+        .fasthotel-summary-row {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          flex-wrap: wrap;
+          padding: 10px;
+          color: #111827;
+        }
+
+        .fasthotel-summary-row strong {
+          margin-right: 8px;
+        }
+
+        .dark-action,
+        .light-action,
+        .fasthotel-mini-form button {
+          min-height: 36px;
+          border-radius: 3px;
+          padding: 0 18px;
+          border: 1px solid #6b7280;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .dark-action {
+          background: #243c5a;
+          color: #ffffff;
+        }
+
+        .light-action {
+          background: #e5e7eb;
+          color: #111827;
+        }
+
+        .fasthotel-empty {
+          margin: 14px;
+          padding: 34px;
+          background: #fffdee;
+          border: 1px dashed #9ca3af;
+          color: #374151;
+          text-align: center;
+          font-weight: 700;
+        }
+
+        .fasthotel-dual-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+          gap: 18px;
+          margin-bottom: 18px;
+        }
+
+        .fasthotel-operation-panel h2 {
+          margin-bottom: 5px;
+        }
+
+        .fasthotel-mini-form {
+          display: grid;
+          grid-template-columns: 1fr 1fr auto;
+          gap: 10px;
+          margin-top: 16px;
+        }
+
+        .fasthotel-mini-form button {
+          background: #2563eb;
+          color: #ffffff;
+          border-color: #2563eb;
+        }
+
+        .fasthotel-mini-form button:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+        }
+
+        @media (max-width: 820px) {
+          .fasthotel-reserva-select,
+          .fasthotel-mini-form {
+            grid-template-columns: 1fr;
+          }
+        }
+
+      `}</style>
       <aside className="hotel-sidebar">
         <div className="hotel-brand">
           <div className="hotel-logo-icon">{icons.hotel}</div>
@@ -1543,6 +2520,10 @@ function App() {
         <nav className="hotel-menu">
           <button className={menuClasse('dashboard')} onClick={() => setTelaAtiva('dashboard')}>
             <span className="menu-icon">{icons.dashboard}</span> Dashboard
+          </button>
+
+          <button className={menuClasse('operacao')} onClick={() => setTelaAtiva('operacao')}>
+            <span className="menu-icon">{icons.check}</span> Operação Hotel
           </button>
 
           <button className={menuClasse('reservas')} onClick={() => setTelaAtiva('reservas')}>
@@ -1716,6 +2697,234 @@ function App() {
           </div>
         </header>
 
+        {reservaCentralSelecionada && (
+          <div className="central-modal-overlay">
+            <div className="central-modal">
+              <div className="central-modal-header">
+                <div>
+                  <h2>Central da Reserva - Quarto {reservaCentralSelecionada.quartos?.numero || '-'}</h2>
+                  <p>{reservaCentralSelecionada.nome_hospede || 'Hóspede'} • {statusOperacionalReserva(reservaCentralSelecionada)}</p>
+                </div>
+                <button onClick={() => setCentralReservaId('')}>Fechar ×</button>
+              </div>
+
+              <div className="central-modal-body">
+                <div>
+                  <div className="central-card">
+                    <h3>Dados da reserva</h3>
+                    <div className="central-grid">
+                      <div className="central-info"><span>Entrada</span><strong>{reservaCentralSelecionada.data_entrada || '-'}</strong></div>
+                      <div className="central-info"><span>Saída</span><strong>{reservaCentralSelecionada.data_saida || '-'}</strong></div>
+                      <div className="central-info"><span>Noites</span><strong>{calcularNoitesReserva(reservaCentralSelecionada)}</strong></div>
+                      <div className="central-info"><span>Canal</span><strong>{reservaCentralSelecionada.canal_venda || 'Direto'}</strong></div>
+                      <div className="central-info"><span>Telefone</span><strong>{reservaCentralSelecionada.telefone || '-'}</strong></div>
+                      <div className="central-info"><span>Status</span><strong>{statusOperacionalReserva(reservaCentralSelecionada)}</strong></div>
+                    </div>
+                  </div>
+
+                  <div className="central-card">
+                    <h3>Hóspedes</h3>
+                    <div className="central-grid">
+                      <div className="central-info"><span>Titular</span><strong>{reservaCentralSelecionada.nome_hospede || 'Hóspede'}</strong></div>
+                      <div className="central-info"><span>Quantidade</span><strong>{reservaCentralSelecionada.qtd_hospedes || 1}</strong></div>
+                      <div className="central-info"><span>Tipo</span><strong>{reservaCentralSelecionada.tipo_hospede || 'homem'}</strong></div>
+                    </div>
+                    <div style={{ marginTop: 12 }}>
+                      {Array.from({ length: Math.max(0, Number(reservaCentralSelecionada.qtd_hospedes || 1) - 1) }).map((_, index) => (
+                        <div className="central-info" key={`acompanhante-${index}`} style={{ marginTop: 8 }}>
+                          <span>Acompanhante {index + 1}</span>
+                          <strong>Pronto para cadastro completo em reserva_hospedes</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="central-card">
+                    <h3>Conta da reserva integrada</h3>
+                    <div className="fasthotel-table-wrap">
+                      <table className="fasthotel-table">
+                        <thead>
+                          <tr>
+                            <th>Tipo</th>
+                            <th>Data</th>
+                            <th>Descrição</th>
+                            <th>Qtd.</th>
+                            <th>Valor</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gerarLinhasContaReserva(reservaCentralSelecionada).map((linha, indice) => (
+                            <tr key={`central-linha-${indice}`} className={linha.tipo === 'pagamento' ? 'payment-line' : ''}>
+                              <td>{linha.tipo === 'pagamento' ? 'Pagamento' : 'Despesa'}</td>
+                              <td>{formatarDataCurta(linha.data)}</td>
+                              <td>{linha.produto}</td>
+                              <td>{linha.quantidade}</td>
+                              <td>{formatarMoeda(linha.valor)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="central-mini-form">
+                      <input placeholder="Produto/serviço/consumo" value={descricaoConsumo} onChange={(e) => setDescricaoConsumo(e.target.value)} />
+                      <input placeholder="Valor" type="number" value={valorConsumo} onChange={(e) => setValorConsumo(e.target.value)} />
+                      <button onClick={() => { setReservaContaId(reservaCentralSelecionada.id); setTimeout(() => lancarConsumo(), 0) }}>Adicionar</button>
+                    </div>
+
+                    <div className="central-mini-form">
+                      <select value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)}>
+                        <option>Dinheiro</option>
+                        <option>PIX</option>
+                        <option>Cartão de crédito</option>
+                        <option>Cartão de débito</option>
+                        <option>Transferência</option>
+                      </select>
+                      <input placeholder="Valor recebido" type="number" value={valorPagamento} onChange={(e) => setValorPagamento(e.target.value)} />
+                      <button onClick={() => { setReservaContaId(reservaCentralSelecionada.id); setTimeout(() => registrarPagamento(), 0) }}>Receber</button>
+                    </div>
+                  </div>
+
+                  <div className="central-card">
+                    <h3>Observações</h3>
+                    <p>{reservaCentralSelecionada.observacao || reservaCentralSelecionada.observacoes || 'Nenhuma observação cadastrada.'}</p>
+                  </div>
+                </div>
+
+                <aside className="central-resumo-lateral">
+                  <div className="central-total-box">
+                    <span>Saldo da reserva</span>
+                    <strong>{formatarMoeda(saldoCentralSelecionada)}</strong>
+                    <div className="central-total-row"><b>Diárias</b><b>{formatarMoeda(totalDiariasCentral)}</b></div>
+                    <div className="central-total-row"><b>Consumos</b><b>{formatarMoeda(totalConsumosCentral)}</b></div>
+                    <div className="central-total-row"><b>Recebido</b><b>{formatarMoeda(totalPagamentosCentral)}</b></div>
+                  </div>
+
+                  <div className="central-card">
+                    <h3>Fluxo operacional</h3>
+                    <div className="central-grid">
+                      <div className="central-info"><span>1</span><strong>Reservado</strong></div>
+                      <div className="central-info"><span>2</span><strong>Check-in</strong></div>
+                      <div className="central-info"><span>3</span><strong>Hospedado</strong></div>
+                      <div className="central-info"><span>4</span><strong>Pagamento</strong></div>
+                      <div className="central-info"><span>5</span><strong>Check-out</strong></div>
+                      <div className="central-info"><span>6</span><strong>Limpeza/Livre</strong></div>
+                    </div>
+                  </div>
+
+                  <div className="central-acoes-rapidas">
+                    {!reservaCentralSelecionada.checkin && !reservaCentralSelecionada.checkout && (
+                      <button className="primary" onClick={() => fazerCheckin(reservaCentralSelecionada)}>Fazer check-in</button>
+                    )}
+                    {reservaCentralSelecionada.checkin && !reservaCentralSelecionada.checkout && (
+                      <button className="danger" onClick={() => fazerCheckout(reservaCentralSelecionada)}>Fazer check-out</button>
+                    )}
+                    <button className="blue" onClick={() => { setReservaContaId(reservaCentralSelecionada.id); setTelaAtiva('financeiro'); setCentralReservaId('') }}>Abrir no financeiro</button>
+                    <button onClick={() => window.print()}>Imprimir conta</button>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+        {telaAtiva === 'operacao' && (
+          <>
+            <section className="operacional-resumo">
+              <div className="operacional-resumo-card livre"><span>Livres</span><strong>{disponiveis}</strong><small>Prontos para vender</small></div>
+              <div className="operacional-resumo-card reservado"><span>Reservados</span><strong>{reservados}</strong><small>Aguardando check-in</small></div>
+              <div className="operacional-resumo-card ocupado"><span>Ocupados</span><strong>{ocupados}</strong><small>Com hóspede ativo</small></div>
+              <div className="operacional-resumo-card limpeza"><span>Limpeza</span><strong>{totalQuartosStatus('limpeza')}</strong><small>Aguardando liberação</small></div>
+            </section>
+
+            <div className="white-panel">
+              <div className="panel-header">
+                <div>
+                  <h2>Alertas importantes</h2>
+                  <p className="panel-subtitle">Checkout hoje, saldo pendente, reserva vencida e limpeza pendente.</p>
+                </div>
+                <button onClick={() => setTelaAtiva('reservas')}>Nova reserva</button>
+              </div>
+
+              <div className="operacao-alertas-grid">
+                {alertasOperacionais().length === 0 && (
+                  <div className="operacao-alerta"><strong>Nenhum alerta agora</strong><span>Operação sem pendências críticas.</span></div>
+                )}
+                {alertasOperacionais().map((alerta, index) => (
+                  <button
+                    type="button"
+                    key={`alerta-operacional-${index}`}
+                    className={`operacao-alerta ${alerta.tipo}`}
+                    onClick={() => alerta.reserva ? abrirCentralReserva(alerta.reserva) : alerta.quarto ? abrirCentralQuarto(alerta.quarto) : null}
+                  >
+                    <strong>{alerta.titulo}</strong>
+                    <span>{alerta.detalhe}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="white-panel operacional-painel">
+              <div className="panel-header">
+                <div>
+                  <h2>Painel operacional dos quartos</h2>
+                  <p className="panel-subtitle">Clique em um quarto ocupado/reservado para abrir a Central da Reserva com conta, saldo, consumo e pagamento.</p>
+                </div>
+              </div>
+
+              <div className="quartos-andares operacional-andares">
+                {['Térreo', 'Andar 01', 'Andar 02', 'Andar 03', 'Andar 04'].map((andar) => {
+                  const quartosDoAndar = quartos.filter((quarto) => quarto.andar === andar)
+                  return (
+                    <div className="operacional-andar" key={`operacao-${andar}`}>
+                      <div className="andar-cabecalho operacional-cabecalho"><h2>{andar}</h2><span>{quartosDoAndar.length} quarto{quartosDoAndar.length === 1 ? '' : 's'}</span></div>
+                      <div className="operacional-grid">
+                        {quartosDoAndar.map((quarto) => {
+                          const reservaAtual = reservaAbertaDoQuarto(quarto.id)
+                          const saldoAtual = reservaAtual ? calcularSaldoReserva(reservaAtual) : 0
+                          const statusAtual = quarto.status || 'livre'
+                          return (
+                            <div key={quarto.id} className={`operacional-card operacao-quarto-card ${statusAtual}`} onClick={() => abrirCentralQuarto(quarto)}>
+                              <div className="operacional-card-topo">
+                                <div><span className="operacional-label">Quarto</span><h3>{quarto.numero}</h3></div>
+                                <span className={`status-quarto ${statusAtual}`}>{statusAtual}</span>
+                              </div>
+                              <div className="operacional-info">
+                                <p><strong>Tipo:</strong> {quarto.tipo || 'A definir'}</p>
+                                <p><strong>Diária:</strong> {formatarMoeda(quarto.valor_diaria)}</p>
+                                {reservaAtual ? (
+                                  <>
+                                    <p><strong>Hóspede:</strong> {reservaAtual.nome_hospede || 'Hóspede'}</p>
+                                    <p><strong>Saída:</strong> {reservaAtual.data_saida || '-'}</p>
+                                    <p><strong>Status:</strong> {statusOperacionalReserva(reservaAtual)}</p>
+                                    <p><strong>Saldo:</strong> <span className={saldoAtual > 0 ? 'saldo-alerta' : 'saldo-ok'}>{formatarMoeda(saldoAtual)}</span></p>
+                                  </>
+                                ) : (
+                                  <p className="operacional-vazio">Livre para nova reserva. Clique para pré-selecionar este quarto.</p>
+                                )}
+                              </div>
+                              <div className="operacional-acoes" onClick={(e) => e.stopPropagation()}>
+                                {reservaAtual ? (
+                                  <button className="acao-primaria" onClick={() => abrirCentralReserva(reservaAtual)}>Abrir Central</button>
+                                ) : (
+                                  <button className="acao-primaria" onClick={() => { setQuartoId(quarto.id); setTelaAtiva('reservas') }}>Nova reserva</button>
+                                )}
+                                <button onClick={() => alterarStatus(quarto.id, 'limpeza')}>Limpeza</button>
+                                <button onClick={() => alterarStatus(quarto.id, 'livre')}>Livre</button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
+
         {telaAtiva === 'dashboard' && (
           <>
             <section className="stats-grid">
@@ -1724,7 +2933,7 @@ function App() {
                 <div className="stat-info">
                   <span>Quartos ocupados</span>
                   <strong>{ocupados}</strong>
-                  <small>de {totalQuartos} quartos</small>
+                  <small>de {totalQuartosReal} quartos</small>
                   <div className="progress">
                     <div style={{ width: `${percentualOcupacao}%` }} />
                   </div>
@@ -1740,7 +2949,7 @@ function App() {
                   </strong>
                   <small>hóspedes no total</small>
                   <div className="progress">
-                    <div style={{ width: '48%' }} />
+                    <div style={{ width: `${percentualHospedes}%` }} />
                   </div>
                 </div>
               </div>
@@ -1752,7 +2961,7 @@ function App() {
                   <strong>{reservasHoje()}</strong>
                   <small>reservas</small>
                   <div className="progress">
-                    <div style={{ width: '45%' }} />
+                    <div style={{ width: `${percentualReservasHoje}%` }} />
                   </div>
                 </div>
               </div>
@@ -1766,7 +2975,7 @@ function App() {
                   </strong>
                   <small>reservas</small>
                   <div className="progress">
-                    <div style={{ width: '50%' }} />
+                    <div style={{ width: `${percentualCheckouts}%` }} />
                   </div>
                 </div>
               </div>
@@ -1841,6 +3050,7 @@ function App() {
 
                   <div className="legend">
                     <p><b className="dot blue-dot" /> Ocupados {ocupados}</p>
+                    <p><b className="dot gray-dot" /> Reservados {reservados}</p>
                     <p><b className="dot gray-dot" /> Disponíveis {disponiveis}</p>
                   </div>
                 </div>
@@ -1881,8 +3091,10 @@ function App() {
                 <h3>Receita do dia</h3>
 
                 <div className="revenue-value">
-                  {formatarMoeda(faturamentoTotal())}
-                  <small>↑ 12%</small>
+                  {formatarMoeda(receitaHoje)}
+                  <small className={receitaSubiu ? 'positive' : 'negative'}>
+                    {receitaSubiu ? '↑' : '↓'} {Math.abs(percentualReceitaHoje)}%
+                  </small>
                 </div>
 
                 <p>em relação a ontem</p>
@@ -2065,7 +3277,7 @@ function App() {
                   const valorReserva = Number(reserva?.valor_total || 0)
                   const consumoReserva = totalConsumosReserva(reserva.id)
                   const pagamentoReserva = totalPagamentosReserva(reserva.id)
-                  const saldoReserva = valorReserva + consumoReserva - pagamentoReserva
+                  const saldoReserva = calcularSaldoReserva(reserva)
 
                   return (
                     <div key={reserva.id} className="reservation-card">
@@ -2094,6 +3306,8 @@ function App() {
                       <p>Status: <strong>{reserva.status || 'reservado'}</strong></p>
 
                       <div className="button-row">
+                        <button onClick={() => abrirCentralReserva(reserva)}>Abrir Central da Reserva</button>
+
                         {!reserva.checkin && !reserva.checkout && (
                           <button onClick={() => fazerCheckin(reserva)}>
                             Check-in
@@ -2135,32 +3349,45 @@ function App() {
 
         {telaAtiva === 'recepcao' && (
           <>
-            {podeCadastrarQuarto() && (
-              <div className="white-panel">
-                <h2>Cadastrar Quarto</h2>
-
-                <div className="form-grid">
-                  <input placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value)} />
-                  <select value={andar} onChange={(e) => setAndar(e.target.value)}>
-                    <option>Térreo</option>
-                    <option>Andar 01</option>
-                    <option>Andar 02</option>
-                    <option>Andar 03</option>
-                    <option>Andar 04</option>
-                  </select>
-                  <input placeholder="Tipo" value={tipo} onChange={(e) => setTipo(e.target.value)} />
-                  <input placeholder="Valor diária" value={valor} onChange={(e) => setValor(e.target.value)} />
-                  <button onClick={salvarQuarto}>Salvar quarto</button>
-                </div>
+            <section className="operacional-resumo">
+              <div className="operacional-resumo-card livre">
+                <span>Livres</span>
+                <strong>{disponiveis}</strong>
+                <small>Prontos para vender</small>
               </div>
-            )}
 
-            <div className="white-panel">
-              <h2>Painel de Quartos</h2>
+              <div className="operacional-resumo-card ocupado">
+                <span>Ocupados</span>
+                <strong>{ocupados}</strong>
+                <small>Com hóspede ativo</small>
+              </div>
 
-              <div className="quartos-andares">
+              <div className="operacional-resumo-card reservado">
+                <span>Reservados</span>
+                <strong>{reservados}</strong>
+                <small>Aguardando check-in</small>
+              </div>
+
+              <div className="operacional-resumo-card limpeza">
+                <span>Limpeza</span>
+                <strong>{totalQuartosStatus('limpeza')}</strong>
+                <small>Indisponíveis no momento</small>
+              </div>
+            </section>
+
+            <div className="white-panel operacional-painel">
+              <div className="panel-header">
+                <div>
+                  <h2>Check-in / Check-out</h2>
+                  <p className="panel-subtitle">Painel operacional da recepção com hóspede, saldo e ações rápidas.</p>
+                </div>
+
+                <button onClick={() => setTelaAtiva('reservas')}>Nova reserva</button>
+              </div>
+
+              <div className="quartos-andares operacional-andares">
                 {['Térreo', 'Andar 01', 'Andar 02', 'Andar 03', 'Andar 04'].map((andar) =>
-                  renderizarQuartosPorAndar(andar)
+                  renderizarQuartosOperacionalPorAndar(andar)
                 )}
               </div>
             </div>
@@ -2169,85 +3396,137 @@ function App() {
 
         {telaAtiva === 'financeiro' && podeAcessarFinanceiro() && (
           <>
-            <div className="white-panel">
-              <h2>Conta da Reserva</h2>
+            <div className="fasthotel-window">
+              <div className="fasthotel-titlebar">
+                <strong>Conta da reserva {reservaContaSelecionada ? `#${String(reservaContaSelecionada.id).slice(0, 8)}` : ''}</strong>
+                <div className="fasthotel-window-actions">
+                  <button title="Bloquear">🔒</button>
+                  <button title="Ajuda">?</button>
+                  <button title="Fechar">×</button>
+                </div>
+              </div>
 
-              <div className="form-grid">
+              <div className="fasthotel-toolbar">
+                <button className="fasthotel-link" onClick={() => setTelaAtiva('reservas')}>Ir para reserva</button>
+                <label><input type="checkbox" /> Agrupar por produto</label>
+                <label><input type="checkbox" /> Ordenar por data</label>
+                <label><input type="checkbox" defaultChecked /> Ocultar estornados, transferidos ou zerados</label>
+              </div>
+
+              <div className="fasthotel-reserva-select">
+                <span>Reserva / quarto</span>
                 <select
                   value={reservaContaId}
                   onChange={(e) => setReservaContaId(e.target.value)}
                 >
-                  <option value="">Selecione uma reserva</option>
-                  {reservas.map((reserva) => (
-                    <option key={reserva.id} value={reserva.id}>
-                      {reserva.nome_hospede} - Quarto {reserva.quartos?.numero} - {reserva.status}
-                    </option>
-                  ))}
+                  <option value="">Selecione a reserva</option>
+                  {reservas
+                    .filter((reserva) => !reserva.checkout)
+                    .map((reserva) => (
+                      <option key={reserva.id} value={reserva.id}>
+                        Quarto {reserva.quartos?.numero || '-'} - {reserva.nome_hospede || 'Hóspede'} - {formatarMoeda(calcularSaldoReserva(reserva))}
+                      </option>
+                    ))}
                 </select>
-
-                <input
-                  placeholder="Descrição do consumo"
-                  value={descricaoConsumo}
-                  onChange={(e) => setDescricaoConsumo(e.target.value)}
-                />
-
-                <input
-                  placeholder="Valor do consumo"
-                  type="number"
-                  value={valorConsumo}
-                  onChange={(e) => setValorConsumo(e.target.value)}
-                />
-
-                <button onClick={lancarConsumo}>
-                  Lançar consumo
-                </button>
-
-                <input
-                  placeholder="Valor do pagamento"
-                  type="number"
-                  value={valorPagamento}
-                  onChange={(e) => setValorPagamento(e.target.value)}
-                />
-
-                <select
-                  value={formaPagamento}
-                  onChange={(e) => setFormaPagamento(e.target.value)}
-                >
-                  <option>Dinheiro</option>
-                  <option>PIX</option>
-                  <option>Cartão de crédito</option>
-                  <option>Cartão de débito</option>
-                  <option>Transferência</option>
-                </select>
-
-                <button onClick={registrarPagamento}>
-                  Registrar pagamento
-                </button>
               </div>
 
-              {reservaContaId && (
-                <div className="finance-detail">
-                  {reservas
-                    .filter((reserva) => reserva.id === reservaContaId)
-                    .map((reserva) => {
-                      const totalReserva = Number(reserva.valor_total || 0)
-                      const totalConsumos = totalConsumosReserva(reserva.id)
-                      const totalPagamentos = totalPagamentosReserva(reserva.id)
-                      const saldo = totalReserva + totalConsumos - totalPagamentos
+              {reservaContaSelecionada ? (
+                <div className="fasthotel-account-box">
+                  <div className="fasthotel-account-header">
+                    <div>
+                      <h2>⌄ Quarto {reservaContaSelecionada.quartos?.numero || '-'} <span>👤 {reservaContaSelecionada.nome_hospede || 'Hóspede'}</span></h2>
+                      <div className="fasthotel-meta">
+                        <b>Data:</b> {formatarDataCurta(reservaContaSelecionada.data_entrada)} 12:00:00 - {formatarDataCurta(reservaContaSelecionada.data_saida)} 11:59:00 ({calcularNoitesReserva(reservaContaSelecionada)} diárias)
+                        <b> Hóspedes:</b> {reservaContaSelecionada.qtd_hospedes || 1} / 0
+                        <b> Tipo de quarto contratado:</b> {reservaContaSelecionada.quartos?.tipo || 'A definir'}
+                        <b> Tipo de tarifa:</b> Tarifa Padrão
+                      </div>
+                    </div>
+                    <span className="checkedin-pill">{reservaContaSelecionada.checkin ? 'Checked-in' : 'Reservado'}</span>
+                  </div>
 
-                      return (
-                        <div key={reserva.id}>
-                          <h3>Conta de {reserva.nome_hospede}</h3>
-                          <p>Quarto: {reserva.quartos?.numero} - {reserva.quartos?.tipo}</p>
-                          <p>Diárias: {formatarMoeda(totalReserva)}</p>
-                          <p>Consumos: {formatarMoeda(totalConsumos)}</p>
-                          <p>Pagamentos: {formatarMoeda(totalPagamentos)}</p>
-                          <h3>Saldo: {formatarMoeda(saldo)}</h3>
-                        </div>
-                      )
-                    })}
+                  <div className="fasthotel-table-wrap">
+                    <table className="fasthotel-table">
+                      <thead>
+                        <tr>
+                          <th></th>
+                          <th>Item</th>
+                          <th>Data</th>
+                          <th>Produto</th>
+                          <th>Qtd.</th>
+                          <th>Preço Total (R$)</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gerarLinhasContaReserva(reservaContaSelecionada).map((linha, indice) => (
+                          <tr key={`${linha.produto}-${indice}`} className={linha.tipo === 'pagamento' ? 'payment-line' : ''}>
+                            <td><input type="checkbox" /></td>
+                            <td>{indice + 1}</td>
+                            <td>{formatarDataCurta(linha.data)}</td>
+                            <td>{linha.produto}</td>
+                            <td>{linha.quantidade}</td>
+                            <td>{formatarMoeda(linha.valor).replace('R$', '').trim()}</td>
+                            <td className="delete-line">×</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td colSpan="5">Total</td>
+                          <td>{formatarMoeda(saldoContaSelecionada).replace('R$', '').trim()}</td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  <div className="fasthotel-summary-row">
+                    <strong>Despesas: {formatarMoeda(totalDiariasConta + totalConsumosConta)}</strong>
+                    <strong>Recebido: {formatarMoeda(totalPagamentosConta)}</strong>
+                    <strong>Saldo: {formatarMoeda(saldoContaSelecionada)}</strong>
+                    <button className="dark-action">＋ Adicionar item</button>
+                    <button className="light-action">▣ Receber</button>
+                    <button className="light-action">⇄ Transferir</button>
+                    <button className="light-action" onClick={() => window.print()}>🖨 Imprimir</button>
+                  </div>
                 </div>
+              ) : (
+                <div className="fasthotel-empty">Selecione uma reserva para visualizar a conta igual ao modelo FastHotel.</div>
               )}
+            </div>
+
+            <div className="fasthotel-dual-grid">
+              <div className="white-panel fasthotel-operation-panel">
+                <h2>Receber pagamento</h2>
+                <p className="panel-subtitle">Selecione a conta acima, informe o valor e a forma de pagamento.</p>
+                <div className="fasthotel-mini-form">
+                  <input
+                    placeholder="Valor do pagamento"
+                    type="number"
+                    value={valorPagamento}
+                    onChange={(e) => setValorPagamento(e.target.value)}
+                  />
+                  <select value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)}>
+                    <option>Dinheiro</option>
+                    <option>PIX</option>
+                    <option>Cartão de crédito</option>
+                    <option>Cartão de débito</option>
+                    <option>Transferência</option>
+                  </select>
+                  <button onClick={registrarPagamento} disabled={!reservaContaId}>Receber</button>
+                </div>
+              </div>
+
+              <div className="white-panel fasthotel-operation-panel">
+                <h2>Adicionar item</h2>
+                <p className="panel-subtitle">Lance diária extra, frigobar, restaurante ou qualquer consumo.</p>
+                <div className="fasthotel-mini-form">
+                  <input placeholder="Produto / descrição" value={descricaoConsumo} onChange={(e) => setDescricaoConsumo(e.target.value)} />
+                  <input placeholder="Valor" type="number" value={valorConsumo} onChange={(e) => setValorConsumo(e.target.value)} />
+                  <button onClick={lancarConsumo} disabled={!reservaContaId}>Adicionar item</button>
+                </div>
+              </div>
             </div>
 
             {podeAcessarCaixa() && (
@@ -2258,67 +3537,29 @@ function App() {
                 </div>
 
                 <div className="form-grid">
-                  <select
-                    value={caixaTipo}
-                    onChange={(e) => setCaixaTipo(e.target.value)}
-                  >
+                  <select value={caixaTipo} onChange={(e) => setCaixaTipo(e.target.value)}>
                     <option value="entrada">Entrada</option>
                     <option value="saida">Saída</option>
                   </select>
-
-                  <input
-                    placeholder="Descrição"
-                    value={caixaDescricao}
-                    onChange={(e) => setCaixaDescricao(e.target.value)}
-                  />
-
-                  <input
-                    placeholder="Valor"
-                    type="number"
-                    value={caixaValor}
-                    onChange={(e) => setCaixaValor(e.target.value)}
-                  />
-
-                  <select
-                    value={caixaFormaPagamento}
-                    onChange={(e) => setCaixaFormaPagamento(e.target.value)}
-                  >
+                  <input placeholder="Descrição" value={caixaDescricao} onChange={(e) => setCaixaDescricao(e.target.value)} />
+                  <input placeholder="Valor" type="number" value={caixaValor} onChange={(e) => setCaixaValor(e.target.value)} />
+                  <select value={caixaFormaPagamento} onChange={(e) => setCaixaFormaPagamento(e.target.value)}>
                     <option>Dinheiro</option>
                     <option>PIX</option>
                     <option>Cartão de crédito</option>
                     <option>Cartão de débito</option>
                     <option>Transferência</option>
                   </select>
-
-                  <button onClick={lancarCaixa}>
-                    Lançar caixa
-                  </button>
+                  <button onClick={lancarCaixa}>Lançar caixa</button>
                 </div>
 
                 <table className="clean-table tabela-caixa">
-                  <thead>
-                    <tr>
-                      <th>Tipo</th>
-                      <th>Descrição</th>
-                      <th>Valor</th>
-                      <th>Forma</th>
-                    </tr>
-                  </thead>
-
+                  <thead><tr><th>Tipo</th><th>Descrição</th><th>Valor</th><th>Forma</th></tr></thead>
                   <tbody>
-                    {caixa.length === 0 && (
-                      <tr>
-                        <td colSpan="4">Nenhum lançamento no caixa</td>
-                      </tr>
-                    )}
-
+                    {caixa.length === 0 && <tr><td colSpan="4">Nenhum lançamento no caixa</td></tr>}
                     {caixa.slice(0, 8).map((item) => (
                       <tr key={item.id}>
-                        <td>
-                          <span className={item.tipo === 'entrada' ? 'status confirmed' : 'status pending'}>
-                            {item.tipo}
-                          </span>
-                        </td>
+                        <td><span className={item.tipo === 'entrada' ? 'status confirmed' : 'status pending'}>{item.tipo}</span></td>
                         <td>{item.descricao}</td>
                         <td>{formatarMoeda(item.valor)}</td>
                         <td>{item.forma_pagamento || '-'}</td>
@@ -2328,35 +3569,6 @@ function App() {
                 </table>
               </div>
             )}
-
-            <div className="stats-grid">
-              <div className="stat-card blue">
-                <div className="stat-info">
-                  <span>Total de Diárias</span>
-                  <strong>
-                    {formatarMoeda(reservas.reduce((total, reserva) => total + Number(reserva.valor_total || 0), 0))}
-                  </strong>
-                </div>
-              </div>
-
-              <div className="stat-card green">
-                <div className="stat-info">
-                  <span>Total de Consumos</span>
-                  <strong>
-                    {formatarMoeda(consumos.reduce((total, consumo) => total + Number(consumo.valor || 0), 0))}
-                  </strong>
-                </div>
-              </div>
-
-              <div className="stat-card orange">
-                <div className="stat-info">
-                  <span>Total Recebido</span>
-                  <strong>
-                    {formatarMoeda(pagamentos.reduce((total, pagamento) => total + Number(pagamento.valor || 0), 0))}
-                  </strong>
-                </div>
-              </div>
-            </div>
           </>
         )}
         {telaAtiva === 'restaurante' && (
@@ -2850,8 +4062,8 @@ function App() {
                 <div className="stat-card purple">
                   <div className="stat-info">
                     <span>Saldo estimado</span>
-                    <strong>{formatarMoeda(totalReservasPeriodo() + totalConsumosPeriodo() - totalPagamentosPeriodo())}</strong>
-                    <small>Reservas + consumos - pagamentos</small>
+                    <strong>{formatarMoeda(reservasPorPeriodo().reduce((total, reserva) => total + calcularSaldoReserva(reserva), 0))}</strong>
+                    <small>Somente contas abertas</small>
                   </div>
                 </div>
               </section>

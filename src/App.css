@@ -669,21 +669,45 @@ textarea {
 
 .map-free,
 .map-busy {
-  display: inline-block;
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  font-weight: 800;
   font-size: 12px;
+  letter-spacing: .1px;
+  border: 1px solid transparent;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, .10);
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
 }
 
 .map-free {
-  background: #e9f9ef;
-  color: #16a34a;
+  background: #22c55e;
+  color: #ffffff;
+  border-color: #16a34a;
 }
 
 .map-busy {
-  background: #fee2e2;
-  color: #dc2626;
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+.map-free:hover,
+.map-busy:hover {
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, .16);
+  filter: saturate(1.08);
+}
+
+.clean-table tbody tr {
+  transition: background .18s ease;
+}
+
+.clean-table tbody tr:hover {
+  background: #f8fafc;
 }
 
 .reservation-cards,
