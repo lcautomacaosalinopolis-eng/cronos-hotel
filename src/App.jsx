@@ -132,6 +132,11 @@ function App() {
   const [consumoProdutoId, setConsumoProdutoId] = useState('')
   const [consumoQuantidade, setConsumoQuantidade] = useState('1')
   const [consumoObservacao, setConsumoObservacao] = useState('')
+  const [quartoGestaoId, setQuartoGestaoId] = useState('')
+  const [novoNomeQuarto, setNovoNomeQuarto] = useState('')
+  const [produtoQuartoId, setProdutoQuartoId] = useState('')
+  const [quantidadeProdutoQuarto, setQuantidadeProdutoQuarto] = useState('')
+  const [observacaoProdutoQuarto, setObservacaoProdutoQuarto] = useState('')
   const [telaAtiva, setTelaAtiva] = useState('dashboard')
 
   const [reservaContaId, setReservaContaId] = useState('')
@@ -1681,7 +1686,7 @@ function App() {
     if (!reserva) return
     setCentralReservaId(reserva.id)
     setReservaContaId(reserva.id)
-    setTelaAtiva('operacao')
+    setTelaAtiva('reservas')
   }
 
   function abrirCentralQuarto(quarto) {
@@ -1692,7 +1697,7 @@ function App() {
     }
 
     setQuartoId(quarto.id)
-    setTelaAtiva('operacao')
+    setTelaAtiva('reservas')
   }
 
   function statusOperacionalReserva(reserva) {
@@ -1733,8 +1738,8 @@ function App() {
 
   function tituloTela() {
     if (telaAtiva === 'dashboard') return 'Dashboard'
-    if (telaAtiva === 'operacao') return 'Operação Hotel'
-    if (telaAtiva === 'reservas') return 'Reservas e quartos'
+        if (telaAtiva === 'reservas') return 'Reservas'
+    if (telaAtiva === 'quartos') return 'Quartos'
     if (telaAtiva === 'restaurante') return 'Consumos por quarto'
     if (telaAtiva === 'servicos') return 'Serviços do Hóspede'
     if (telaAtiva === 'financeiro') return 'Finanças'
@@ -1747,8 +1752,8 @@ function App() {
 
   function subtituloTela() {
     if (telaAtiva === 'dashboard') return 'Visão geral do hotel'
-    if (telaAtiva === 'operacao') return 'Reservas, quartos e contas em aberto'
-    if (telaAtiva === 'reservas') return 'Criação de reservas, disponibilidade e mapa dos quartos'
+        if (telaAtiva === 'reservas') return 'Criação de reservas, disponibilidade e mapa dos quartos'
+    if (telaAtiva === 'quartos') return 'Configuração dos quartos, frigobar e produtos preparados'
     if (telaAtiva === 'restaurante') return 'Produtos e serviços consumidos por hóspedes ativos'
     if (telaAtiva === 'servicos') return 'Portal de serviços do hóspede'
     if (telaAtiva === 'financeiro') return 'Caixa e recebimentos'
@@ -2061,6 +2066,126 @@ function App() {
     alert('Consumo lançado na conta do quarto com sucesso')
   }
 
+  function produtoEhDoQuarto(produto, quarto) {
+    const local = String(produto?.local_uso || '').toLowerCase().trim()
+    const numeroQuarto = String(quarto?.numero || '').toLowerCase().trim()
+
+    if (!produto || !quarto) return false
+
+    return (
+      local === `quarto ${numeroQuarto}` ||
+      local === `frigobar quarto ${numeroQuarto}` ||
+      local.includes(`quarto ${numeroQuarto}`)
+    )
+  }
+
+  function produtosDoQuarto(quartoIdSelecionado) {
+    const quarto = (Array.isArray(quartos) ? quartos : []).find((item) => String(item.id) === String(quartoIdSelecionado))
+    if (!quarto) return []
+
+    return (Array.isArray(produtos) ? produtos : []).filter((produto) => produtoEhDoQuarto(produto, quarto))
+  }
+
+  function produtosDisponiveisParaQuarto() {
+    return (Array.isArray(produtos) ? produtos : []).filter((produto) => produto.ativo !== false && produto.tipo === 'Produto')
+  }
+
+  async function renomearQuarto() {
+    if (!quartoGestaoId || !novoNomeQuarto.trim()) {
+      mostrarAviso('Selecione um quarto e informe o novo nome/número.', 'erro')
+      return
+    }
+
+    const { error } = await supabase
+      .from('quartos')
+      .update({ numero: novoNomeQuarto.trim() })
+      .eq('id', quartoGestaoId)
+
+    if (error) {
+      mostrarAviso('Erro ao renomear quarto.', 'erro')
+      console.log(error)
+      return
+    }
+
+    await registrarAuditoria('Quarto renomeado', novoNomeQuarto.trim())
+    setNovoNomeQuarto('')
+    carregarQuartos()
+    mostrarAviso('Quarto atualizado com sucesso.', 'sucesso')
+  }
+
+  async function adicionarProdutoAoQuarto() {
+    if (!quartoGestaoId || !produtoQuartoId) {
+      mostrarAviso('Selecione o quarto e o produto.', 'erro')
+      return
+    }
+
+    const quarto = (Array.isArray(quartos) ? quartos : []).find((item) => String(item.id) === String(quartoGestaoId))
+    const produto = (Array.isArray(produtos) ? produtos : []).find((item) => String(item.id) === String(produtoQuartoId))
+
+    if (!quarto || !produto) {
+      mostrarAviso('Quarto ou produto não encontrado.', 'erro')
+      return
+    }
+
+    const quantidade = Number(quantidadeProdutoQuarto || 0)
+    const atual = Number(produto.estoque_atual || 0)
+
+    const dadosAtualizacao = {
+      local_uso: `Quarto ${quarto.numero}`,
+      usado_em_frigobar: true
+    }
+
+    if (quantidade > 0) {
+      dadosAtualizacao.estoque_atual = quantidade
+    }
+
+    const { error } = await supabase
+      .from('produtos')
+      .update(dadosAtualizacao)
+      .eq('id', produtoQuartoId)
+
+    if (error) {
+      mostrarAviso('Erro ao adicionar produto ao quarto.', 'erro')
+      console.log(error)
+      return
+    }
+
+    if (quantidade > 0 && quantidade !== atual) {
+      await supabase.from('movimentacoes_estoque').insert({
+        produto_id: produtoQuartoId,
+        tipo: quantidade >= atual ? 'entrada' : 'saida',
+        quantidade: Math.abs(quantidade - atual),
+        observacao: observacaoProdutoQuarto || `Ajuste de frigobar do quarto ${quarto.numero}`
+      })
+    }
+
+    await registrarAuditoria('Produto vinculado ao quarto', `${produto.nome} - Quarto ${quarto.numero}`)
+    setProdutoQuartoId('')
+    setQuantidadeProdutoQuarto('')
+    setObservacaoProdutoQuarto('')
+    carregarProdutos()
+    carregarMovimentacoesEstoque()
+    mostrarAviso('Produto organizado no quarto.', 'sucesso')
+  }
+
+  async function removerProdutoDoQuarto(produto) {
+    if (!produto?.id) return
+
+    const { error } = await supabase
+      .from('produtos')
+      .update({ local_uso: 'Geral', usado_em_frigobar: false })
+      .eq('id', produto.id)
+
+    if (error) {
+      mostrarAviso('Erro ao remover produto do quarto.', 'erro')
+      console.log(error)
+      return
+    }
+
+    carregarProdutos()
+    mostrarAviso('Produto removido do quarto.', 'sucesso')
+  }
+
   function menuClasse(tela) {
     return `menu-link ${telaAtiva === tela ? 'active' : ''}`
   }
@@ -2182,7 +2307,7 @@ function App() {
                   )}
 
                   {!reservaAtual && (
-                    <button className="acao-primaria" onClick={() => setTelaAtiva('operacao')}>Criar reserva</button>
+                    <button className="acao-primaria" onClick={() => setTelaAtiva('reservas')}>Criar reserva</button>
                   )}
 
                   <button onClick={() => alterarStatus(quarto.id, 'livre')}>Livre</button>
@@ -3230,6 +3355,10 @@ function App() {
             <span className="menu-icon">{icons.reservas}</span> Reservas
           </button>
 
+          <button className={menuClasse('quartos')} onClick={() => setTelaAtiva('quartos')}>
+            <span className="menu-icon">{icons.quartos}</span> Quartos
+          </button>
+
           <button className={menuClasse('restaurante')} onClick={() => setTelaAtiva('restaurante')}>
             <span className="menu-icon">{icons.servicos}</span> Recepção / Restaurante
           </button>
@@ -3526,184 +3655,6 @@ function App() {
         )}
 
 
-        {telaAtiva === 'operacao' && (
-          <>
-            <section className="white-panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Nova reserva</h2>
-                </div>
-              </div>
-
-              <div className="operacao-form-reserva">
-                <select value={quartoId} onChange={(e) => setQuartoId(e.target.value)}>
-                  <option value="">Selecione o quarto</option>
-                  {quartos.map((quarto) => (
-                    <option key={quarto.id} value={quarto.id}>
-                      Quarto {quarto.numero} - {quarto.tipo || 'A definir'} - {formatarMoeda(quarto.valor_diaria)}
-                    </option>
-                  ))}
-                </select>
-
-                <input placeholder="Nome do hóspede titular" value={nomeHospede} onChange={(e) => setNomeHospede(e.target.value)} />
-                <input placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
-                <input type="date" value={entrada} onChange={(e) => setEntrada(e.target.value)} />
-                <input type="date" value={saida} onChange={(e) => setSaida(e.target.value)} />
-                <input type="number" min="1" placeholder="Qtd. hóspedes" value={qtdHospedes} onChange={(e) => setQtdHospedes(e.target.value)} />
-                <input
-                  placeholder="Valor da diária"
-                  value={valorReservaManual}
-                  onChange={(e) => setValorReservaManual(e.target.value)}
-                />
-
-                <select value={tipoHospede} onChange={(e) => setTipoHospede(e.target.value)}>
-                  <option value="homem">Homem</option>
-                  <option value="mulher">Mulher</option>
-                  <option value="menino">Menino</option>
-                  <option value="menina">Menina</option>
-                </select>
-
-                <select value={canalVenda} onChange={(e) => setCanalVenda(e.target.value)}>
-                  <option>Direto</option>
-                  <option>WhatsApp</option>
-                  <option>Booking</option>
-                  <option>Airbnb</option>
-                  <option>Agência</option>
-                </select>
-
-                <input className="form-wide" placeholder="Observação da reserva" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
-
-                <div className="form-wide despesas-reserva-box">
-                  <div className="despesas-reserva-header">
-                    <strong>Outras despesas da reserva</strong>
-                    <span>Total extra: {formatarMoeda(totalDespesasReservaTemporarias())}</span>
-                  </div>
-
-                  <div className="despesas-reserva-form">
-                    <input placeholder="Descrição. Ex: Café, passeio, taxa" value={despesaReservaDescricao} onChange={(e) => setDespesaReservaDescricao(e.target.value)} />
-                    <input type="number" min="1" placeholder="Qtd." value={despesaReservaQuantidade} onChange={(e) => setDespesaReservaQuantidade(e.target.value)} />
-                    <input placeholder="Valor unitário" value={despesaReservaValor} onChange={(e) => setDespesaReservaValor(e.target.value)} />
-                    <button type="button" onClick={adicionarDespesaReserva}>Adicionar despesa</button>
-                  </div>
-
-                  {despesasReserva.length > 0 && (
-                    <div className="despesas-reserva-lista">
-                      {despesasReserva.map((item) => (
-                        <div key={item.id} className="despesa-reserva-item">
-                          <span>{item.descricao}</span>
-                          <small>Qtd. {item.quantidade} × {formatarMoeda(item.valor_unitario)}</small>
-                          <strong>{formatarMoeda(item.valor_total)}</strong>
-                          <button type="button" onClick={() => removerDespesaReserva(item.id)}>Remover</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="form-wide resumo-reserva-criacao">
-                  <span>Diária: {formatarMoeda(valorDiariaReservaDigitado())}</span>
-                  <span>Outras despesas: {formatarMoeda(totalDespesasReservaTemporarias())}</span>
-                  <strong>Total da reserva: {formatarMoeda(totalReservaTemporariarelatório())}</strong>
-                </div>
-
-                <button className="btn-criar-reserva-pdf" onClick={criarReserva}>Finalizar reserva</button>
-              </div>
-
-            </section>
-
-            <section className="operacional-resumo">
-              <div className="operacional-resumo-card livre"><span>Livres</span><strong>{disponiveis}</strong><small>Prontos para vender</small></div>
-              <div className="operacional-resumo-card reservado"><span>Reservados</span><strong>{reservados}</strong><small>Aguardando check-in</small></div>
-              <div className="operacional-resumo-card ocupado"><span>Ocupados</span><strong>{ocupados}</strong><small>Com hóspede ativo</small></div>
-              <div className="operacional-resumo-card limpeza"><span>Limpeza</span><strong>{totalQuartosStatus('limpeza')}</strong><small>Aguardando liberação</small></div>
-            </section>
-
-            <div className="white-panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Alertas da operação</h2>
-                </div>
-                <button onClick={() => setTelaAtiva('operacao')}>Nova reserva</button>
-              </div>
-
-              <div className="operacao-alertas-grid">
-                {alertasOperacionais().length === 0 && (
-                  <div className="operacao-alerta"><strong>Nenhum alerta agora</strong><span>Operação sem pendências críticas.</span></div>
-                )}
-                {alertasOperacionais().map((alerta, index) => (
-                  <button
-                    type="button"
-                    key={`alerta-operacional-${index}`}
-                    className={`operacao-alerta ${alerta.tipo}`}
-                    onClick={() => alerta.reserva ? abrirCentralReserva(alerta.reserva) : alerta.quarto ? abrirCentralQuarto(alerta.quarto) : null}
-                  >
-                    <strong>{alerta.titulo}</strong>
-                    <span>{alerta.detalhe}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="white-panel operacional-painel">
-              <div className="panel-header">
-                <div>
-                  <h2>Painel operacional dos quartos</h2>
-                  <p className="panel-subtitle">Clique em um quarto ocupado/reservado para abrir a Central da Reserva com conta, saldo, consumo e pagamento.</p>
-                </div>
-              </div>
-
-              <div className="quartos-andares operacional-andares">
-                {['Térreo', 'Andar 01', 'Andar 02', 'Andar 03', 'Andar 04'].map((andar) => {
-                  const quartosDoAndar = quartos.filter((quarto) => quarto.andar === andar)
-                  return (
-                    <div className="operacional-andar" key={`operacao-${andar}`}>
-                      <div className="andar-cabecalho operacional-cabecalho"><h2>{andar}</h2><span>{quartosDoAndar.length} quarto{quartosDoAndar.length === 1 ? '' : 's'}</span></div>
-                      <div className="operacional-grid">
-                        {quartosDoAndar.map((quarto) => {
-                          const reservaAtual = reservaAbertaDoQuarto(quarto.id)
-                          const saldoAtual = reservaAtual ? calcularSaldoReserva(reservaAtual) : 0
-                          const statusAtual = quarto.status || 'livre'
-                          return (
-                            <div key={quarto.id} className={`operacional-card operacao-quarto-card ${statusAtual}`} onClick={() => abrirCentralQuarto(quarto)}>
-                              <div className="operacional-card-topo">
-                                <div><span className="operacional-label">Quarto</span><h3>{quarto.numero}</h3></div>
-                                <span className={`status-quarto ${statusAtual}`}>{statusAtual}</span>
-                              </div>
-                              <div className="operacional-info">
-                                <p><strong>Tipo:</strong> {quarto.tipo || 'A definir'}</p>
-                                <p><strong>Diária:</strong> {formatarMoeda(quarto.valor_diaria)}</p>
-                                {reservaAtual ? (
-                                  <>
-                                    <p><strong>Hóspede:</strong> {reservaAtual.nome_hospede || 'Hóspede'}</p>
-                                    <p><strong>Saída:</strong> {reservaAtual.data_saida || '-'}</p>
-                                    <p><strong>Status:</strong> {statusOperacionalReserva(reservaAtual)}</p>
-                                    <p><strong>Saldo:</strong> <span className={saldoAtual > 0 ? 'saldo-alerta' : 'saldo-ok'}>{formatarMoeda(saldoAtual)}</span></p>
-                                  </>
-                                ) : (
-                                  <p className="operacional-vazio">Livre para nova reserva. Clique para pré-selecionar este quarto.</p>
-                                )}
-                              </div>
-                              <div className="operacional-acoes" onClick={(e) => e.stopPropagation()}>
-                                {reservaAtual ? (
-                                  <button className="acao-primaria" onClick={() => abrirCentralReserva(reservaAtual)}>Abrir Central</button>
-                                ) : (
-                                  <button className="acao-primaria" onClick={() => { setQuartoId(quarto.id); setTelaAtiva('operacao') }}>Nova reserva</button>
-                                )}
-                                <button onClick={() => alterarStatus(quarto.id, 'limpeza')}>Limpeza</button>
-                                <button onClick={() => alterarStatus(quarto.id, 'livre')}>Livre</button>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </>
-        )}
-
         {telaAtiva === 'dashboard' && (
           <>
             <section className="stats-grid">
@@ -3764,7 +3715,7 @@ function App() {
               <div className="white-panel reservations-panel">
                 <div className="panel-header">
                   <h3>Reservas dos próximos 7 dias</h3>
-                  <button onClick={() => setTelaAtiva('operacao')}>Abrir operação</button>
+                  <button onClick={() => setTelaAtiva('reservas')}>Abrir reservas</button>
                 </div>
 
                 <table className="clean-table">
@@ -3839,22 +3790,22 @@ function App() {
                 <h3>Ações rápidas</h3>
 
                 <div className="quick-actions">
-                  <button onClick={() => setTelaAtiva('operacao')}>
+                  <button onClick={() => setTelaAtiva('reservas')}>
                     <span className="qa blue">+</span>
                     Nova reserva
                   </button>
 
-                  <button onClick={() => setTelaAtiva('operacao')}>
+                  <button onClick={() => setTelaAtiva('reservas')}>
                     <span className="qa green">↪</span>
                     Operação
                   </button>
 
-                  <button onClick={() => setTelaAtiva('operacao')}>
+                  <button onClick={() => setTelaAtiva('reservas')}>
                     <span className="qa orange">↩</span>
                     Saídas hoje
                   </button>
 
-                  <button onClick={() => setTelaAtiva('operacao')}>
+                  <button onClick={() => setTelaAtiva('reservas')}>
                     <span className="qa purple">♙</span>
                     Novo hóspede
                   </button>
@@ -4210,7 +4161,7 @@ function App() {
               </div>
 
               <div className="fasthotel-toolbar">
-                <button className="fasthotel-link" onClick={() => setTelaAtiva('operacao')}>Ir para reserva</button>
+                <button className="fasthotel-link" onClick={() => setTelaAtiva('reservas')}>Abrir reservas</button>
                 <label><input type="checkbox" /> Agrupar por produto</label>
                 <label><input type="checkbox" /> Ordenar por data</label>
                 <label><input type="checkbox" defaultChecked /> Ocultar estornados, transferidos ou zerados</label>
@@ -4374,6 +4325,150 @@ function App() {
             )}
           </>
         )}
+        {telaAtiva === 'quartos' && (
+          <div className="quartos-operacao-page">
+            <section className="stats-grid">
+              <div className="stat-card green"><div className="stat-info"><span>Livres</span><strong>{totalQuartosStatus('livre')}</strong><small>Prontos para receber</small></div></div>
+              <div className="stat-card orange"><div className="stat-info"><span>Reservados</span><strong>{totalQuartosStatus('reservado')}</strong><small>Aguardando chegada</small></div></div>
+              <div className="stat-card blue"><div className="stat-info"><span>Ocupados</span><strong>{totalQuartosStatus('ocupado')}</strong><small>Com hóspede ativo</small></div></div>
+              <div className="stat-card purple"><div className="stat-info"><span>Em limpeza</span><strong>{totalQuartosStatus('limpeza')}</strong><small>Aguardando liberação</small></div></div>
+            </section>
+
+            <div className="white-panel quartos-config-panel">
+              <div className="panel-header">
+                <h2>Organização dos quartos</h2>
+              </div>
+
+              <div className="quartos-config-layout">
+                <div className="quartos-lista-config">
+                  {(Array.isArray(quartos) ? quartos : []).map((quarto) => {
+                    const reservaAtual = reservaAbertaDoQuarto(quarto.id)
+                    const itensQuarto = produtosDoQuarto(quarto.id)
+                    return (
+                      <button
+                        key={quarto.id}
+                        type="button"
+                        className={`quarto-config-item ${String(quartoGestaoId) === String(quarto.id) ? 'active' : ''}`}
+                        onClick={() => {
+                          setQuartoGestaoId(quarto.id)
+                          setNovoNomeQuarto(quarto.numero || '')
+                        }}
+                      >
+                        <strong>{quarto.numero || 'Sem nome'}</strong>
+                        <span>{quarto.tipo || 'A definir'} • {quarto.status || 'livre'}</span>
+                        <small>{reservaAtual ? reservaAtual.nome_hospede || 'Hóspede ativo' : 'Sem hóspede'} • {itensQuarto.length} item(ns)</small>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="quarto-config-detalhe">
+                  {!quartoGestaoId && (
+                    <div className="empty-state">Selecione um quarto para renomear e organizar os produtos do frigobar.</div>
+                  )}
+
+                  {quartoGestaoId && (() => {
+                    const quartoSelecionado = quartos.find((item) => String(item.id) === String(quartoGestaoId))
+                    const reservaAtual = reservaAbertaDoQuarto(quartoGestaoId)
+                    const itensQuarto = produtosDoQuarto(quartoGestaoId)
+                    return (
+                      <>
+                        <div className="quarto-config-header">
+                          <div>
+                            <span>Quarto selecionado</span>
+                            <h3>{quartoSelecionado?.numero || '-'}</h3>
+                            <p>{quartoSelecionado?.tipo || 'A definir'} • {quartoSelecionado?.status || 'livre'}</p>
+                          </div>
+                          <div>
+                            <span>Hóspede atual</span>
+                            <h3>{reservaAtual?.nome_hospede || 'Sem hóspede'}</h3>
+                            <p>{reservaAtual ? `${reservaAtual.data_entrada || '-'} até ${reservaAtual.data_saida || '-'}` : 'Quarto sem reserva aberta'}</p>
+                          </div>
+                        </div>
+
+                        <div className="form-grid quarto-config-form">
+                          <input
+                            placeholder="Novo nome/número do quarto"
+                            value={novoNomeQuarto}
+                            onChange={(e) => setNovoNomeQuarto(e.target.value)}
+                          />
+                          <button onClick={renomearQuarto}>Salvar nome</button>
+                        </div>
+
+                        <div className="quarto-frigobar-box">
+                          <div className="panel-header compact">
+                            <h3>Frigobar / produtos preparados</h3>
+                            <button onClick={() => setTelaAtiva('estoque')}>Cadastrar produto</button>
+                          </div>
+
+                          <div className="form-grid quarto-produto-form">
+                            <select value={produtoQuartoId} onChange={(e) => setProdutoQuartoId(e.target.value)}>
+                              <option value="">Selecione o produto</option>
+                              {produtosDisponiveisParaQuarto().map((produto) => (
+                                <option key={produto.id} value={produto.id}>
+                                  {produto.nome} • estoque {produto.estoque_atual || 0} • {formatarMoeda(produto.valor_venda || 0)}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="Quantidade preparada"
+                              value={quantidadeProdutoQuarto}
+                              onChange={(e) => setQuantidadeProdutoQuarto(e.target.value)}
+                            />
+                            <input
+                              placeholder="Observação"
+                              value={observacaoProdutoQuarto}
+                              onChange={(e) => setObservacaoProdutoQuarto(e.target.value)}
+                            />
+                            <button onClick={adicionarProdutoAoQuarto}>Adicionar ao quarto</button>
+                          </div>
+
+                          <table className="clean-table quarto-produtos-table">
+                            <thead><tr><th>Produto</th><th>Quantidade</th><th>Valor</th><th>Local</th><th></th></tr></thead>
+                            <tbody>
+                              {itensQuarto.length === 0 && (
+                                <tr><td colSpan="5">Nenhum produto preparado neste quarto.</td></tr>
+                              )}
+                              {itensQuarto.map((produto) => (
+                                <tr key={produto.id}>
+                                  <td>{produto.nome}</td>
+                                  <td>{produto.estoque_atual || 0}</td>
+                                  <td>{formatarMoeda(produto.valor_venda || 0)}</td>
+                                  <td>{produto.local_uso || '-'}</td>
+                                  <td><button className="secondary-button" onClick={() => removerProdutoDoQuarto(produto)}>Remover</button></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {reservaAtual && (
+                          <div className="quarto-consumo-rapido">
+                            <h3>Consumo rápido deste quarto</h3>
+                            <div className="form-grid">
+                              <select value={consumoProdutoId} onChange={(e) => setConsumoProdutoId(e.target.value)}>
+                                <option value="">Produto consumido</option>
+                                {itensQuarto.map((produto) => (
+                                  <option key={produto.id} value={produto.id}>{produto.nome} • {formatarMoeda(produto.valor_venda || 0)}</option>
+                                ))}
+                              </select>
+                              <input type="number" min="1" placeholder="Quantidade" value={consumoQuantidade} onChange={(e) => setConsumoQuantidade(e.target.value)} />
+                              <input placeholder="Observação" value={consumoObservacao} onChange={(e) => setConsumoObservacao(e.target.value)} />
+                              <button onClick={() => { setConsumoReservaId(reservaAtual.id); window.setTimeout(() => lancarConsumoQuarto(), 0) }}>Lançar consumo</button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {telaAtiva === 'restaurante' && (
           <div className="recepcao-restaurante-page">
             <div className="white-panel">

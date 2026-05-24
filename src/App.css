@@ -2581,3 +2581,282 @@ a,
 .operacional-resumo-card.ocupado {
   --status-color: #b91c1c;
 }
+
+/* === CORREÇÃO FINAL DE CONTRASTE CRONOS ===
+   Ajusta botões/links escuros e remove textos azuis muito chamativos.
+   Mantém cores fortes apenas nos status do mapa de reservas. */
+
+:root {
+  --cronos-primary: #334155;
+  --cronos-primary-dark: #1f2937;
+  --cronos-primary-soft: #f1f5f9;
+  --cronos-text: #111827;
+  --cronos-muted: #64748b;
+  --cronos-border: #e2e8f0;
+}
+
+/* Links de ações dentro dos painéis, exemplo: Abrir reservas */
+.panel-header button,
+.panel-header a,
+.white-panel .panel-header button,
+.white-panel .panel-header a,
+button.link-button,
+.link-button,
+button.text-button,
+.text-button {
+  background: transparent !important;
+  color: #334155 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
+  padding: 0 !important;
+}
+
+.panel-header button:hover,
+.panel-header a:hover,
+.link-button:hover,
+.text-button:hover {
+  color: #0f172a !important;
+  text-decoration: underline;
+}
+
+/* Botões sólidos precisam ter texto claro */
+.primary-button,
+.form-grid button,
+.button-row button,
+.room-card button,
+.user-card button,
+.module-card button,
+.reserva-submit-button,
+.reserva-action-button,
+.reservas-submit,
+button[type='submit'],
+button[class*='primary'],
+button[class*='submit'],
+button[class*='acao-primaria'] {
+  background: #334155 !important;
+  color: #ffffff !important;
+  border-color: #334155 !important;
+}
+
+.primary-button:hover,
+.form-grid button:hover,
+.button-row button:hover,
+.room-card button:hover,
+.user-card button:hover,
+.module-card button:hover,
+.reserva-submit-button:hover,
+.reserva-action-button:hover,
+.reservas-submit:hover,
+button[type='submit']:hover,
+button[class*='primary']:hover,
+button[class*='submit']:hover,
+button[class*='acao-primaria']:hover {
+  background: #1f2937 !important;
+  color: #ffffff !important;
+}
+
+/* Evita texto azul chamativo em totais/resumos */
+.total-extra,
+.total-extra *,
+.total-reserva,
+.total-reserva *,
+.resumo-reserva-criacao,
+.resumo-reserva-criacao *,
+.despesas-reserva-box strong,
+.despesas-reserva-box b,
+.despesas-reserva-box .total,
+.despesas-reserva-box [class*='total'],
+.reserva-total,
+.reserva-total *,
+[class*='total-extra'],
+[class*='total-extra'] *,
+[class*='resumo-reserva'] *,
+[class*='despesas-reserva'] strong {
+  color: #111827 !important;
+}
+
+/* Menu e títulos em tons profissionais */
+.menu-link.active,
+.menu-link:hover {
+  background: #f1f5f9 !important;
+  color: #1f2937 !important;
+}
+
+.menu-link.active span,
+.menu-link.active svg,
+.menu-link:hover span,
+.menu-link:hover svg {
+  color: #334155 !important;
+  stroke: #334155 !important;
+}
+
+.hotel-brand h1,
+.hotel-logo-icon,
+.brand-svg,
+.brand-building {
+  color: #1e293b !important;
+  stroke: #1e293b !important;
+}
+
+/* Badges neutros, exceto status operacionais */
+.status:not(.confirmed):not(.pending),
+.badge:not(.map-free):not(.map-busy),
+.andar-cabecalho span {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+}
+
+/* Mantém mapa de reservas bem legível */
+.map-free {
+  background: #16a34a !important;
+  color: #ffffff !important;
+  border-color: #15803d !important;
+}
+
+.map-busy {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #b91c1c !important;
+}
+
+/* Inputs e textos mais suaves */
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+.topbar-title p,
+.stat-info span,
+.stat-info small,
+.clean-table th,
+.panel-subtitle,
+.module-card p {
+  color: #64748b !important;
+}
+
+/* QUARTOS - organização de frigobar/produtos */
+.quartos-config-layout {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 18px;
+}
+
+.quartos-lista-config {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 620px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.quarto-config-item {
+  width: 100%;
+  border: 1px solid #dbe3ee;
+  background: #ffffff;
+  color: #162033;
+  border-radius: 14px;
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+}
+
+.quarto-config-item strong {
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.quarto-config-item span,
+.quarto-config-item small {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.quarto-config-item.active {
+  border-color: #334155;
+  box-shadow: inset 4px 0 0 #334155;
+  background: #f8fafc;
+}
+
+.quarto-config-detalhe {
+  min-width: 0;
+}
+
+.quarto-config-header {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.quarto-config-header > div,
+.quarto-frigobar-box,
+.quarto-consumo-rapido {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.quarto-config-header span {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.quarto-config-header h3 {
+  margin: 5px 0 4px;
+  color: #0f172a;
+}
+
+.quarto-config-header p {
+  margin: 0;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.quarto-config-form,
+.quarto-produto-form {
+  margin: 0 0 16px;
+}
+
+.panel-header.compact {
+  margin-bottom: 12px;
+}
+
+.panel-header.compact h3 {
+  margin: 0;
+}
+
+.secondary-button {
+  background: #e2e8f0 !important;
+  color: #1e293b !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  padding: 8px 10px !important;
+  font-weight: 800 !important;
+  cursor: pointer;
+}
+
+.quarto-consumo-rapido {
+  margin-top: 16px;
+}
+
+.quarto-consumo-rapido h3 {
+  margin-top: 0;
+}
+
+@media (max-width: 980px) {
+  .quartos-config-layout,
+  .quarto-config-header {
+    grid-template-columns: 1fr;
+  }
+}
