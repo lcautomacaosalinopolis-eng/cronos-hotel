@@ -152,6 +152,11 @@ function App() {
   const [entrada, setEntrada] = useState('')
   const [saida, setSaida] = useState('')
   const [qtdHospedes, setQtdHospedes] = useState(1)
+  const [valorReservaManual, setValorReservaManual] = useState('')
+  const [despesaReservaDescricao, setDespesaReservaDescricao] = useState('')
+  const [despesaReservaQuantidade, setDespesaReservaQuantidade] = useState('1')
+  const [despesaReservaValor, setDespesaReservaValor] = useState('')
+  const [despesasReserva, setDespesasReserva] = useState([])
   const [tipoHospede, setTipoHospede] = useState('homem')
   const [canalVenda, setCanalVenda] = useState('Direto')
   const [observacao, setObservacao] = useState('')
@@ -175,12 +180,80 @@ function App() {
   const [caixaValor, setCaixaValor] = useState('')
   const [caixaFormaPagamento, setCaixaFormaPagamento] = useState('Dinheiro')
   const [avisoSistema, setAvisoSistema] = useState(null)
+  const [empresaLogo, setEmpresaLogo] = useState(() => localStorage.getItem('cronos_logo_hotel') || '')
 
   function mostrarAviso(mensagem, tipo = 'info') {
     setAvisoSistema({ mensagem, tipo })
     window.setTimeout(() => {
       setAvisoSistema(null)
     }, 3200)
+  }
+
+
+  function carregarLogoHotel(arquivo) {
+    if (!arquivo) return
+
+    const leitor = new FileReader()
+    leitor.onload = () => {
+      const resultado = String(leitor.result || '')
+      setEmpresaLogo(resultado)
+      localStorage.setItem('cronos_logo_hotel', resultado)
+      mostrarAviso('Logo do hotel atualizada.', 'sucesso')
+    }
+    leitor.readAsDataURL(arquivo)
+  }
+
+  function removerLogoHotel() {
+    setEmpresaLogo('')
+    localStorage.removeItem('cronos_logo_hotel')
+    mostrarAviso('Logo removida.', 'sucesso')
+  }
+
+
+  function adicionarDespesaReserva() {
+    const descricao = despesaReservaDescricao.trim()
+    const quantidade = Number(despesaReservaQuantidade || 1)
+    const valorUnitario = converterValorDigitado(despesaReservaValor)
+
+    if (!descricao || quantidade <= 0 || valorUnitario <= 0) {
+      mostrarAviso('Informe descrição, quantidade e valor da despesa.', 'erro')
+      return
+    }
+
+    setDespesasReserva((lista) => [
+      ...lista,
+      {
+        id: `despesa-${Date.now()}`,
+        descricao,
+        quantidade,
+        valor_unitario: valorUnitario,
+        valor_total: quantidade * valorUnitario
+      }
+    ])
+
+    setDespesaReservaDescricao('')
+    setDespesaReservaQuantidade('1')
+    setDespesaReservaValor('')
+  }
+
+  function removerDespesaReserva(id) {
+    setDespesasReserva((lista) => lista.filter((item) => item.id !== id))
+  }
+
+  function totalDespesasReservaTemporarias() {
+    return despesasReserva.reduce((total, item) => total + Number(item.valor_total || 0), 0)
+  }
+
+  function valorDiariaReservaDigitado() {
+    return converterValorDigitado(valorReservaManual)
+  }
+
+  function totalHospedagemReservaTemporaria() {
+    return valorDiariaReservaDigitado() * calcularDiarias()
+  }
+
+  function totalReservaTemporariarelatório() {
+    return totalHospedagemReservaTemporaria() + totalDespesasReservaTemporarias()
   }
 
   async function entrarSistema() {
@@ -851,10 +924,19 @@ function App() {
       return
     }
 
-    const valorDiaria = Number(quartoSelecionado.valor_diaria || 0)
-    const valorTotal = diarias * valorDiaria
+    const valorDiariaDigitado = converterValorDigitado(valorReservaManual)
 
-    const { error } = await supabase.from('reservas').insert({
+    if (valorDiariaDigitado <= 0) {
+      mostrarAviso('Informe o valor da diária da hospedagem.', 'erro')
+      return
+    }
+
+    const valorDiaria = valorDiariaDigitado
+    const valorHospedagem = valorDiaria * diarias
+    const valorDespesasExtras = totalDespesasReservaTemporarias()
+    const valorTotal = valorHospedagem + valorDespesasExtras
+
+    const { data: reservaCriada, error } = await supabase.from('reservas').insert({
       quarto_id: quartoId,
       nome_hospede: nomeHospede,
       telefone,
@@ -868,6 +950,8 @@ function App() {
       observacao,
       status: 'reservada'
     })
+      .select('*')
+      .single()
 
     if (error) {
       alert('Erro ao criar reserva')
@@ -880,19 +964,57 @@ function App() {
       .update({ status: 'reservado' })
       .eq('id', quartoId)
 
+    const despesasExtrasPDF = despesasReserva.map((item) => ({ ...item }))
+
+    if (reservaCriada && despesasExtrasPDF.length > 0) {
+      const { error: erroDespesas } = await supabase.from('consumos').insert(
+        despesasExtrasPDF.map((item) => ({
+          reserva_id: reservaCriada.id,
+          descricao: `${item.descricao} x${item.quantidade}`,
+          valor: Number(item.valor_total || 0)
+        }))
+      )
+
+      if (erroDespesas) {
+        mostrarAviso('Reserva criada, mas houve erro ao salvar as despesas extras.', 'erro')
+        console.log(erroDespesas)
+      }
+    }
+
+    const reservaParaEnvio = reservaCriada
+      ? {
+          ...reservaCriada,
+          quartos: {
+            numero: quartoSelecionado.numero,
+            tipo: quartoSelecionado.tipo
+          },
+          despesas_extras_pdf: despesasExtrasPDF
+        }
+      : null
+
+    if (reservaParaEnvio) {
+      gerarRelatorioReservaPDF(reservaParaEnvio)
+      abrirWhatsAppReserva(reservaParaEnvio)
+    }
+
     setQuartoId('')
     setNomeHospede('')
     setTelefone('')
     setEntrada('')
     setSaida('')
     setQtdHospedes(1)
+    setValorReservaManual('')
+    setDespesasReserva([])
+    setDespesaReservaDescricao('')
+    setDespesaReservaQuantidade('1')
+    setDespesaReservaValor('')
     setTipoHospede('homem')
     setCanalVenda('Direto')
     setObservacao('')
 
     carregarQuartos()
     carregarReservas()
-    alert('Reserva criada com sucesso')
+    mostrarAviso('Reserva criada. Resumo gerado e WhatsApp aberto para envio ao hóspede.', 'sucesso')
   }
 
   async function fazerCheckin(reserva) {
@@ -1013,6 +1135,68 @@ function App() {
     mostrarAviso('Pagamento registrado com sucesso.', 'sucesso')
   }
 
+
+  function isReservaTeste(reserva) {
+    const nome = String(reserva?.nome_hospede || '').trim().toLowerCase()
+    const telefoneReserva = String(reserva?.telefone || '').replace(/\D/g, '')
+    const observacaoReserva = String(reserva?.observacao || '').toLowerCase()
+
+    return (
+      nome === 'teste' ||
+      nome.includes('teste') ||
+      observacaoReserva.includes('teste') ||
+      telefoneReserva === '00000000000' ||
+      telefoneReserva === '0000000000'
+    )
+  }
+
+  async function limparDadosTesteSistema() {
+    if (usuarioLogado?.perfil !== 'Administrador') {
+      mostrarAviso('Apenas administrador pode limpar dados de teste.', 'erro')
+      return
+    }
+
+    const reservasTeste = (Array.isArray(reservas) ? reservas : []).filter(isReservaTeste)
+
+    if (reservasTeste.length === 0) {
+      mostrarAviso('Nenhuma reserva de teste encontrada.', 'info')
+      return
+    }
+
+    const confirmar = confirm(
+      `Foram encontradas ${reservasTeste.length} reserva(s) de teste. Deseja apagar reservas, consumos, pagamentos e lançamentos de caixa vinculados a elas?`
+    )
+
+    if (!confirmar) return
+
+    const idsReservas = reservasTeste.map((reserva) => reserva.id)
+    const idsQuartos = [...new Set(reservasTeste.map((reserva) => reserva.quarto_id).filter(Boolean))]
+
+    try {
+      await supabase.from('consumos').delete().in('reserva_id', idsReservas)
+      await supabase.from('pagamentos').delete().in('reserva_id', idsReservas)
+      await supabase.from('caixa').delete().in('reserva_id', idsReservas)
+      await supabase.from('reservas').delete().in('id', idsReservas)
+
+      if (idsQuartos.length > 0) {
+        await supabase.from('quartos').update({ status: 'livre' }).in('id', idsQuartos)
+      }
+
+      await registrarAuditoria('Limpeza de dados de teste', `${reservasTeste.length} reserva(s) removida(s)`)
+
+      carregarQuartos()
+      carregarReservas()
+      carregarConsumos()
+      carregarPagamentos()
+      carregarCaixa()
+
+      mostrarAviso('Dados de teste removidos com sucesso.', 'sucesso')
+    } catch (erro) {
+      console.log(erro)
+      mostrarAviso('Erro ao limpar dados de teste.', 'erro')
+    }
+  }
+
   function totalConsumosReserva(reservaId) {
     return consumos
       .filter((consumo) => consumo.reserva_id === reservaId)
@@ -1046,6 +1230,150 @@ function App() {
       style: 'currency',
       currency: 'BRL'
     })
+  }
+
+  function converterValorDigitado(valorDigitado) {
+    const texto = String(valorDigitado || '').trim()
+
+    if (!texto) return 0
+
+    const normalizado = texto
+      .replace(/R\$/gi, '')
+      .replace(/\s/g, '')
+      .replace(/\./g, '')
+      .replace(',', '.')
+
+    const numero = Number(normalizado)
+
+    return Number.isFinite(numero) ? numero : 0
+  }
+
+  function telefoneWhatsApp(telefoneInformado) {
+    const numeros = String(telefoneInformado || '').replace(/\D/g, '')
+
+    if (!numeros) return ''
+    if (numeros.startsWith('55')) return numeros
+
+    return `55${numeros}`
+  }
+
+  function abrirWhatsAppReserva(reserva) {
+    if (!reserva?.telefone) {
+      mostrarAviso('Reserva criada. Informe o telefone do hóspede para abrir o WhatsApp.', 'info')
+      return
+    }
+
+    const numeroWhatsApp = telefoneWhatsApp(reserva.telefone)
+    const mensagem = [
+      `Olá, ${reserva.nome_hospede || 'hóspede'}!`,
+      '',
+      `Segue o resumo da sua reserva no ${empresaFantasia || empresaConfig?.nome_fantasia || 'hotel'}:`,
+      `Quarto: ${reserva.quartos?.numero || '-'}`,
+      `Entrada: ${dataBrasil(reserva.data_entrada)}`,
+      `Saída: ${dataBrasil(reserva.data_saida)}`,
+      `Noites: ${calcularNoitesReserva(reserva)}`,
+      `Hospedagem: ${formatarMoeda(Number(reserva.valor_diaria || 0) * calcularNoitesReserva(reserva))}`,
+      `Outras despesas: ${formatarMoeda((Array.isArray(reserva.despesas_extras_pdf) ? reserva.despesas_extras_pdf : []).reduce((total, item) => total + Number(item.valor_total || 0), 0))}`,
+      `Valor total: ${formatarMoeda(reserva.valor_total)}`,
+      '',
+      'Também gerei o resumo da reserva para envio.'
+    ].join('\n')
+
+    window.open(`https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensagem)}`, '_blank')
+  }
+
+
+  function gerarRelatorioReservaPDF(reserva) {
+    if (!reserva) return
+
+    const linhas = gerarLinhasContaReserva(reserva)
+    const totalDiarias = Number(reserva.valor_diaria || 0) * calcularNoitesReserva(reserva)
+    const totalDespesasExtrasPDF = (Array.isArray(reserva.despesas_extras_pdf) ? reserva.despesas_extras_pdf : [])
+      .reduce((total, item) => total + Number(item.valor_total || 0), 0)
+    const totalConsumos = totalConsumosReserva(reserva.id) + totalDespesasExtrasPDF
+    const totalRecebido = totalPagamentosReserva(reserva.id)
+    const saldo = calcularSaldoReserva(reserva)
+    const logoHtml = empresaLogo
+      ? `<img src="${empresaLogo}" style="max-height:72px;max-width:180px;object-fit:contain" />`
+      : `<div style="font-size:28px;font-weight:900;color:#1e40af">${empresaFantasia || empresaConfig?.nome_fantasia || 'CRONOS HOTEL'}</div>`
+
+    const janela = window.open('', '_blank', 'width=900,height=700')
+    if (!janela) {
+      mostrarAviso('Não foi possível abrir o relatório. Libere pop-ups do navegador.', 'erro')
+      return
+    }
+
+    janela.document.write(`
+      <html>
+        <head>
+          <title>Relatório da reserva</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 28px; color: #111827; }
+            .topo { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; border-bottom:3px solid #1d4ed8; padding-bottom:16px; margin-bottom:18px; }
+            .empresa h1 { margin:0; font-size:22px; }
+            .empresa p { margin:4px 0; color:#475569; }
+            .titulo { background:#eff6ff; border:1px solid #bfdbfe; padding:14px; border-radius:10px; margin-bottom:18px; }
+            .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
+            .box { border:1px solid #e5e7eb; border-radius:10px; padding:10px; }
+            .box span { display:block; font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700; }
+            .box strong { font-size:16px; }
+            table { width:100%; border-collapse:collapse; margin-top:14px; }
+            th { background:#1e3a8a; color:white; text-align:left; padding:9px; font-size:12px; }
+            td { border-bottom:1px solid #e5e7eb; padding:9px; font-size:12px; }
+            .totais { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:18px; }
+            .total { border-radius:10px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; }
+            .saldo { background:${saldo > 0 ? '#fef2f2' : '#f0fdf4'}; }
+            @media print { button { display:none } body { margin:18px } }
+          </style>
+        </head>
+        <body>
+          <div class="topo">
+            <div>${logoHtml}</div>
+            <div class="empresa">
+              <h1>${empresaFantasia || empresaConfig?.nome_fantasia || 'Hotel'}</h1>
+              <p>${empresaNome || empresaConfig?.nome_empresa || ''}</p>
+              <p>${empresaCnpj ? 'CNPJ: ' + empresaCnpj : ''} ${empresaTelefone ? ' | Tel: ' + empresaTelefone : ''}</p>
+              <p>${empresaEndereco || ''} ${empresaCidade ? ' - ' + empresaCidade : ''} ${empresaEstado ? '/' + empresaEstado : ''}</p>
+            </div>
+          </div>
+
+          <div class="titulo">
+            <h2 style="margin:0">Resumo da Reserva</h2>
+            <p style="margin:6px 0 0">Reserva de ${reserva.nome_hospede || 'Hóspede'} - Quarto ${reserva.quartos?.numero || '-'}</p>
+          </div>
+
+          <div class="grid">
+            <div class="box"><span>Entrada</span><strong>${dataBrasil(reserva.data_entrada)}</strong></div>
+            <div class="box"><span>Saída</span><strong>${dataBrasil(reserva.data_saida)}</strong></div>
+            <div class="box"><span>Noites</span><strong>${calcularNoitesReserva(reserva)}</strong></div>
+            <div class="box"><span>Canal</span><strong>${reserva.canal_venda || 'Direto'}</strong></div>
+            <div class="box"><span>Hóspede</span><strong>${reserva.nome_hospede || '-'}</strong></div>
+            <div class="box"><span>Telefone</span><strong>${reserva.telefone || '-'}</strong></div>
+            <div class="box"><span>Quarto</span><strong>${reserva.quartos?.numero || '-'}</strong></div>
+            <div class="box"><span>Status</span><strong>${reserva.status || 'reservada'}</strong></div>
+          </div>
+
+          <table>
+            <thead><tr><th>Tipo</th><th>Data</th><th>Descrição</th><th>Qtd.</th><th>Valor</th></tr></thead>
+            <tbody>
+              ${linhas.map((linha) => `<tr><td>${linha.tipo === 'pagamento' ? 'Pagamento' : 'Despesa'}</td><td>${formatarDataCurta(linha.data)}</td><td>${linha.produto}</td><td>${linha.quantidade}</td><td>${formatarMoeda(linha.valor)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+
+          <div class="totais">
+            <div class="total"><span>Diárias</span><h3>${formatarMoeda(totalDiarias)}</h3></div>
+            <div class="total"><span>Consumos</span><h3>${formatarMoeda(totalConsumos)}</h3></div>
+            <div class="total"><span>Recebido</span><h3>${formatarMoeda(totalRecebido)}</h3></div>
+            <div class="total saldo"><span>Saldo</span><h3>${formatarMoeda(saldo)}</h3></div>
+          </div>
+
+          <p style="margin-top:22px;color:#64748b">${empresaObservacao || empresaConfig?.observacao || ''}</p>
+          <button onclick="window.print()" style="margin-top:20px;padding:12px 18px;border:0;border-radius:8px;background:#1d4ed8;color:white;font-weight:700">Imprimir / Salvar relatório</button>
+          <script>setTimeout(() => window.print(), 500)</script>
+        </body>
+      </html>
+    `)
+    janela.document.close()
   }
 
 
@@ -1231,7 +1559,13 @@ function App() {
     )
   }
 
-  const proximasReservas = reservas.slice(0, 5)
+  const proximasReservas = (Array.isArray(reservas) ? reservas : [])
+    .filter((reserva) => {
+      const status = String(reserva.status || '').toLowerCase()
+      return !reserva.checkout && status !== 'finalizada' && status !== 'cancelada'
+    })
+    .sort((a, b) => String(a.data_entrada || '').localeCompare(String(b.data_entrada || '')))
+    .slice(0, 5)
   const totalQuartosReal = quartos.length
   const totalQuartos = totalQuartosReal || 1
   const ocupados = totalQuartosStatus('ocupado')
@@ -1330,7 +1664,16 @@ function App() {
         valor: -Math.abs(Number(pagamento.valor || 0))
       }))
 
-    return [...linhasDiarias, ...linhasConsumo, ...linhasPagamento]
+    const linhasDespesasExtrasPDF = (Array.isArray(reserva.despesas_extras_pdf) ? reserva.despesas_extras_pdf : [])
+      .map((item, indice) => ({
+        tipo: 'despesa',
+        data: obterDataLocalISO(),
+        produto: `${200 + indice} - ${item.descricao || 'Despesa extra'}`,
+        quantidade: Number(item.quantidade || 1),
+        valor: Number(item.valor_total || 0)
+      }))
+
+    return [...linhasDiarias, ...linhasConsumo, ...linhasDespesasExtrasPDF, ...linhasPagamento]
   }
 
 
@@ -1349,7 +1692,7 @@ function App() {
     }
 
     setQuartoId(quarto.id)
-    setTelaAtiva('reservas')
+    setTelaAtiva('operacao')
   }
 
   function statusOperacionalReserva(reserva) {
@@ -1391,32 +1734,28 @@ function App() {
   function tituloTela() {
     if (telaAtiva === 'dashboard') return 'Dashboard'
     if (telaAtiva === 'operacao') return 'Operação Hotel'
-    if (telaAtiva === 'reservas') return 'Reservas'
-    if (telaAtiva === 'recepcao') return 'Check-in / Check-out'
-    if (telaAtiva === 'financeiro') return 'Financeiro'
+    if (telaAtiva === 'reservas') return 'Reservas e quartos'
+    if (telaAtiva === 'restaurante') return 'Consumos por quarto'
+    if (telaAtiva === 'servicos') return 'Serviços do Hóspede'
+    if (telaAtiva === 'financeiro') return 'Finanças'
     if (telaAtiva === 'hospedes') return 'Hóspedes'
-    if (telaAtiva === 'quartos') return 'Quartos'
-    if (telaAtiva === 'restaurante') return 'Serviços'
     if (telaAtiva === 'estoque') return 'Estoque'
     if (telaAtiva === 'relatorios') return 'Relatórios'
-    if (telaAtiva === 'usuarios') return 'Usuários'
-    if (telaAtiva === 'configuracoes') return 'Configurações'
+        if (telaAtiva === 'configuracoes') return 'Configurações'
     return 'Dashboard'
   }
 
   function subtituloTela() {
     if (telaAtiva === 'dashboard') return 'Visão geral do hotel'
-    if (telaAtiva === 'operacao') return 'Central operacional com quartos, reservas, conta, saldo e alertas'
-    if (telaAtiva === 'reservas') return 'Gerenciamento de reservas'
-    if (telaAtiva === 'recepcao') return 'Entrada, saída e quartos'
-    if (telaAtiva === 'financeiro') return 'Recebimentos e contas'
-    if (telaAtiva === 'hospedes') return 'Cadastro e histórico dos hóspedes'
-    if (telaAtiva === 'quartos') return 'Controle de quartos e disponibilidade'
-    if (telaAtiva === 'restaurante') return 'Serviços, consumos e lançamentos'
-    if (telaAtiva === 'estoque') return 'Controle de produtos e inventário'
-    if (telaAtiva === 'relatorios') return 'Indicadores, relatórios e exportações'
-    if (telaAtiva === 'usuarios') return 'Usuários e permissões'
-    if (telaAtiva === 'configuracoes') return 'Parâmetros gerais do sistema'
+    if (telaAtiva === 'operacao') return 'Reservas, quartos e contas em aberto'
+    if (telaAtiva === 'reservas') return 'Criação de reservas, disponibilidade e mapa dos quartos'
+    if (telaAtiva === 'restaurante') return 'Produtos e serviços consumidos por hóspedes ativos'
+    if (telaAtiva === 'servicos') return 'Portal de serviços do hóspede'
+    if (telaAtiva === 'financeiro') return 'Caixa e recebimentos'
+    if (telaAtiva === 'hospedes') return 'Hóspedes e histórico'
+    if (telaAtiva === 'estoque') return 'Produtos, quantidades e movimentações'
+    if (telaAtiva === 'relatorios') return 'Relatórios do sistema'
+        if (telaAtiva === 'configuracoes') return 'Empresa, logo e usuários'
     return 'Visão geral do hotel'
   }
 
@@ -1475,7 +1814,7 @@ function App() {
           tipo: 'Quarto',
           titulo: `Quarto ${quarto.numero || '-'}`,
           detalhe: `${quarto.andar || 'Sem andar'} | ${quarto.tipo || 'A definir'} | ${quarto.status || 'livre'}`,
-          tela: 'quartos'
+          tela: 'reservas'
         })
       }
     })
@@ -1519,7 +1858,7 @@ function App() {
       lista.push({
         titulo: `${quartosLimpeza.length} quarto${quartosLimpeza.length === 1 ? '' : 's'} em limpeza`,
         detalhe: 'Acompanhe a liberação dos quartos.',
-        tela: 'quartos'
+        tela: 'reservas'
       })
     }
 
@@ -1527,14 +1866,14 @@ function App() {
       lista.push({
         titulo: `${quartosOcupados.length} quarto${quartosOcupados.length === 1 ? '' : 's'} ocupado${quartosOcupados.length === 1 ? '' : 's'}`,
         detalhe: 'Confira hóspedes e contas em aberto.',
-        tela: 'checkin'
+        tela: 'reservas'
       })
     }
 
     if (estoqueBaixo.length > 0) {
       lista.push({
         titulo: `${estoqueBaixo.length} produto${estoqueBaixo.length === 1 ? '' : 's'} com estoque baixo`,
-        detalhe: 'Reponha itens de frigobar, restaurante ou bar.',
+        detalhe: 'Verifique os itens com baixa quantidade.',
         tela: 'estoque'
       })
     }
@@ -1567,6 +1906,19 @@ function App() {
       return consumo.reserva_id === reservaId
     })
   }
+
+  function consumosAtivosDaReserva(reservaId) {
+    return (Array.isArray(consumos) ? consumos : []).filter((consumo) => {
+      return String(consumo.reserva_id) === String(reservaId)
+    })
+  }
+
+  function reservasAtivasComConsumo() {
+    return (Array.isArray(reservas) ? reservas : []).filter((reserva) => {
+      return !reserva.checkout && consumosAtivosDaReserva(reserva.id).length > 0
+    })
+  }
+
 
   function totalConsumoAbertoQuarto(quartoId) {
     const reserva = reservaAbertaDoQuarto(quartoId)
@@ -1830,7 +2182,7 @@ function App() {
                   )}
 
                   {!reservaAtual && (
-                    <button className="acao-primaria" onClick={() => setTelaAtiva('reservas')}>Criar reserva</button>
+                    <button className="acao-primaria" onClick={() => setTelaAtiva('operacao')}>Criar reserva</button>
                   )}
 
                   <button onClick={() => alterarStatus(quarto.id, 'livre')}>Livre</button>
@@ -1900,6 +2252,92 @@ function App() {
           margin: 6px 0 0;
           color: #64748b;
           font-weight: 600;
+        }
+
+
+        .despesas-reserva-box {
+          background: #f8fafc;
+          border: 1px solid #dbeafe;
+          border-radius: 16px;
+          padding: 14px;
+        }
+
+        .despesas-reserva-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          margin-bottom: 10px;
+          color: #0f172a;
+        }
+
+        .despesas-reserva-header span {
+          color: #1d4ed8;
+          font-weight: 900;
+        }
+
+        .despesas-reserva-form {
+          display: grid;
+          grid-template-columns: 1.5fr 90px 150px 180px;
+          gap: 10px;
+        }
+
+        .despesas-reserva-lista {
+          display: grid;
+          gap: 8px;
+          margin-top: 10px;
+        }
+
+        .despesa-reserva-item {
+          display: grid;
+          grid-template-columns: 1fr 180px 130px 100px;
+          align-items: center;
+          gap: 10px;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 10px;
+        }
+
+        .despesa-reserva-item span,
+        .despesa-reserva-item strong {
+          color: #0f172a;
+          font-weight: 900;
+        }
+
+        .despesa-reserva-item small {
+          color: #64748b;
+          font-weight: 700;
+        }
+
+        .resumo-reserva-criacao {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 16px;
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          border-radius: 14px;
+          padding: 12px;
+          color: #1e3a8a;
+          font-weight: 800;
+        }
+
+        .resumo-reserva-criacao strong {
+          color: #0f172a;
+          font-size: 18px;
+        }
+
+        @media (max-width: 900px) {
+          .despesas-reserva-form,
+          .despesa-reserva-item {
+            grid-template-columns: 1fr;
+          }
+
+          .resumo-reserva-criacao {
+            align-items: flex-start;
+            flex-direction: column;
+          }
         }
 
         .operacional-grid {
@@ -2500,6 +2938,58 @@ function App() {
           cursor: not-allowed;
         }
 
+
+        .linha-clicavel { cursor: pointer; }
+        .linha-clicavel:hover { background: #f1f7ff; }
+        .painel-alertas-dashboard { margin-bottom: 18px; }
+        .alerta-operacional.ok { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
+        .operacao-modo-limpo { border-left: 5px solid #2563eb; margin-bottom: 18px; }
+        .operacao-quarto-card { cursor: pointer; }
+        .operacao-quarto-card:hover { transform: translateY(-2px); box-shadow: 0 14px 35px rgba(15,23,42,.10); }
+
+        .operacao-form-reserva {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+          gap: 12px;
+          margin-top: 16px;
+        }
+
+        .operacao-form-reserva input,
+        .operacao-form-reserva select {
+          width: 100%;
+          border: 1px solid #dbe3ef;
+          border-radius: 12px;
+          padding: 13px 14px;
+          background: #fff;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .operacao-form-reserva .form-wide { grid-column: span 2; }
+        .operacao-form-reserva button {
+          border: 0;
+          border-radius: 12px;
+          background: #2563eb;
+          color: #fff;
+          font-weight: 900;
+          padding: 13px 16px;
+          cursor: pointer;
+        }
+
+
+        .operacao-conta-fixa {
+          display: grid;
+          grid-template-columns: minmax(0, 1.5fr) minmax(280px, .7fr);
+          gap: 16px;
+          align-items: start;
+          margin-bottom: 18px;
+        }
+
+        @media (max-width: 980px) {
+          .operacao-conta-fixa { grid-template-columns: 1fr; }
+          .operacao-form-reserva .form-wide { grid-column: span 1; }
+        }
+
         @media (max-width: 820px) {
           .fasthotel-reserva-select,
           .fasthotel-mini-form {
@@ -2507,47 +2997,254 @@ function App() {
           }
         }
 
-      `}</style>
+
+        .sidebar-logo-img { width: 46px; height: 46px; object-fit: contain; border-radius: 10px; background: #fff; }
+        .logo-config-box { display:flex; gap:16px; align-items:center; padding:14px; border:1px dashed #93c5fd; border-radius:16px; background:#eff6ff; margin-bottom:16px; }
+        .logo-preview { width:92px; height:72px; border-radius:14px; background:#fff; border:1px solid #dbeafe; display:flex; align-items:center; justify-content:center; overflow:hidden; color:#1d4ed8; font-weight:900; }
+        .logo-preview img { width:100%; height:100%; object-fit:contain; }
+        .logo-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+        .logo-upload-label { cursor:pointer; background:#2563eb; color:white; padding:11px 14px; border-radius:12px; font-weight:900; }
+        .logo-upload-label input { display:none; }
+        .map-busy, .map-free { display:inline-flex; align-items:center; justify-content:center; min-width:76px; padding:10px 12px; border-radius:12px; font-weight:900; box-shadow:0 6px 14px rgba(15,23,42,.10); border:1px solid transparent; }
+        .map-busy { background:#dc2626 !important; color:white !important; border-color:#991b1b; }
+        .map-free { background:#16a34a !important; color:white !important; border-color:#166534; }
+        .clean-table tbody tr:hover { background:#f8fafc; }
+        .reservation-actions-extra { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+
+        .operacao-form-reserva {
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          align-items: start;
+        }
+
+        .operacao-form-reserva .form-wide,
+        .operacao-form-reserva .despesas-reserva-box,
+        .operacao-form-reserva .resumo-reserva-criacao {
+          grid-column: 1 / -1;
+        }
+
+        .despesas-reserva-box {
+          padding: 16px;
+          overflow: hidden;
+        }
+
+        .despesas-reserva-header {
+          margin-bottom: 14px;
+        }
+
+        .despesas-reserva-form {
+          display: grid;
+          grid-template-columns: minmax(260px, 1fr) 90px 160px 190px;
+          gap: 12px;
+          align-items: stretch;
+        }
+
+        .despesas-reserva-form button {
+          width: 100%;
+          min-height: 46px;
+          white-space: nowrap;
+        }
+
+        .despesas-reserva-lista {
+          margin-top: 12px;
+        }
+
+        .despesa-reserva-item {
+          grid-template-columns: minmax(180px, 1fr) 180px 140px 110px;
+        }
+
+        .resumo-reserva-criacao {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          align-items: center;
+          gap: 12px;
+          margin-top: 0;
+          min-height: auto;
+        }
+
+        .resumo-reserva-criacao span,
+        .resumo-reserva-criacao strong {
+          display: block;
+          background: #ffffff;
+          border: 1px solid #dbeafe;
+          border-radius: 12px;
+          padding: 12px 14px;
+          line-height: 1.25;
+        }
+
+        .btn-criar-reserva-pdf {
+          grid-column: 1 / -1;
+          justify-self: end;
+          width: min(320px, 100%);
+          min-height: 48px;
+          margin-top: 0;
+        }
+
+        @media (max-width: 1100px) {
+          .operacao-form-reserva {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .despesas-reserva-form,
+          .resumo-reserva-criacao {
+            grid-template-columns: 1fr 1fr;
+          }
+          .despesas-reserva-form button,
+          .resumo-reserva-criacao strong {
+            grid-column: 1 / -1;
+          }
+        }
+
+        @media (max-width: 720px) {
+          .operacao-form-reserva,
+          .despesas-reserva-form,
+          .resumo-reserva-criacao,
+          .despesa-reserva-item {
+            grid-template-columns: 1fr;
+          }
+          .btn-criar-reserva-pdf {
+            justify-self: stretch;
+            width: 100%;
+          }
+        }
+        .reservation-actions-extra button { border:0; border-radius:10px; padding:10px 12px; background:#1d4ed8; color:#fff; font-weight:800; cursor:pointer; }
+        .hotel-menu button { min-height: 52px; }
+
+        /* CORREÇÃO FINAL DO FORMULÁRIO DE RESERVA - NÃO REMOVER */
+        .operacao-form-reserva {
+          display: grid !important;
+          grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+          gap: 12px !important;
+          align-items: stretch !important;
+        }
+
+        .operacao-form-reserva > input,
+        .operacao-form-reserva > select {
+          width: 100% !important;
+          min-width: 0 !important;
+          height: 44px !important;
+        }
+
+        .operacao-form-reserva .despesas-reserva-box {
+          grid-column: span 3 !important;
+          min-height: 150px !important;
+          padding: 14px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          overflow: visible !important;
+        }
+
+        .despesas-reserva-header {
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          gap: 12px !important;
+          margin-bottom: 12px !important;
+        }
+
+        .despesas-reserva-form {
+          display: grid !important;
+          grid-template-columns: minmax(220px, 1fr) 80px 145px 170px !important;
+          gap: 10px !important;
+          align-items: stretch !important;
+        }
+
+        .despesas-reserva-form input,
+        .despesas-reserva-form button {
+          width: 100% !important;
+          height: 44px !important;
+          min-width: 0 !important;
+        }
+
+        .resumo-reserva-criacao {
+          grid-column: span 1 !important;
+          min-height: 150px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: center !important;
+          gap: 8px !important;
+          padding: 14px !important;
+          overflow: visible !important;
+        }
+
+        .resumo-reserva-criacao span,
+        .resumo-reserva-criacao strong {
+          width: 100% !important;
+          display: block !important;
+          padding: 10px 12px !important;
+          border-radius: 10px !important;
+          line-height: 1.25 !important;
+          font-size: 13px !important;
+          word-break: normal !important;
+          white-space: normal !important;
+        }
+
+        .resumo-reserva-criacao strong {
+          font-size: 15px !important;
+        }
+
+        .operacao-form-reserva .btn-criar-reserva-pdf,
+        .operacao-form-reserva > .primary-button {
+          grid-column: span 1 !important;
+          width: 100% !important;
+          min-height: 150px !important;
+          height: 100% !important;
+          align-self: stretch !important;
+          margin: 0 !important;
+          border-radius: 14px !important;
+          white-space: normal !important;
+        }
+
+        @media (max-width: 1250px) {
+          .operacao-form-reserva { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+          .operacao-form-reserva .despesas-reserva-box,
+          .resumo-reserva-criacao,
+          .operacao-form-reserva .btn-criar-reserva-pdf,
+          .operacao-form-reserva > .primary-button { grid-column: 1 / -1 !important; min-height: auto !important; }
+          .despesas-reserva-form { grid-template-columns: 1fr 90px 150px 180px !important; }
+        }
+
+        @media (max-width: 720px) {
+          .operacao-form-reserva,
+          .despesas-reserva-form { grid-template-columns: 1fr !important; }
+        }
+
+
+      `}
+</style>
       <aside className="hotel-sidebar">
         <div className="hotel-brand">
-          <div className="hotel-logo-icon">{icons.hotel}</div>
+          <div className="hotel-logo-icon">{empresaLogo ? <img src={empresaLogo} alt="Logo do hotel" className="sidebar-logo-img" /> : icons.hotel}</div>
           <div>
             <h1>{empresaConfig?.nome_fantasia || 'CRONOS'}</h1>
             <p>{empresaConfig?.nome_empresa || 'Sistema Hotel'}</p>
           </div>
         </div>
 
-        <nav className="hotel-menu">
+        <nav className="hotel-menu professional-menu">
+          <div className="menu-section-label">Visão geral</div>
           <button className={menuClasse('dashboard')} onClick={() => setTelaAtiva('dashboard')}>
             <span className="menu-icon">{icons.dashboard}</span> Dashboard
           </button>
 
-          <button className={menuClasse('operacao')} onClick={() => setTelaAtiva('operacao')}>
-            <span className="menu-icon">{icons.check}</span> Operação Hotel
-          </button>
-
+          <div className="menu-section-label">Operação</div>
           <button className={menuClasse('reservas')} onClick={() => setTelaAtiva('reservas')}>
             <span className="menu-icon">{icons.reservas}</span> Reservas
           </button>
 
-          <button className={menuClasse('hospedes')} onClick={() => setTelaAtiva('hospedes')}>
-            <span className="menu-icon">{icons.hospedes}</span> Hóspedes
-          </button>
-
-          <button className={menuClasse('recepcao')} onClick={() => setTelaAtiva('recepcao')}>
-            <span className="menu-icon">{icons.check}</span> Check-in / Check-out
-          </button>
-
-          <button className={menuClasse('quartos')} onClick={() => setTelaAtiva('quartos')}>
-            <span className="menu-icon">{icons.quartos}</span> Quartos
-          </button>
-
           <button className={menuClasse('restaurante')} onClick={() => setTelaAtiva('restaurante')}>
-            <span className="menu-icon">{icons.servicos}</span> Serviços
+            <span className="menu-icon">{icons.servicos}</span> Recepção / Restaurante
           </button>
 
+          <button className={menuClasse('servicos')} onClick={() => setTelaAtiva('servicos')}>
+            <span className="menu-icon">{icons.servicos}</span> Serviços do Hóspede
+          </button>
+
+          <div className="menu-section-label">Gestão</div>
           <button className={menuClasse('financeiro')} onClick={() => setTelaAtiva('financeiro')}>
-            <span className="menu-icon">{icons.financeiro}</span> Financeiro
+            <span className="menu-icon">{icons.financeiro}</span> Finanças
+          </button>
+
+          <button className={menuClasse('estoque')} onClick={() => setTelaAtiva('estoque')}>
+            <span className="menu-icon">{icons.quartos}</span> Estoque
           </button>
 
           <button className={menuClasse('relatorios')} onClick={() => setTelaAtiva('relatorios')}>
@@ -2733,7 +3430,7 @@ function App() {
                       {Array.from({ length: Math.max(0, Number(reservaCentralSelecionada.qtd_hospedes || 1) - 1) }).map((_, index) => (
                         <div className="central-info" key={`acompanhante-${index}`} style={{ marginTop: 8 }}>
                           <span>Acompanhante {index + 1}</span>
-                          <strong>Pronto para cadastro completo em reserva_hospedes</strong>
+                          <strong>Acompanhante não identificado</strong>
                         </div>
                       ))}
                     </div>
@@ -2820,7 +3517,7 @@ function App() {
                       <button className="danger" onClick={() => fazerCheckout(reservaCentralSelecionada)}>Fazer check-out</button>
                     )}
                     <button className="blue" onClick={() => { setReservaContaId(reservaCentralSelecionada.id); setTelaAtiva('financeiro'); setCentralReservaId('') }}>Abrir no financeiro</button>
-                    <button onClick={() => window.print()}>Imprimir conta</button>
+                    <button onClick={() => gerarRelatorioReservaPDF(reservaCentralSelecionada)}>Gerar resumo da reserva</button>
                   </div>
                 </aside>
               </div>
@@ -2831,6 +3528,89 @@ function App() {
 
         {telaAtiva === 'operacao' && (
           <>
+            <section className="white-panel">
+              <div className="panel-header">
+                <div>
+                  <h2>Nova reserva</h2>
+                </div>
+              </div>
+
+              <div className="operacao-form-reserva">
+                <select value={quartoId} onChange={(e) => setQuartoId(e.target.value)}>
+                  <option value="">Selecione o quarto</option>
+                  {quartos.map((quarto) => (
+                    <option key={quarto.id} value={quarto.id}>
+                      Quarto {quarto.numero} - {quarto.tipo || 'A definir'} - {formatarMoeda(quarto.valor_diaria)}
+                    </option>
+                  ))}
+                </select>
+
+                <input placeholder="Nome do hóspede titular" value={nomeHospede} onChange={(e) => setNomeHospede(e.target.value)} />
+                <input placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+                <input type="date" value={entrada} onChange={(e) => setEntrada(e.target.value)} />
+                <input type="date" value={saida} onChange={(e) => setSaida(e.target.value)} />
+                <input type="number" min="1" placeholder="Qtd. hóspedes" value={qtdHospedes} onChange={(e) => setQtdHospedes(e.target.value)} />
+                <input
+                  placeholder="Valor da diária"
+                  value={valorReservaManual}
+                  onChange={(e) => setValorReservaManual(e.target.value)}
+                />
+
+                <select value={tipoHospede} onChange={(e) => setTipoHospede(e.target.value)}>
+                  <option value="homem">Homem</option>
+                  <option value="mulher">Mulher</option>
+                  <option value="menino">Menino</option>
+                  <option value="menina">Menina</option>
+                </select>
+
+                <select value={canalVenda} onChange={(e) => setCanalVenda(e.target.value)}>
+                  <option>Direto</option>
+                  <option>WhatsApp</option>
+                  <option>Booking</option>
+                  <option>Airbnb</option>
+                  <option>Agência</option>
+                </select>
+
+                <input className="form-wide" placeholder="Observação da reserva" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+
+                <div className="form-wide despesas-reserva-box">
+                  <div className="despesas-reserva-header">
+                    <strong>Outras despesas da reserva</strong>
+                    <span>Total extra: {formatarMoeda(totalDespesasReservaTemporarias())}</span>
+                  </div>
+
+                  <div className="despesas-reserva-form">
+                    <input placeholder="Descrição. Ex: Café, passeio, taxa" value={despesaReservaDescricao} onChange={(e) => setDespesaReservaDescricao(e.target.value)} />
+                    <input type="number" min="1" placeholder="Qtd." value={despesaReservaQuantidade} onChange={(e) => setDespesaReservaQuantidade(e.target.value)} />
+                    <input placeholder="Valor unitário" value={despesaReservaValor} onChange={(e) => setDespesaReservaValor(e.target.value)} />
+                    <button type="button" onClick={adicionarDespesaReserva}>Adicionar despesa</button>
+                  </div>
+
+                  {despesasReserva.length > 0 && (
+                    <div className="despesas-reserva-lista">
+                      {despesasReserva.map((item) => (
+                        <div key={item.id} className="despesa-reserva-item">
+                          <span>{item.descricao}</span>
+                          <small>Qtd. {item.quantidade} × {formatarMoeda(item.valor_unitario)}</small>
+                          <strong>{formatarMoeda(item.valor_total)}</strong>
+                          <button type="button" onClick={() => removerDespesaReserva(item.id)}>Remover</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-wide resumo-reserva-criacao">
+                  <span>Diária: {formatarMoeda(valorDiariaReservaDigitado())}</span>
+                  <span>Outras despesas: {formatarMoeda(totalDespesasReservaTemporarias())}</span>
+                  <strong>Total da reserva: {formatarMoeda(totalReservaTemporariarelatório())}</strong>
+                </div>
+
+                <button className="btn-criar-reserva-pdf" onClick={criarReserva}>Finalizar reserva</button>
+              </div>
+
+            </section>
+
             <section className="operacional-resumo">
               <div className="operacional-resumo-card livre"><span>Livres</span><strong>{disponiveis}</strong><small>Prontos para vender</small></div>
               <div className="operacional-resumo-card reservado"><span>Reservados</span><strong>{reservados}</strong><small>Aguardando check-in</small></div>
@@ -2841,10 +3621,9 @@ function App() {
             <div className="white-panel">
               <div className="panel-header">
                 <div>
-                  <h2>Alertas importantes</h2>
-                  <p className="panel-subtitle">Checkout hoje, saldo pendente, reserva vencida e limpeza pendente.</p>
+                  <h2>Alertas da operação</h2>
                 </div>
-                <button onClick={() => setTelaAtiva('reservas')}>Nova reserva</button>
+                <button onClick={() => setTelaAtiva('operacao')}>Nova reserva</button>
               </div>
 
               <div className="operacao-alertas-grid">
@@ -2908,7 +3687,7 @@ function App() {
                                 {reservaAtual ? (
                                   <button className="acao-primaria" onClick={() => abrirCentralReserva(reservaAtual)}>Abrir Central</button>
                                 ) : (
-                                  <button className="acao-primaria" onClick={() => { setQuartoId(quarto.id); setTelaAtiva('reservas') }}>Nova reserva</button>
+                                  <button className="acao-primaria" onClick={() => { setQuartoId(quarto.id); setTelaAtiva('operacao') }}>Nova reserva</button>
                                 )}
                                 <button onClick={() => alterarStatus(quarto.id, 'limpeza')}>Limpeza</button>
                                 <button onClick={() => alterarStatus(quarto.id, 'livre')}>Livre</button>
@@ -2985,7 +3764,7 @@ function App() {
               <div className="white-panel reservations-panel">
                 <div className="panel-header">
                   <h3>Reservas dos próximos 7 dias</h3>
-                  <button onClick={() => setTelaAtiva('reservas')}>Ver todas</button>
+                  <button onClick={() => setTelaAtiva('operacao')}>Abrir operação</button>
                 </div>
 
                 <table className="clean-table">
@@ -3007,7 +3786,7 @@ function App() {
                     )}
 
                     {proximasReservas.map((reserva) => (
-                      <tr key={reserva.id}>
+                      <tr key={reserva.id} className="linha-clicavel" onClick={() => abrirCentralReserva(reserva)}>
                         <td>
                           <div className="guest-cell">
                             <img
@@ -3060,29 +3839,29 @@ function App() {
                 <h3>Ações rápidas</h3>
 
                 <div className="quick-actions">
-                  <button onClick={() => setTelaAtiva('reservas')}>
+                  <button onClick={() => setTelaAtiva('operacao')}>
                     <span className="qa blue">+</span>
                     Nova reserva
                   </button>
 
-                  <button onClick={() => setTelaAtiva('recepcao')}>
+                  <button onClick={() => setTelaAtiva('operacao')}>
                     <span className="qa green">↪</span>
-                    Check-in
+                    Operação
                   </button>
 
-                  <button onClick={() => setTelaAtiva('recepcao')}>
+                  <button onClick={() => setTelaAtiva('operacao')}>
                     <span className="qa orange">↩</span>
-                    Check-out
+                    Saídas hoje
                   </button>
 
-                  <button onClick={() => setTelaAtiva('reservas')}>
+                  <button onClick={() => setTelaAtiva('operacao')}>
                     <span className="qa purple">♙</span>
                     Novo hóspede
                   </button>
 
-                  <button onClick={() => setTelaAtiva('restaurante')}>
+                  <button onClick={() => setTelaAtiva('financeiro')}>
                     <span className="qa blue">◒</span>
-                    Serviços
+                    Caixa
                   </button>
                 </div>
               </div>
@@ -3133,7 +3912,7 @@ function App() {
                   <h2>Criar Reserva</h2>
                 </div>
 
-                <div className="form-grid">
+                <div className="form-grid operacao-form-reserva">
                   <select value={quartoId} onChange={(e) => setQuartoId(e.target.value)}>
                     <option value="">Selecione o quarto</option>
 
@@ -3191,17 +3970,87 @@ function App() {
                   </select>
 
                   <input
+                    placeholder="Valor da diária"
+                    value={valorReservaManual}
+                    onChange={(e) => setValorReservaManual(e.target.value)}
+                  />
+
+                  <input
                     placeholder="Observação"
                     value={observacao}
                     onChange={(e) => setObservacao(e.target.value)}
                   />
 
-                  <button className="primary-button" onClick={criarReserva}>
-                    Criar reserva
+                  <div className="form-wide despesas-reserva-box">
+                    <div className="despesas-reserva-header">
+                      <strong>Outras despesas da reserva</strong>
+                      <span>Total extra: {formatarMoeda(totalDespesasReservaTemporarias())}</span>
+                    </div>
+
+                    <div className="despesas-reserva-form">
+                      <input
+                        placeholder="Descrição. Ex: Café, passeio, taxa"
+                        value={despesaReservaDescricao}
+                        onChange={(e) => setDespesaReservaDescricao(e.target.value)}
+                      />
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Qtd."
+                        value={despesaReservaQuantidade}
+                        onChange={(e) => setDespesaReservaQuantidade(e.target.value)}
+                      />
+                      <input
+                        placeholder="Valor unitário"
+                        value={despesaReservaValor}
+                        onChange={(e) => setDespesaReservaValor(e.target.value)}
+                      />
+                      <button type="button" onClick={adicionarDespesaReserva}>
+                        Adicionar despesa
+                      </button>
+                    </div>
+
+                    {despesasReserva.length > 0 && (
+                      <div className="despesas-reserva-lista">
+                        {despesasReserva.map((item) => (
+                          <div key={item.id} className="despesa-reserva-item">
+                            <span>{item.descricao}</span>
+                            <small>Qtd. {item.quantidade} × {formatarMoeda(item.valor_unitario)}</small>
+                            <strong>{formatarMoeda(item.valor_total)}</strong>
+                            <button type="button" onClick={() => removerDespesaReserva(item.id)}>
+                              Remover
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="form-wide resumo-reserva-criacao">
+                    <span>
+                      Diária: {formatarMoeda(valorDiariaReservaDigitado())}
+                    </span>
+                    <span>
+                      Outras despesas: {formatarMoeda(totalDespesasReservaTemporarias())}
+                    </span>
+                    <strong>
+                      Total da reserva: {formatarMoeda(totalReservaTemporariarelatório())}
+                    </strong>
+                  </div>
+
+                  <button className="primary-button btn-criar-reserva-pdf" onClick={criarReserva}>
+                    Finalizar reserva
                   </button>
                 </div>
               </div>
             )}
+
+            <div className="reservas-status-grid">
+              <div className="reserva-status-card livre"><span>Livres</span><strong>{disponiveis}</strong></div>
+              <div className="reserva-status-card ocupado"><span>Ocupados</span><strong>{ocupados}</strong></div>
+              <div className="reserva-status-card reservado"><span>Reservados</span><strong>{reservados}</strong></div>
+              <div className="reserva-status-card limpeza"><span>Limpeza</span><strong>{totalQuartosStatus('limpeza')}</strong></div>
+            </div>
 
             <div className="white-panel">
               <div className="panel-header">
@@ -3307,6 +4156,7 @@ function App() {
 
                       <div className="button-row">
                         <button onClick={() => abrirCentralReserva(reserva)}>Abrir Central da Reserva</button>
+                        <button onClick={() => gerarRelatorioReservaPDF(reserva)}>Gerar resumo da reserva</button>
 
                         {!reserva.checkin && !reserva.checkout && (
                           <button onClick={() => fazerCheckin(reserva)}>
@@ -3347,53 +4197,6 @@ function App() {
         )}
 
 
-        {telaAtiva === 'recepcao' && (
-          <>
-            <section className="operacional-resumo">
-              <div className="operacional-resumo-card livre">
-                <span>Livres</span>
-                <strong>{disponiveis}</strong>
-                <small>Prontos para vender</small>
-              </div>
-
-              <div className="operacional-resumo-card ocupado">
-                <span>Ocupados</span>
-                <strong>{ocupados}</strong>
-                <small>Com hóspede ativo</small>
-              </div>
-
-              <div className="operacional-resumo-card reservado">
-                <span>Reservados</span>
-                <strong>{reservados}</strong>
-                <small>Aguardando check-in</small>
-              </div>
-
-              <div className="operacional-resumo-card limpeza">
-                <span>Limpeza</span>
-                <strong>{totalQuartosStatus('limpeza')}</strong>
-                <small>Indisponíveis no momento</small>
-              </div>
-            </section>
-
-            <div className="white-panel operacional-painel">
-              <div className="panel-header">
-                <div>
-                  <h2>Check-in / Check-out</h2>
-                  <p className="panel-subtitle">Painel operacional da recepção com hóspede, saldo e ações rápidas.</p>
-                </div>
-
-                <button onClick={() => setTelaAtiva('reservas')}>Nova reserva</button>
-              </div>
-
-              <div className="quartos-andares operacional-andares">
-                {['Térreo', 'Andar 01', 'Andar 02', 'Andar 03', 'Andar 04'].map((andar) =>
-                  renderizarQuartosOperacionalPorAndar(andar)
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
         {telaAtiva === 'financeiro' && podeAcessarFinanceiro() && (
           <>
             <div className="fasthotel-window">
@@ -3407,7 +4210,7 @@ function App() {
               </div>
 
               <div className="fasthotel-toolbar">
-                <button className="fasthotel-link" onClick={() => setTelaAtiva('reservas')}>Ir para reserva</button>
+                <button className="fasthotel-link" onClick={() => setTelaAtiva('operacao')}>Ir para reserva</button>
                 <label><input type="checkbox" /> Agrupar por produto</label>
                 <label><input type="checkbox" /> Ordenar por data</label>
                 <label><input type="checkbox" defaultChecked /> Ocultar estornados, transferidos ou zerados</label>
@@ -3520,7 +4323,7 @@ function App() {
 
               <div className="white-panel fasthotel-operation-panel">
                 <h2>Adicionar item</h2>
-                <p className="panel-subtitle">Lance diária extra, frigobar, restaurante ou qualquer consumo.</p>
+                <p className="panel-subtitle">Lance itens extras diretamente na conta.</p>
                 <div className="fasthotel-mini-form">
                   <input placeholder="Produto / descrição" value={descricaoConsumo} onChange={(e) => setDescricaoConsumo(e.target.value)} />
                   <input placeholder="Valor" type="number" value={valorConsumo} onChange={(e) => setValorConsumo(e.target.value)} />
@@ -3572,192 +4375,180 @@ function App() {
           </>
         )}
         {telaAtiva === 'restaurante' && (
-          <div className="white-panel">
-            <div className="panel-header">
-              <h2>Serviços e Consumo do Quarto</h2>
-              <button onClick={() => setTelaAtiva('estoque')}>Cadastrar produtos</button>
+          <div className="recepcao-restaurante-page">
+            <div className="white-panel">
+              <div className="panel-header">
+                <h2>Lançar consumo manual</h2>
+                <button onClick={() => setTelaAtiva('estoque')}>Cadastrar produtos</button>
+              </div>
+
+              <div className="form-grid consumo-manual-form">
+                <select value={consumoReservaId} onChange={(e) => setConsumoReservaId(e.target.value)}>
+                  <option value="">Selecione a reserva/quarto</option>
+                  {(Array.isArray(reservas) ? reservas : [])
+                    .filter((reserva) => !reserva.checkout)
+                    .map((reserva) => (
+                      <option key={reserva.id} value={reserva.id}>
+                        {reserva.quartos?.numero || '-'} - {reserva.nome_hospede || 'Hóspede'}
+                      </option>
+                    ))}
+                </select>
+
+                <select value={consumoProdutoId} onChange={(e) => setConsumoProdutoId(e.target.value)}>
+                  <option value="">Produto/serviço</option>
+                  {(Array.isArray(produtos) ? produtos : [])
+                    .filter((produto) => produto.ativo !== false)
+                    .map((produto) => (
+                      <option key={produto.id} value={produto.id}>
+                        {produto.nome} - {formatarMoeda(produto.valor_venda || 0)}
+                      </option>
+                    ))}
+                </select>
+
+                <input type="number" placeholder="Quantidade" value={consumoQuantidade} onChange={(e) => setConsumoQuantidade(e.target.value)} />
+                <input placeholder="Descrição/observação" value={consumoObservacao} onChange={(e) => setConsumoObservacao(e.target.value)} />
+                <button onClick={lancarConsumoQuarto}>Lançar consumo</button>
+              </div>
             </div>
 
-            <p className="config-info">
-              Use esta tela quando o hóspede consumir Coca-Cola, água, cerveja, camisinha ou qualquer item do frigobar/freezer do quarto.
-              O sistema lança o valor na conta da reserva e baixa automaticamente do estoque.
-            </p>
+            <div className="white-panel">
+              <div className="panel-header">
+                <h2>Quartos com consumo</h2>
+              </div>
 
-            <div className="form-grid">
-              <select
-                value={consumoReservaId}
-                onChange={(e) => setConsumoReservaId(e.target.value)}
-              >
-                <option value="">Selecione a reserva/quarto</option>
-                {(Array.isArray(reservas) ? reservas : [])
-                  .filter((reserva) => !reserva.checkout)
-                  .map((reserva) => (
-                    <option key={reserva.id} value={reserva.id}>
-                      Quarto {reserva.quartos?.numero || '-'} - {reserva.nome_hospede || 'Hóspede'}
-                    </option>
-                  ))}
-              </select>
+              <div className="consumo-quartos-grid">
+                {reservasAtivasComConsumo().length === 0 && (
+                  <div className="empty-state">Nenhum quarto com consumo em aberto.</div>
+                )}
 
-              <select
-                value={consumoProdutoId}
-                onChange={(e) => setConsumoProdutoId(e.target.value)}
-              >
-                <option value="">Selecione o produto/serviço</option>
+                {reservasAtivasComConsumo().map((reserva) => {
+                  const itens = consumosAtivosDaReserva(reserva.id)
+                  const totalItens = itens.reduce((total, consumo) => total + Number(consumo.valor || 0), 0)
+
+                  return (
+                    <div key={reserva.id} className="consumo-quarto-card">
+                      <div className="consumo-quarto-topo">
+                        <div><span>Quarto</span><strong>{reserva.quartos?.numero || '-'}</strong></div>
+                        <div><span>Hóspede</span><strong>{reserva.nome_hospede || 'Hóspede'}</strong></div>
+                        <div><span>Total</span><strong>{formatarMoeda(totalItens)}</strong></div>
+                      </div>
+
+                      <table className="clean-table consumo-itens-table">
+                        <thead><tr><th>Descrição</th><th>Data</th><th>Valor</th></tr></thead>
+                        <tbody>
+                          {itens.map((consumo) => (
+                            <tr key={consumo.id}>
+                              <td>{consumo.descricao || 'Consumo'}</td>
+                              <td>{formatarDataCurta(String(consumo.criado_em || consumo.created_at || '').slice(0, 10))}</td>
+                              <td>{formatarMoeda(consumo.valor || 0)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+
+        {telaAtiva === 'servicos' && (
+          <div className="servicos-hospede-page">
+            <section className="white-panel servicos-hospede-hero">
+              <div>
+                <h2>Serviços para o hóspede</h2>
+                <p>Cardápio e serviços para envio pelo WhatsApp.</p>
+              </div>
+            </section>
+
+            <section className="white-panel">
+              <div className="panel-header">
+                <div>
+                  <h2>Enviar link de serviços</h2>
+                  
+                </div>
+              </div>
+
+              <div className="form-grid servicos-hospede-form">
+                <select
+                  value={consumoReservaId}
+                  onChange={(e) => setConsumoReservaId(e.target.value)}
+                >
+                  <option value="">Selecione a reserva/quarto</option>
+                  {(Array.isArray(reservas) ? reservas : [])
+                    .filter((reserva) => !reserva.checkout)
+                    .map((reserva) => (
+                      <option key={reserva.id} value={reserva.id}>
+                        Quarto {reserva.quartos?.numero || '-'} - {reserva.nome_hospede || 'Hóspede'}
+                      </option>
+                    ))}
+                </select>
+
+                <button
+                  className="primary-button"
+                  type="button"
+                  onClick={() => {
+                    const reservaSelecionada = (Array.isArray(reservas) ? reservas : []).find((reserva) => String(reserva.id) === String(consumoReservaId))
+
+                    if (!reservaSelecionada) {
+                      mostrarAviso('Selecione uma reserva ativa para enviar o link.', 'erro')
+                      return
+                    }
+
+                    if (!reservaSelecionada.telefone) {
+                      mostrarAviso('A reserva selecionada não tem telefone salvo.', 'erro')
+                      return
+                    }
+
+                    const linkServicos = `${window.location.origin}/servicos-hospede?reserva=${reservaSelecionada.id}`
+                    const mensagem = [
+                      `Olá, ${reservaSelecionada.nome_hospede || 'hóspede'}!`,
+                      '',
+                      `Segue o link de serviços do ${empresaFantasia || empresaConfig?.nome_fantasia || 'hotel'}:`,
+                      linkServicos,
+                      '',
+                      'Por ele você pode escolher cardápio, bebidas, frigobar e outros serviços.'
+                    ].join('\n')
+
+                    window.open(`https://wa.me/${telefoneWhatsApp(reservaSelecionada.telefone)}?text=${encodeURIComponent(mensagem)}`, '_blank')
+                  }}
+                >
+                  Enviar link pelo WhatsApp
+                </button>
+              </div>
+            </section>
+
+            <section className="white-panel">
+              <div className="panel-header">
+                <div>
+                  <h2>Cardápio e serviços disponíveis</h2>
+                  <p className="panel-subtitle">Produtos ativos que aparecem como opções para o hóspede.</p>
+                </div>
+                <button onClick={() => setTelaAtiva('estoque')}>Cadastrar produtos</button>
+              </div>
+
+              <div className="servicos-cardapio-grid">
                 {(Array.isArray(produtos) ? produtos : [])
                   .filter((produto) => produto.ativo !== false)
+                  .slice(0, 18)
                   .map((produto) => (
-                    <option key={produto.id} value={produto.id}>
-                      {produto.nome} - {formatarMoeda(produto.valor_venda || 0)} - Estoque: {produto.estoque_atual || 0}
-                    </option>
+                    <div className="servico-cardapio-card" key={produto.id}>
+                      <strong>{produto.nome}</strong>
+                      <span>{produto.local_uso || produto.tipo || 'Serviço'}</span>
+                      <b>{formatarMoeda(produto.valor_venda || 0)}</b>
+                    </div>
                   ))}
-              </select>
 
-              <input
-                type="number"
-                placeholder="Quantidade"
-                value={consumoQuantidade}
-                onChange={(e) => setConsumoQuantidade(e.target.value)}
-              />
-
-              <input
-                placeholder="Observação"
-                value={consumoObservacao}
-                onChange={(e) => setConsumoObservacao(e.target.value)}
-              />
-
-              <button onClick={lancarConsumoQuarto}>
-                Lançar consumo
-              </button>
-            </div>
-
-            <div className="module-grid">
-              <div className="module-card">
-                <h3>Consumos registrados</h3>
-                <strong>{consumos.length}</strong>
-                <p>Total de itens lançados nas contas.</p>
-              </div>
-
-              <div className="module-card">
-                <h3>Produtos do frigobar</h3>
-                <strong>{produtos.filter((produto) => produto.usado_em_frigobar).length}</strong>
-                <p>Itens marcados para uso em quarto.</p>
-              </div>
-
-              <div className="module-card">
-                <h3>Estoque baixo</h3>
-                <strong>{totalEstoqueBaixo()}</strong>
-                <p>Produtos que precisam de reposição.</p>
-              </div>
-            </div>
-
-            <table className="clean-table">
-              <thead>
-                <tr>
-                  <th>Descrição</th>
-                  <th>Valor</th>
-                  <th>Reserva</th>
-                  <th>Data</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {consumos.length === 0 && (
-                  <tr>
-                    <td colSpan="4">Nenhum consumo lançado</td>
-                  </tr>
+                {(Array.isArray(produtos) ? produtos : []).filter((produto) => produto.ativo !== false).length === 0 && (
+                  <p className="config-info">Nenhum produto ou serviço ativo cadastrado ainda.</p>
                 )}
-
-                {consumos.slice(0, 20).map((consumo) => (
-                  <tr key={consumo.id}>
-                    <td>{consumo.descricao}</td>
-                    <td>{formatarMoeda(consumo.valor)}</td>
-                    <td>{consumo.reserva_id}</td>
-                    <td>{String(consumo.criado_em || '').slice(0, 10)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              </div>
+            </section>
           </div>
         )}
 
-
-        {telaAtiva === 'hospedes' && (
-          <div className="white-panel">
-            <div className="panel-header">
-              <h2>Hóspedes</h2>
-              <button onClick={() => setTelaAtiva('reservas')}>Nova reserva</button>
-            </div>
-
-            <table className="clean-table">
-              <thead>
-                <tr>
-                  <th>Hóspede</th>
-                  <th>Telefone</th>
-                  <th>Quarto</th>
-                  <th>Entrada</th>
-                  <th>Saída</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {reservas.length === 0 && (
-                  <tr>
-                    <td colSpan="6">Nenhum hóspede encontrado</td>
-                  </tr>
-                )}
-
-                {reservas.map((reserva) => (
-                  <tr key={reserva.id}>
-                    <td>
-                      <div className="guest-cell">
-                        <img
-                              className="guest-avatar-img"
-                              src={avatarHospede(reserva.tipo_hospede)}
-                              alt={reserva.tipo_hospede || 'hóspede'}
-                            />
-                        {reserva.nome_hospede}
-                      </div>
-                    </td>
-                    <td>{reserva.telefone || 'Não informado'}</td>
-                    <td>{reserva.quartos?.numero || '-'}</td>
-                    <td>{reserva.data_entrada}</td>
-                    <td>{reserva.data_saida}</td>
-                    <td>
-                      <span className="status confirmed">
-                        {reserva.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {telaAtiva === 'quartos' && (
-          <div className="white-panel">
-            <div className="panel-header">
-              <h2>Quartos</h2>
-              <button onClick={() => setTelaAtiva('recepcao')}>Painel operacional</button>
-            </div>
-
-            {podeCadastrarQuarto() && (
-              <div className="form-grid">
-                <input placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value)} />
-                <input placeholder="Tipo" value={tipo} onChange={(e) => setTipo(e.target.value)} />
-                <input placeholder="Valor diária" value={valor} onChange={(e) => setValor(e.target.value)} />
-                <button onClick={salvarQuarto}>Salvar quarto</button>
-              </div>
-            )}
-
-            <div className="quartos-andares">
-                {['Térreo', 'Andar 01', 'Andar 02', 'Andar 03', 'Andar 04'].map((andar) =>
-                  renderizarQuartosPorAndar(andar)
-                )}
-              </div>
-          </div>
-        )}
         {telaAtiva === 'estoque' && podeAcessarEstoque() && (
           <>
             <section className="stats-grid">
@@ -3796,7 +4587,7 @@ function App() {
 
             <div className="white-panel">
               <div className="panel-header">
-                <h2>Cadastro de Categorias e Produtos</h2>
+                <h2>Cadastro de Produtos</h2>
               </div>
 
               <div className="form-grid">
@@ -3813,7 +4604,7 @@ function App() {
 
               <div className="form-grid">
                 <input
-                  placeholder="Nome do produto/serviço"
+                  placeholder="Nome do produto"
                   value={produtoNome}
                   onChange={(e) => setProdutoNome(e.target.value)}
                 />
@@ -3865,7 +4656,7 @@ function App() {
                 >
                   <option>Geral</option>
                   <option>Frigobar do quarto</option>
-                  <option>Restaurante</option>
+                  <option>Recepção / Restaurante</option>
                   <option>Bar</option>
                   <option>Limpeza</option>
                 </select>
@@ -3876,7 +4667,7 @@ function App() {
                     checked={produtoFrigobar}
                     onChange={(e) => setProdutoFrigobar(e.target.checked)}
                   />
-                  Produto usado no frigobar/freezer dos quartos
+                  Controlar estoque desse item
                 </label>
 
                 <button onClick={salvarProduto}>
@@ -3932,7 +4723,7 @@ function App() {
 
             <div className="white-panel">
               <div className="panel-header">
-                <h2>Produtos e Serviços</h2>
+                <h2>Produtos cadastrados</h2>
               </div>
 
               <table className="clean-table">
@@ -4055,7 +4846,7 @@ function App() {
                   <div className="stat-info">
                     <span>Consumos</span>
                     <strong>{formatarMoeda(totalConsumosPeriodo())}</strong>
-                    <small>Frigobar, restaurante e serviços</small>
+                    <small>Itens e serviços consumidos</small>
                   </div>
                 </div>
 
@@ -4091,7 +4882,7 @@ function App() {
                     )}
 
                     {reservasPorPeriodo().map((reserva) => (
-                      <tr key={reserva.id}>
+                      <tr key={reserva.id} className="linha-clicavel" onClick={() => abrirCentralReserva(reserva)}>
                         <td>{reserva.nome_hospede || '-'}</td>
                         <td>{reserva.quartos?.numero || '-'}</td>
                         <td>{reserva.data_entrada || '-'}</td>
@@ -4180,9 +4971,22 @@ function App() {
                 <button onClick={salvarEmpresaConfig}>Salvar empresa</button>
               </div>
 
-              <p className="config-info">
-                Essas informações aparecem no topo do sistema e nos relatórios impressos.
-              </p>
+              <div className="logo-config-box">
+                <div className="logo-preview">
+                  {empresaLogo ? <img src={empresaLogo} alt="Logo do hotel" /> : 'LOGO'}
+                </div>
+                <div>
+                  <strong>Logo do hotel para o sistema e relatórios</strong>
+                  <p>Envie uma imagem PNG/JPG para aparecer no sistema e no topo dos relatórios.</p>
+                  <div className="logo-actions">
+                    <label className="logo-upload-label">
+                      Escolher logo
+                      <input type="file" accept="image/*" onChange={(e) => carregarLogoHotel(e.target.files?.[0])} />
+                    </label>
+                    {empresaLogo && <button type="button" onClick={removerLogoHotel}>Remover logo</button>}
+                  </div>
+                </div>
+              </div>
 
               <div className="form-grid">
                 <input
@@ -4241,150 +5045,54 @@ function App() {
               </div>
             </div>
 
-            <div className="white-panel">
-              <h2>Configurações prontas</h2>
-
-              <div className="module-grid">
-                <div className="module-card">
-                  <h3>Empresa</h3>
-                  <p>Dados do hotel usados no topo do sistema e nos relatórios.</p>
-                  <span className="status confirmed">Ativo</span>
-                </div>
-
-                <div className="module-card">
-                  <h3>Usuários</h3>
-                  <p>Gerenciamento de usuários e permissões.</p>
-                  <button onClick={() => setTelaAtiva('usuarios')}>Abrir usuários</button>
-                </div>
-
-                <div className="module-card">
-                  <h3>Produtos do Frigobar</h3>
-                  <p>Cadastre coca-cola, água, cerveja, camisinha e outros itens para consumo nos quartos.</p>
-                  <button onClick={() => setTelaAtiva('estoque')}>Abrir estoque</button>
-                </div>
-
-                <div className="module-card">
-                  <h3>Financeiro</h3>
-                  <p>Formas de pagamento, caixa e regras de cobrança.</p>
-                  <button onClick={() => setTelaAtiva('financeiro')}>Abrir financeiro</button>
-                </div>
-
-                <div className="module-card">
-                  <h3>Relatórios</h3>
-                  <p>Relatórios impressos com dados da empresa.</p>
-                  <button onClick={() => setTelaAtiva('relatorios')}>Abrir relatórios</button>
-                </div>
-
-                <div className="module-card">
-                  <h3>Sistema</h3>
-                  <p>Parâmetros gerais, auditoria, backup e segurança.</p>
-                  <span className="status pending">Preparado</span>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-
-        {telaAtiva === 'usuarios' && usuarioLogado?.perfil === 'Administrador' && (
-          <>
-            <div className="white-panel">
-              <h2>Usuários do Sistema</h2>
-
-              <div className="form-grid">
-                <input placeholder="Nome" value={novoNome} onChange={(e) => setNovoNome(e.target.value)} />
-                <input placeholder="Telefone" value={novoTelefone} onChange={(e) => setNovoTelefone(e.target.value)} />
-                <input placeholder="Login" value={novoLogin} onChange={(e) => setNovoLogin(e.target.value)} />
-                <input placeholder="Senha" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
-
-                <select value={novoPerfil} onChange={(e) => setNovoPerfil(e.target.value)}>
-                  <option>Administrador</option>
-                  <option>Recepção</option>
-                  <option>Financeiro</option>
-                  <option>Limpeza</option>
-                </select>
-
-                <button onClick={criarUsuario}>
-                  Criar usuário
-                </button>
-              </div>
-
-              <div className="user-list">
-                {usuarios.map((usuario) => (
-                  <div key={usuario.id} className="user-card">
-                    <strong>{usuario.nome}</strong>
-                    <p>Login: {usuario.login}</p>
-                    <p>Perfil: {usuario.perfil}</p>
-                    <p>Telefone: {usuario.telefone || 'Não informado'}</p>
-                    <p>Status: {usuario.ativo ? 'Ativo' : 'Inativo'}</p>
-
-                    <div className="button-row">
-                      <button onClick={() => setEditandoUsuario(usuario)}>
-                        Editar
-                      </button>
-
-                      <button onClick={() => alterarStatusUsuario(usuario)}>
-                        {usuario.ativo ? 'Desativar' : 'Ativar'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {editandoUsuario && (
+            {usuarioLogado?.perfil === 'Administrador' && (
               <div className="white-panel">
-                <h2>Editar Usuário</h2>
+                <div className="panel-header"><h2>Usuários do Sistema</h2></div>
 
                 <div className="form-grid">
-                  <input
-                    placeholder="Nome"
-                    value={editandoUsuario.nome}
-                    onChange={(e) => setEditandoUsuario({ ...editandoUsuario, nome: e.target.value })}
-                  />
-
-                  <input
-                    placeholder="Telefone"
-                    value={editandoUsuario.telefone || ''}
-                    onChange={(e) => setEditandoUsuario({ ...editandoUsuario, telefone: e.target.value })}
-                  />
-
-                  <input
-                    placeholder="Login"
-                    value={editandoUsuario.login}
-                    onChange={(e) => setEditandoUsuario({ ...editandoUsuario, login: e.target.value })}
-                  />
-
-                  <input
-                    placeholder="Senha"
-                    value={editandoUsuario.senha}
-                    onChange={(e) => setEditandoUsuario({ ...editandoUsuario, senha: e.target.value })}
-                  />
-
-                  <select
-                    value={editandoUsuario.perfil}
-                    onChange={(e) => setEditandoUsuario({ ...editandoUsuario, perfil: e.target.value })}
-                  >
-                    <option>Administrador</option>
-                    <option>Recepção</option>
-                    <option>Financeiro</option>
-                    <option>Limpeza</option>
+                  <input placeholder="Nome" value={novoNome} onChange={(e) => setNovoNome(e.target.value)} />
+                  <input placeholder="Telefone" value={novoTelefone} onChange={(e) => setNovoTelefone(e.target.value)} />
+                  <input placeholder="Login" value={novoLogin} onChange={(e) => setNovoLogin(e.target.value)} />
+                  <input placeholder="Senha" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
+                  <select value={novoPerfil} onChange={(e) => setNovoPerfil(e.target.value)}>
+                    <option>Administrador</option><option>Recepção</option><option>Financeiro</option><option>Limpeza</option>
                   </select>
+                  <button onClick={criarUsuario}>Criar usuário</button>
                 </div>
 
-                <div className="button-row">
-                  <button onClick={salvarEdicaoUsuario}>
-                    Salvar alterações
-                  </button>
-
-                  <button onClick={() => setEditandoUsuario(null)}>
-                    Cancelar
-                  </button>
+                <div className="user-list">
+                  {usuarios.map((usuario) => (
+                    <div key={usuario.id} className="user-card">
+                      <strong>{usuario.nome}</strong>
+                      <p>Login: {usuario.login}</p><p>Perfil: {usuario.perfil}</p><p>Telefone: {usuario.telefone || 'Não informado'}</p><p>Status: {usuario.ativo ? 'Ativo' : 'Inativo'}</p>
+                      <div className="button-row"><button onClick={() => setEditandoUsuario(usuario)}>Editar</button><button onClick={() => alterarStatusUsuario(usuario)}>{usuario.ativo ? 'Desativar' : 'Ativar'}</button></div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
+
+            {editandoUsuario && usuarioLogado?.perfil === 'Administrador' && (
+              <div className="white-panel">
+                <h2>Editar Usuário</h2>
+                <div className="form-grid">
+                  <input placeholder="Nome" value={editandoUsuario.nome} onChange={(e) => setEditandoUsuario({ ...editandoUsuario, nome: e.target.value })} />
+                  <input placeholder="Telefone" value={editandoUsuario.telefone || ''} onChange={(e) => setEditandoUsuario({ ...editandoUsuario, telefone: e.target.value })} />
+                  <input placeholder="Login" value={editandoUsuario.login} onChange={(e) => setEditandoUsuario({ ...editandoUsuario, login: e.target.value })} />
+                  <input placeholder="Senha" value={editandoUsuario.senha} onChange={(e) => setEditandoUsuario({ ...editandoUsuario, senha: e.target.value })} />
+                  <select value={editandoUsuario.perfil} onChange={(e) => setEditandoUsuario({ ...editandoUsuario, perfil: e.target.value })}>
+                    <option>Administrador</option><option>Recepção</option><option>Financeiro</option><option>Limpeza</option>
+                  </select>
+                </div>
+                <div className="button-row"><button onClick={salvarEdicaoUsuario}>Salvar alterações</button><button onClick={() => setEditandoUsuario(null)}>Cancelar</button></div>
+              </div>
+            )}
+
           </>
         )}
+
+
+
 
         <div className="footer">
           DEVELOPED BY DINHO OLIVEIRA

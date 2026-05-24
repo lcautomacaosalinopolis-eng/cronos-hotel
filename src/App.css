@@ -895,7 +895,7 @@ textarea {
   padding: 8px 10px;
 }
 
-/* MÓDULOS */
+/* MÓDULOS / PAINÉIS */
 .module-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -1783,4 +1783,801 @@ body,
   color: #7c2d12 !important;
   font-size: 11px;
   line-height: 1.25;
+}
+
+/* Correção final do formulário de reserva: sem cartões quebrados */
+.operacao-form-reserva {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  align-items: stretch !important;
+}
+
+.operacao-form-reserva > input,
+.operacao-form-reserva > select {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 44px !important;
+  font-size: 14px !important;
+}
+
+.operacao-form-reserva .despesas-reserva-box {
+  grid-column: 1 / 4 !important;
+  min-height: 160px !important;
+  padding: 14px !important;
+  overflow: hidden !important;
+}
+
+.despesas-reserva-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  margin-bottom: 12px !important;
+}
+
+.despesas-reserva-header strong,
+.despesas-reserva-header span {
+  font-size: 14px !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+}
+
+.despesas-reserva-form {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 74px 150px 170px !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+.despesas-reserva-form input,
+.despesas-reserva-form button {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 44px !important;
+  font-size: 13px !important;
+}
+
+.resumo-reserva-criacao {
+  grid-column: 4 / 5 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  min-height: 160px !important;
+  padding: 14px !important;
+  overflow: hidden !important;
+}
+
+.resumo-reserva-criacao span,
+.resumo-reserva-criacao strong {
+  display: block !important;
+  width: 100% !important;
+  padding: 10px 12px !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  border: 1px solid #dbeafe !important;
+  color: #0f2f80 !important;
+  font-size: 14px !important;
+  line-height: 1.25 !important;
+  white-space: normal !important;
+  word-break: normal !important;
+}
+
+.resumo-reserva-criacao strong {
+  color: #111827 !important;
+  font-size: 15px !important;
+}
+
+.operacao-form-reserva .btn-criar-reserva-pdf,
+.operacao-form-reserva > .primary-button {
+  grid-column: 5 / 6 !important;
+  min-height: 160px !important;
+  width: 100% !important;
+  align-self: stretch !important;
+  font-size: 14px !important;
+  white-space: normal !important;
+}
+
+.servicos-hospede-hero {
+  border-left: 6px solid #2563eb;
+}
+
+.servicos-hospede-hero p,
+.panel-subtitle {
+  margin: 6px 0 0;
+  color: #5b6880;
+  font-weight: 600;
+}
+
+.servicos-hospede-form {
+  grid-template-columns: minmax(260px, 1fr) 260px !important;
+}
+
+.servicos-cardapio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.servico-cardapio-card {
+  background: #f8fafc;
+  border: 1px solid #e5eaf3;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.servico-cardapio-card strong {
+  color: #111827;
+  font-size: 15px;
+}
+
+.servico-cardapio-card span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.servico-cardapio-card b {
+  color: #2563eb;
+  font-size: 18px;
+}
+
+@media (max-width: 1200px) {
+  .operacao-form-reserva {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .operacao-form-reserva .despesas-reserva-box,
+  .resumo-reserva-criacao,
+  .operacao-form-reserva .btn-criar-reserva-pdf,
+  .operacao-form-reserva > .primary-button {
+    grid-column: 1 / -1 !important;
+    min-height: auto !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .operacao-form-reserva,
+  .despesas-reserva-form,
+  .servicos-hospede-form {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* AJUSTES REESTRUTURAÇÃO FINAL */
+.reservas-status-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0 0 16px; }
+.reserva-status-card { background: #fff; border: 1px solid #edf0f5; border-radius: 14px; padding: 16px 18px; box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045); border-left: 6px solid #3b82f6; }
+.reserva-status-card span { display: block; color: #64748b; font-size: 13px; font-weight: 800; text-transform: uppercase; }
+.reserva-status-card strong { display: block; margin-top: 4px; font-size: 30px; color: #111827; }
+.reserva-status-card.livre { border-left-color: #16a34a; }
+.reserva-status-card.ocupado { border-left-color: #dc2626; }
+.reserva-status-card.reservado { border-left-color: #f59e0b; }
+.reserva-status-card.limpeza { border-left-color: #7c3aed; }
+.consumo-quartos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.consumo-quarto-card { border: 1px solid #edf0f5; border-radius: 16px; background: #ffffff; overflow: hidden; box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045); }
+.consumo-quarto-topo { display: grid; grid-template-columns: .7fr 1.4fr .9fr; gap: 12px; padding: 16px; background: #f8fafc; border-bottom: 1px solid #edf0f5; }
+.consumo-quarto-topo span { display: block; color: #64748b; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+.consumo-quarto-topo strong { display: block; color: #0f172a; margin-top: 3px; }
+.consumo-itens-table th, .consumo-itens-table td { padding-left: 16px; padding-right: 16px; }
+@media (max-width: 900px) { .reservas-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .consumo-quarto-topo { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .reservas-status-grid { grid-template-columns: 1fr; } }
+
+
+/* LIMPEZA OPERACIONAL - mantém Dashboard, corrige telas novas */
+.recepcao-restaurante-page .empty-state,
+.servicos-hospede-page .config-info {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.consumo-quartos-grid {
+  align-items: stretch;
+}
+
+.consumo-quarto-card {
+  min-width: 0;
+}
+
+.consumo-itens-table td,
+.consumo-itens-table th {
+  vertical-align: top;
+}
+
+.logo-config-box p,
+.panel-subtitle {
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .hotel-main {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .consumo-manual-form {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
+/* =========================================================
+   CRONOS HOTEL - CAMADA PROFISSIONAL
+   Ajuste visual sem alterar regras de negócio do App.jsx
+   ========================================================= */
+:root {
+  --cr-bg: #f4f6f8;
+  --cr-surface: #ffffff;
+  --cr-surface-soft: #f8fafc;
+  --cr-border: #e4e8ef;
+  --cr-border-strong: #d5dbe5;
+  --cr-text: #1f2937;
+  --cr-muted: #667085;
+  --cr-muted-2: #8a94a6;
+  --cr-primary: #2f5f98;
+  --cr-primary-soft: #edf4fb;
+  --cr-success: #2f855a;
+  --cr-warning: #b7791f;
+  --cr-danger: #b42318;
+  --cr-purple: #6b5b95;
+  --cr-shadow: 0 10px 28px rgba(15, 23, 42, 0.055);
+  --cr-radius: 16px;
+}
+
+body,
+.hotel-layout,
+.hotel-main {
+  background: var(--cr-bg) !important;
+  color: var(--cr-text) !important;
+}
+
+.hotel-sidebar {
+  background: #fbfcfe !important;
+  border-right: 1px solid var(--cr-border) !important;
+  box-shadow: 6px 0 22px rgba(15, 23, 42, 0.025);
+}
+
+.hotel-brand {
+  padding-bottom: 28px !important;
+}
+
+.hotel-brand h1 {
+  color: #16345f !important;
+  font-size: 24px !important;
+  letter-spacing: -0.02em;
+}
+
+.hotel-brand p {
+  color: var(--cr-muted) !important;
+  font-size: 13px !important;
+  font-weight: 600;
+}
+
+.sidebar-logo-img {
+  max-width: 50px;
+  max-height: 50px;
+  object-fit: contain;
+}
+
+.professional-menu,
+.hotel-menu {
+  gap: 5px !important;
+}
+
+.menu-section-label {
+  margin: 18px 14px 7px;
+  color: #98a2b3;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.menu-link {
+  height: 48px !important;
+  border-radius: 12px !important;
+  color: #344054 !important;
+  font-size: 14px !important;
+  font-weight: 650 !important;
+  transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+
+.menu-link span,
+.menu-link .menu-icon,
+.menu-svg {
+  color: #667085 !important;
+  stroke: currentColor !important;
+}
+
+.menu-link:hover {
+  background: #f2f6fb !important;
+  color: #1d4f86 !important;
+  transform: translateX(2px);
+}
+
+.menu-link.active {
+  background: var(--cr-primary-soft) !important;
+  color: var(--cr-primary) !important;
+  box-shadow: inset 3px 0 0 var(--cr-primary);
+}
+
+.menu-link.active span,
+.menu-link.active .menu-icon,
+.menu-link.active .menu-svg {
+  color: var(--cr-primary) !important;
+}
+
+.sidebar-user {
+  background: #ffffff;
+  border: 1px solid var(--cr-border);
+  border-radius: 14px;
+  margin: auto 10px 10px;
+  padding: 14px !important;
+}
+
+.user-avatar {
+  background: #eef4fb !important;
+  color: var(--cr-primary) !important;
+}
+
+.logout-button {
+  margin: 0 10px;
+  border-radius: 12px;
+  color: #667085 !important;
+  font-weight: 700;
+}
+
+.hotel-main {
+  padding-top: 30px !important;
+}
+
+.topbar-title h2 {
+  color: #182230 !important;
+  font-weight: 760 !important;
+  letter-spacing: -0.025em;
+}
+
+.topbar-title p {
+  color: var(--cr-muted) !important;
+  font-size: 14px !important;
+}
+
+.search-field,
+.date-picker,
+.bell-button,
+.white-panel,
+.stat-card,
+.module-card,
+.reservation-card,
+.room-card,
+.user-card,
+.andar-bloco,
+.reserva-status-card,
+.consumo-quarto-card,
+.financeiro-card {
+  border: 1px solid var(--cr-border) !important;
+  box-shadow: var(--cr-shadow) !important;
+  border-radius: var(--cr-radius) !important;
+  background: var(--cr-surface) !important;
+}
+
+.white-panel {
+  padding: 22px 24px !important;
+}
+
+.panel-header {
+  border-bottom: 1px solid #eef1f5;
+  padding-bottom: 12px;
+}
+
+.panel-header h2,
+.panel-header h3,
+.white-panel h2,
+.white-panel h3 {
+  color: #182230 !important;
+  font-weight: 760 !important;
+  letter-spacing: -0.015em;
+}
+
+.panel-header button,
+.primary-button,
+.form-grid button,
+.button-row button,
+.room-card button,
+.user-card button,
+.module-card button,
+.financeiro-form-simples button,
+.operacional-acoes .acao-primaria {
+  background: var(--cr-primary) !important;
+  color: #ffffff !important;
+  border-radius: 11px !important;
+  font-weight: 760 !important;
+  box-shadow: none !important;
+}
+
+.button-row button:not(.primary-button),
+.operacional-acoes button:not(.acao-primaria):not(.acao-perigo) {
+  background: #eef2f6 !important;
+  color: #344054 !important;
+}
+
+input,
+select,
+textarea {
+  border-color: var(--cr-border-strong) !important;
+  border-radius: 12px !important;
+  color: #182230 !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 0 rgba(16,24,40,.02);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #98a2b3 !important;
+}
+
+.clean-table th {
+  color: #667085 !important;
+  background: #f8fafc;
+  padding: 12px 10px !important;
+  font-size: 12px !important;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border-bottom: 1px solid var(--cr-border) !important;
+}
+
+.clean-table td {
+  padding: 12px 10px !important;
+  color: #344054 !important;
+  border-bottom: 1px solid #eef1f5 !important;
+}
+
+.clean-table tbody tr:hover {
+  background: #f8fafc !important;
+}
+
+.stat-card.blue .stat-icon,
+.qa.blue { background: #edf4fb !important; color: #2f5f98 !important; }
+.stat-card.green .stat-icon,
+.qa.green { background: #ecfdf3 !important; color: #2f855a !important; }
+.stat-card.orange .stat-icon,
+.qa.orange { background: #fff7e6 !important; color: #b7791f !important; }
+.stat-card.purple .stat-icon,
+.qa.purple { background: #f4f1fb !important; color: #6b5b95 !important; }
+
+.stat-info span,
+.reserva-status-card span,
+.consumo-quarto-topo span,
+.operacional-resumo-card span,
+.operacional-label {
+  color: var(--cr-muted) !important;
+}
+
+.stat-info strong,
+.reserva-status-card strong,
+.consumo-quarto-topo strong,
+.revenue-value,
+.module-card strong {
+  color: #182230 !important;
+}
+
+.progress {
+  background: #eef2f6 !important;
+}
+
+.progress div,
+.stat-card.blue .progress div,
+.fake-chart path[stroke] {
+  background: var(--cr-primary) !important;
+  stroke: var(--cr-primary) !important;
+}
+.stat-card.green .progress div { background: var(--cr-success) !important; }
+.stat-card.orange .progress div { background: #d89b31 !important; }
+.stat-card.purple .progress div { background: var(--cr-purple) !important; }
+
+.map-free {
+  background: #eaf7ef !important;
+  color: #166534 !important;
+  border-color: #bbebcb !important;
+  box-shadow: none !important;
+}
+
+.map-busy {
+  background: #fff1f0 !important;
+  color: #b42318 !important;
+  border-color: #ffd1cc !important;
+  box-shadow: none !important;
+}
+
+.status,
+.status-quarto {
+  font-weight: 800 !important;
+  letter-spacing: .01em;
+}
+
+.status.confirmed,
+.status-quarto.livre {
+  background: #ecfdf3 !important;
+  color: var(--cr-success) !important;
+}
+
+.status.pending,
+.status-quarto.reservado {
+  background: #fff7e6 !important;
+  color: var(--cr-warning) !important;
+}
+
+.status-quarto.ocupado {
+  background: #fff1f0 !important;
+  color: var(--cr-danger) !important;
+}
+
+.status-quarto.limpeza {
+  background: #f4f1fb !important;
+  color: var(--cr-purple) !important;
+}
+
+.reserva-status-card {
+  border-left-width: 5px !important;
+}
+
+.reserva-status-card.livre { border-left-color: var(--cr-success) !important; }
+.reserva-status-card.ocupado { border-left-color: var(--cr-danger) !important; }
+.reserva-status-card.reservado { border-left-color: #d89b31 !important; }
+.reserva-status-card.limpeza { border-left-color: var(--cr-purple) !important; }
+
+.quarto-card,
+.operacional-card {
+  background: #ffffff !important;
+  border-color: var(--cr-border) !important;
+  box-shadow: 0 8px 22px rgba(15,23,42,.045);
+}
+
+.quarto-card.livre,
+.operacional-card.livre { border-left-color: var(--cr-success) !important; }
+.quarto-card.ocupado,
+.operacional-card.ocupado { border-left-color: var(--cr-danger) !important; }
+.quarto-card.reservado,
+.operacional-card.reservado { border-left-color: #d89b31 !important; }
+.quarto-card.limpeza,
+.operacional-card.limpeza { border-left-color: var(--cr-purple) !important; }
+
+.form-grid,
+.operacao-form-reserva,
+.consumo-manual-form,
+.servicos-hospede-form {
+  gap: 14px !important;
+  align-items: end;
+}
+
+.operacao-form-reserva {
+  background: #ffffff;
+  border: 1px solid var(--cr-border);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.reservas-status-grid,
+.module-grid,
+.reservation-cards,
+.room-grid,
+.user-list,
+.consumo-quartos-grid {
+  gap: 18px !important;
+}
+
+.consumo-quarto-topo {
+  background: #f8fafc !important;
+  border-bottom: 1px solid var(--cr-border) !important;
+}
+
+.empty-state,
+.sem-quartos,
+.config-info,
+.panel-subtitle,
+.financeiro-dica,
+.logo-config-box p {
+  color: var(--cr-muted) !important;
+  font-size: 14px !important;
+}
+
+/* remove aparência de tutorial: deixa textos auxiliares discretos */
+.panel-subtitle,
+.config-info,
+.financeiro-dica {
+  max-width: 760px;
+  line-height: 1.45;
+}
+
+/* Configurações ficam com cara administrativa, não tutorial */
+.logo-config-box,
+.empresa-config-card,
+.usuarios-config-card {
+  border-radius: 18px !important;
+  border-color: var(--cr-border) !important;
+  background: #ffffff !important;
+}
+
+/* Responsivo mais limpo */
+@media (max-width: 1100px) {
+  .hotel-sidebar {
+    width: 240px !important;
+    min-width: 240px !important;
+  }
+
+  .dashboard-grid,
+  .financeiro-facil-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .hotel-layout {
+    display: block !important;
+  }
+  .hotel-sidebar {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: auto !important;
+    padding: 18px 14px !important;
+  }
+  .hotel-menu {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px !important;
+  }
+  .menu-section-label {
+    grid-column: 1 / -1;
+    margin-top: 10px;
+  }
+  .menu-link {
+    justify-content: flex-start;
+  }
+  .hotel-topbar,
+  .topbar-right {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .search-field,
+  .date-picker {
+    width: 100% !important;
+  }
+}
+
+/* AJUSTE PROFISSIONAL DE CORES - menos azul chamativo */
+:root {
+  --cronos-primary: #334155;
+  --cronos-primary-dark: #1f2937;
+  --cronos-primary-soft: #f1f5f9;
+  --cronos-border-soft: #e2e8f0;
+  --cronos-text: #111827;
+  --cronos-muted: #64748b;
+}
+
+/* Total extra e textos do formulário com a mesma cor dos demais */
+.despesas-reserva-header span,
+.despesas-reserva-header strong,
+.resumo-reserva-criacao span,
+.resumo-reserva-criacao strong {
+  color: var(--cronos-text) !important;
+}
+
+.despesas-reserva-header span {
+  font-weight: 700 !important;
+}
+
+/* Reduz azul forte em botões e destaques gerais */
+.primary-button,
+.form-grid button,
+.button-row button,
+.room-card button,
+.user-card button,
+.module-card button,
+.panel-header button,
+.operacional-acoes .acao-primaria,
+.operacao-form-reserva .btn-criar-reserva-pdf,
+.btn-criar-reserva-pdf,
+.despesas-reserva-form button {
+  background: var(--cronos-primary) !important;
+  color: #ffffff !important;
+  border-color: var(--cronos-primary) !important;
+}
+
+.primary-button:hover,
+.form-grid button:hover,
+.button-row button:hover,
+.room-card button:hover,
+.user-card button:hover,
+.module-card button:hover,
+.operacional-acoes .acao-primaria:hover,
+.operacao-form-reserva .btn-criar-reserva-pdf:hover,
+.btn-criar-reserva-pdf:hover,
+.despesas-reserva-form button:hover {
+  background: var(--cronos-primary-dark) !important;
+}
+
+/* Menu ativo mais discreto */
+.menu-link:hover,
+.menu-link.active {
+  background: var(--cronos-primary-soft) !important;
+  color: var(--cronos-primary-dark) !important;
+}
+
+.menu-link.active {
+  border-left-color: var(--cronos-primary) !important;
+}
+
+.menu-link.active span,
+.menu-link.active .menu-svg,
+.menu-link:hover span,
+.menu-link:hover .menu-svg {
+  color: var(--cronos-primary-dark) !important;
+  stroke: var(--cronos-primary-dark) !important;
+}
+
+/* Marca e ícones menos chamativos */
+.hotel-brand h1,
+.hotel-logo-icon,
+.brand-svg,
+.brand-building {
+  color: var(--cronos-primary-dark) !important;
+  stroke: var(--cronos-primary-dark) !important;
+}
+
+.hotel-brand p,
+.menu-section-title,
+.topbar-title p,
+.panel-subtitle {
+  color: var(--cronos-muted) !important;
+}
+
+/* Cards com bordas suaves */
+.white-panel,
+.stat-card,
+.module-card,
+.reservation-card,
+.room-card,
+.user-card,
+.andar-bloco,
+.despesas-reserva-box,
+.resumo-reserva-criacao {
+  border-color: var(--cronos-border-soft) !important;
+}
+
+.resumo-reserva-criacao {
+  background: #f8fafc !important;
+}
+
+.resumo-reserva-criacao span,
+.resumo-reserva-criacao strong {
+  border-color: var(--cronos-border-soft) !important;
+  background: #ffffff !important;
+}
+
+/* Links e contadores em tom neutro */
+a,
+.panel-header button,
+.andar-cabecalho span,
+.revenue-value small {
+  color: var(--cronos-primary-dark) !important;
+}
+
+.andar-cabecalho span,
+.revenue-value small {
+  background: var(--cronos-primary-soft) !important;
+}
+
+/* Mantém status operacionais coloridos apenas onde faz sentido */
+.map-free,
+.status-quarto.livre,
+.operacional-resumo-card.livre {
+  --status-color: #15803d;
+}
+
+.map-busy,
+.status-quarto.ocupado,
+.operacional-resumo-card.ocupado {
+  --status-color: #b91c1c;
 }
