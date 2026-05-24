@@ -1307,6 +1307,37 @@ function App() {
   }
 
 
+
+  function reservaAbertaDoQuarto(quartoId) {
+    return (Array.isArray(reservas) ? reservas : []).find((reserva) => {
+      return reserva.quarto_id === quartoId && !reserva.checkout
+    })
+  }
+
+  function consumosDaReserva(reservaId) {
+    return (Array.isArray(consumos) ? consumos : []).filter((consumo) => {
+      return consumo.reserva_id === reservaId
+    })
+  }
+
+  function totalConsumoAbertoQuarto(quartoId) {
+    const reserva = reservaAbertaDoQuarto(quartoId)
+
+    if (!reserva) return 0
+
+    return consumosDaReserva(reserva.id).reduce((total, consumo) => {
+      return total + Number(consumo.valor || 0)
+    }, 0)
+  }
+
+  function resumoConsumoAbertoQuarto(quartoId) {
+    const reserva = reservaAbertaDoQuarto(quartoId)
+
+    if (!reserva) return []
+
+    return consumosDaReserva(reserva.id).slice(0, 3)
+  }
+
   function reservasPorPeriodo() {
     return (Array.isArray(reservas) ? reservas : []).filter((reserva) => {
       const entradaReserva = reserva.data_entrada || ''
@@ -1457,6 +1488,21 @@ function App() {
                 <h3>Quarto {quarto.numero}</h3>
                 <p>{quarto.tipo}</p>
                 <small>{formatarMoeda(quarto.valor_diaria)}</small>
+
+                {totalConsumoAbertoQuarto(quarto.id) > 0 && (
+                  <div className="quarto-consumo-alerta">
+                    <strong>Consumo aberto:</strong>
+                    <span>{formatarMoeda(totalConsumoAbertoQuarto(quarto.id))}</span>
+
+                    <div className="quarto-consumo-lista">
+                      {resumoConsumoAbertoQuarto(quarto.id).map((consumo) => (
+                        <small key={consumo.id}>
+                          {consumo.descricao}
+                        </small>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <span className={`status-quarto ${quarto.status}`}>

@@ -1724,3 +1724,39 @@ body,
   line-height: 1.5;
   margin: 0 0 16px;
 }
+
+
+/* CONSUMO ABERTO VISÍVEL NO CARD DO QUARTO */
+.quarto-consumo-alerta {
+  margin: 10px 0;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-left: 4px solid #f97316;
+  border-radius: 10px;
+  padding: 9px 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.quarto-consumo-alerta strong {
+  color: #9a3412;
+  font-size: 12px;
+}
+
+.quarto-consumo-alerta span {
+  color: #111827;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.quarto-consumo-lista {
+  display: grid;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.quarto-consumo-lista small {
+  color: #7c2d12 !important;
+  font-size: 11px;
+  line-height: 1.25;
+}
