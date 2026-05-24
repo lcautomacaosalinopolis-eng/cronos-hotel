@@ -1248,3 +1248,376 @@ textarea {
   background: #e9f9ef;
   color: #16a34a;
 }
+
+
+/* LOGIN PROFISSIONAL */
+.login-page {
+  min-height: 100vh !important;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 34%),
+    linear-gradient(135deg, #f8fbff 0%, #eef4ff 100%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 32px !important;
+}
+
+.login-wrapper {
+  width: 100%;
+  max-width: 980px;
+  min-height: 560px;
+  background: #ffffff;
+  border: 1px solid #e8edf5;
+  border-radius: 28px;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.12);
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  overflow: hidden;
+}
+
+.login-left {
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.94), rgba(30, 64, 175, 0.96)),
+    linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  padding: 52px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.login-logo-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 46px;
+}
+
+.login-logo-box .brand-building {
+  color: #ffffff;
+  font-size: 54px;
+}
+
+.login-logo-box h1 {
+  margin: 0;
+  font-size: 36px;
+  letter-spacing: -1px;
+  color: #ffffff;
+}
+
+.login-logo-box p {
+  margin: 4px 0 0;
+  color: rgba(255,255,255,0.82);
+  font-size: 18px;
+}
+
+.login-left h2 {
+  font-size: 38px;
+  line-height: 1.1;
+  margin: 0 0 16px;
+  color: #ffffff;
+  max-width: 460px;
+}
+
+.login-left p {
+  font-size: 17px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.82);
+  max-width: 480px;
+  margin: 0;
+}
+
+.login-benefits {
+  margin-top: 34px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.login-benefits span {
+  background: rgba(255,255,255,0.14);
+  border: 1px solid rgba(255,255,255,0.22);
+  color: #ffffff;
+  padding: 9px 13px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.login-card {
+  max-width: none !important;
+  width: 100% !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 58px 46px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 12px !important;
+}
+
+.brand-login {
+  margin-bottom: 18px !important;
+}
+
+.brand-login h1 {
+  margin: 0;
+  color: #111827 !important;
+  font-size: 28px;
+}
+
+.brand-login p {
+  margin: 7px 0 0;
+  color: #6b7280 !important;
+}
+
+.login-card label {
+  color: #374151;
+  font-weight: 700;
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+.login-card input {
+  height: 48px;
+  border-radius: 12px !important;
+  border: 1px solid #d8e0ec !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  font-size: 15px;
+}
+
+.login-card button {
+  height: 50px;
+  margin-top: 12px;
+  border-radius: 12px !important;
+  background: #2563eb !important;
+  color: #ffffff !important;
+  font-size: 16px;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.24);
+}
+
+.login-card small {
+  text-align: center;
+  color: #9ca3af !important;
+  margin-top: 20px;
+}
+
+/* IMPRESSÃO PROFISSIONAL DE RELATÓRIO */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  html,
+  body,
+  #root {
+    background: #ffffff !important;
+    color: #111827 !important;
+    width: 100% !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
+  .hotel-layout {
+    display: block !important;
+    width: 100% !important;
+    min-height: auto !important;
+    background: #ffffff !important;
+  }
+
+  .hotel-sidebar,
+  .hotel-topbar,
+  .footer,
+  .bell-button,
+  .search-field,
+  .date-picker,
+  .hamburger,
+  .panel-header button,
+  .quick-actions,
+  .actions-panel,
+  .revenue-panel,
+  .occupancy-panel,
+  .login-page {
+    display: none !important;
+  }
+
+  .hotel-main {
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 8px !important;
+    margin: 0 0 14px !important;
+  }
+
+  .stat-card,
+  .white-panel,
+  .module-card,
+  .print-report-panel {
+    box-shadow: none !important;
+    border: 1px solid #d1d5db !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    break-inside: avoid !important;
+  }
+
+  .stat-card {
+    min-height: 82px !important;
+    padding: 10px !important;
+  }
+
+  .stat-icon,
+  .progress {
+    display: none !important;
+  }
+
+  .stat-info span,
+  .stat-info small {
+    font-size: 10px !important;
+    color: #4b5563 !important;
+  }
+
+  .stat-info strong {
+    font-size: 18px !important;
+    color: #111827 !important;
+  }
+
+  .white-panel {
+    padding: 14px !important;
+    margin: 0 0 12px !important;
+    border-radius: 8px !important;
+  }
+
+  .panel-header {
+    display: block !important;
+    margin-bottom: 12px !important;
+  }
+
+  .panel-header h2::before {
+    content: "CRONOS - Sistema Hotel";
+    display: block;
+    font-size: 13px;
+    color: #2563eb;
+    margin-bottom: 6px;
+  }
+
+  .clean-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .clean-table th,
+  .clean-table td {
+    padding: 8px 6px !important;
+    border: 1px solid #d1d5db !important;
+    font-size: 11px !important;
+    color: #111827 !important;
+  }
+
+  .clean-table th {
+    background: #f3f4f6 !important;
+    font-weight: 700 !important;
+  }
+
+  .status {
+    border: 1px solid #d1d5db !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    padding: 3px 6px !important;
+  }
+
+  a[href]::after {
+    content: "" !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .login-wrapper {
+    grid-template-columns: 1fr;
+    max-width: 430px;
+  }
+
+  .login-left {
+    display: none;
+  }
+
+  .login-card {
+    padding: 34px 26px !important;
+  }
+}
+
+
+/* CORREÇÃO DE ROLAGEM DAS TELAS GRANDES */
+html,
+body,
+#root {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.hotel-layout {
+  min-height: 100vh !important;
+  height: auto !important;
+  align-items: stretch !important;
+}
+
+.hotel-sidebar {
+  position: sticky !important;
+  top: 0 !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow-y: auto !important;
+  flex-shrink: 0 !important;
+}
+
+.hotel-main {
+  height: auto !important;
+  min-height: 100vh !important;
+  max-height: none !important;
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+  padding-bottom: 90px !important;
+}
+
+/* Remove travamento antigo do dashboard em 100vh */
+@media (min-width: 1260px) {
+  .hotel-main {
+    height: auto !important;
+    overflow-y: visible !important;
+  }
+}
+
+/* Garante que telas com muitos quartos/produtos/relatórios possam descer */
+.quartos-andares,
+.room-grid,
+.quartos-grid,
+.reservation-cards,
+.user-list,
+.module-grid,
+.table-scroll,
+.white-panel {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* Permite rolagem horizontal só em tabelas largas */
+.table-scroll {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}
+
+/* Evita que o rodapé/menu do Windows cubra o fim da tela */
+.footer {
+  margin-bottom: 40px !important;
+}

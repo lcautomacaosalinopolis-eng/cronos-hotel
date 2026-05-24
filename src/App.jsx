@@ -880,35 +880,60 @@ function App() {
   if (!usuarioLogado) {
     return (
       <div className="login-page">
-        <div className="login-card">
-          <div className="brand-login">
-            <div className="brand-building">▥</div>
-            <div>
-              <h1>CRONOS</h1>
-              <p>Sistema Hotel</p>
+        <div className="login-wrapper">
+          <div className="login-left">
+            <div className="login-logo-box">
+              <div className="brand-building">▥</div>
+              <div>
+                <h1>CRONOS</h1>
+                <p>Sistema Hotel</p>
+              </div>
+            </div>
+
+            <h2>Gestão completa para hotelaria</h2>
+            <p>
+              Controle reservas, quartos, hóspedes, financeiro, estoque e relatórios em uma única plataforma.
+            </p>
+
+            <div className="login-benefits">
+              <span>Reservas</span>
+              <span>Check-in</span>
+              <span>Financeiro</span>
+              <span>Estoque</span>
             </div>
           </div>
 
-          <input
-            placeholder="Login"
-            value={login}
-            onChange={(e) => setLogin(e.target.value)}
-          />
+          <div className="login-card">
+            <div className="brand-login">
+              <div>
+                <h1>Entrar no sistema</h1>
+                <p>Acesse sua conta para continuar</p>
+              </div>
+            </div>
 
-          <input
-            placeholder="Senha"
-            type="password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-          />
+            <label>Usuário</label>
+            <input
+              placeholder="Digite seu login"
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+            />
 
-          <button onClick={entrarSistema}>
-            Entrar
-          </button>
+            <label>Senha</label>
+            <input
+              placeholder="Digite sua senha"
+              type="password"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+            />
 
-          <small>
-            DEVELOPED BY DINHO OLIVEIRA
-          </small>
+            <button onClick={entrarSistema}>
+              Entrar
+            </button>
+
+            <small>
+              DEVELOPED BY DINHO OLIVEIRA
+            </small>
+          </div>
         </div>
       </div>
     )
@@ -2031,7 +2056,7 @@ function App() {
               </div>
             </section>
 
-            <div className="white-panel">
+            <div className="white-panel print-report-panel">
               <div className="panel-header">
                 <h2>Relatórios</h2>
                 <button onClick={() => window.print()}>Imprimir</button>
