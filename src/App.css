@@ -12,14 +12,17 @@ body,
   margin: 0;
   padding: 0;
   max-width: none !important;
-  background: #f7f8fc;
-  overflow-x: hidden;
+  text-align: initial !important;
 }
 
-:root {
+body {
+  display: block !important;
+  place-items: initial !important;
+  background: #f7f8fc !important;
+  color: #111827 !important;
+  overflow-x: hidden;
+  overflow-y: auto;
   font-family: Inter, Arial, Helvetica, sans-serif;
-  color: #121826;
-  background: #f7f8fc;
 }
 
 button,
@@ -31,7 +34,7 @@ textarea {
 
 .hotel-layout {
   display: flex;
-  width: 100vw;
+  width: 100%;
   min-height: 100vh;
   background: #f7f8fc;
   color: #121826;
@@ -41,18 +44,19 @@ textarea {
   width: 272px;
   min-width: 272px;
   background: #ffffff;
-  padding: 38px 16px 22px;
+  padding: 34px 16px 22px;
   border-right: 1px solid #edf0f5;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .hotel-brand {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 26px 46px;
+  padding: 0 26px 42px;
 }
 
 .hotel-logo-icon {
@@ -88,7 +92,7 @@ textarea {
   border: 0;
   background: transparent;
   color: #202736;
-  height: 56px;
+  height: 54px;
   border-radius: 10px;
   padding: 0 18px;
   display: flex;
@@ -120,7 +124,7 @@ textarea {
 .sidebar-user {
   margin-top: auto;
   border-top: 1px solid #edf0f5;
-  padding: 22px 18px 14px;
+  padding: 20px 18px 12px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -161,11 +165,10 @@ textarea {
 
 .hotel-main {
   flex: 1;
-  width: calc(100vw - 272px);
-  max-width: none;
-  padding: 34px 36px 28px;
   min-width: 0;
-  overflow-x: hidden;
+  padding: 34px 32px 90px;
+  background: #f7f8fc;
+  color: #111827;
 }
 
 .hotel-topbar {
@@ -173,7 +176,7 @@ textarea {
   justify-content: space-between;
   align-items: flex-start;
   gap: 24px;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
   width: 100%;
 }
 
@@ -227,10 +230,12 @@ textarea {
 
 .search-field input {
   flex: 1;
-  border: 0;
+  border: 0 !important;
   outline: 0;
-  color: #111827;
+  color: #111827 !important;
+  background: transparent !important;
   font-size: 14.5px;
+  padding: 0 !important;
 }
 
 .search-field span {
@@ -283,7 +288,7 @@ textarea {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
-  margin-bottom: 22px;
+  margin-bottom: 18px;
   width: 100%;
 }
 
@@ -291,22 +296,22 @@ textarea {
   background: #ffffff;
   border: 1px solid #edf0f5;
   border-radius: 14px;
-  min-height: 160px;
-  padding: 26px 22px;
+  min-height: 126px;
+  padding: 18px 20px;
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 16px;
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
 }
 
 .stat-icon {
-  width: 68px;
-  min-width: 68px;
-  height: 72px;
+  width: 58px;
+  min-width: 58px;
+  height: 58px;
   border-radius: 12px;
   display: grid;
   place-items: center;
-  font-size: 34px;
+  font-size: 28px;
 }
 
 .stat-card.blue .stat-icon,
@@ -342,13 +347,13 @@ textarea {
   display: block;
   color: #4b5563;
   font-size: 14px;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
 }
 
 .stat-info strong {
   display: block;
   color: #111827;
-  font-size: 35px;
+  font-size: 28px;
   line-height: 1;
   font-weight: 700;
 }
@@ -356,7 +361,7 @@ textarea {
 .stat-info small {
   display: block;
   color: #6b7280;
-  margin-top: 6px;
+  margin-top: 4px;
   font-size: 13px;
 }
 
@@ -364,7 +369,7 @@ textarea {
   height: 5px;
   background: #e8ebf1;
   border-radius: 999px;
-  margin-top: 22px;
+  margin-top: 14px;
   overflow: hidden;
 }
 
@@ -388,9 +393,9 @@ textarea {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(330px, 0.95fr);
-  gap: 18px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1.7fr) minmax(360px, 0.9fr);
+  gap: 16px;
+  align-items: stretch;
   width: 100%;
 }
 
@@ -398,10 +403,10 @@ textarea {
   background: #ffffff;
   border: 1px solid #edf0f5;
   border-radius: 14px;
-  padding: 26px;
+  padding: 20px 24px;
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
   color: #111827;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .reservations-panel {
@@ -410,6 +415,7 @@ textarea {
 
 .occupancy-panel {
   grid-column: 2 / 3;
+  min-height: 256px;
 }
 
 .actions-panel {
@@ -418,17 +424,19 @@ textarea {
 
 .revenue-panel {
   grid-column: 2 / 3;
-  margin-top: -4px;
+  min-height: 166px;
+  overflow: hidden;
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 22px;
+  margin-bottom: 14px;
 }
 
 .panel-header h3,
+.panel-header h2,
 .white-panel h3,
 .white-panel h2 {
   margin: 0;
@@ -454,12 +462,12 @@ textarea {
   font-size: 13px;
   text-align: left;
   font-weight: 500;
-  padding: 14px 0;
+  padding: 10px 0;
   border-bottom: 1px solid #edf0f5;
 }
 
 .clean-table td {
-  padding: 14px 0;
+  padding: 9px 0;
   border-bottom: 1px solid #edf0f5;
   color: #111827;
   font-size: 14px;
@@ -472,8 +480,8 @@ textarea {
 }
 
 .guest-avatar {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   background: #dbeafe;
   color: #1d4ed8;
   border-radius: 50%;
@@ -500,23 +508,23 @@ textarea {
 
 .donut-wrap {
   display: flex;
-  gap: 28px;
+  gap: 22px;
   align-items: center;
-  min-height: 240px;
+  min-height: 178px;
 }
 
 .donut {
-  width: 190px;
-  min-width: 190px;
-  height: 190px;
+  width: 148px;
+  min-width: 148px;
+  height: 148px;
   border-radius: 50%;
   display: grid;
   place-items: center;
 }
 
 .donut > div {
-  width: 126px;
-  height: 126px;
+  width: 98px;
+  height: 98px;
   background: #ffffff;
   border-radius: 50%;
   display: grid;
@@ -527,7 +535,7 @@ textarea {
 
 .donut strong {
   display: block;
-  font-size: 30px;
+  font-size: 25px;
   color: #111827;
 }
 
@@ -561,15 +569,15 @@ textarea {
 .quick-actions {
   display: grid;
   grid-template-columns: repeat(5, minmax(100px, 1fr));
-  gap: 18px;
-  margin-top: 22px;
+  gap: 14px;
+  margin-top: 14px;
 }
 
 .quick-actions button {
   background: #ffffff;
   border: 1px solid #edf0f5;
   border-radius: 10px;
-  min-height: 106px;
+  min-height: 82px;
   color: #111827;
   display: grid;
   place-items: center;
@@ -578,18 +586,18 @@ textarea {
 }
 
 .qa {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 10px;
   display: grid;
   place-items: center;
-  font-size: 22px;
+  font-size: 19px;
 }
 
 .revenue-value {
-  margin-top: 28px;
+  margin-top: 8px;
   color: #111827;
-  font-size: 31px;
+  font-size: 25px;
   font-weight: 700;
 }
 
@@ -604,24 +612,23 @@ textarea {
 
 .revenue-panel p {
   color: #6b7280;
-  margin-top: 8px;
+  margin-top: 6px;
+  margin-bottom: 2px;
 }
 
 .fake-chart {
-  margin-top: 18px;
-  height: 180px;
+  margin-top: 2px;
+  height: 72px;
+  overflow: hidden;
 }
 
 .fake-chart svg {
   width: 100%;
-  height: 140px;
+  height: 70px;
 }
 
 .chart-hours {
-  display: flex;
-  justify-content: space-between;
-  color: #6b7280;
-  font-size: 12px;
+  display: none;
 }
 
 .form-grid {
@@ -634,11 +641,11 @@ textarea {
 input,
 select,
 textarea {
-  background: #ffffff;
-  color: #111827;
-  border: 1px solid #dce3ef;
-  border-radius: 10px;
-  padding: 12px;
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #dce3ef !important;
+  border-radius: 10px !important;
+  padding: 12px !important;
   outline: none;
 }
 
@@ -722,368 +729,10 @@ textarea {
 
 .footer {
   text-align: center;
-  margin: 46px 0 10px;
+  margin: 46px 0 40px;
   color: #6b7280;
   font-size: 13px;
 }
-
-.login-page {
-  min-height: 100vh;
-  background: #f7f8fc;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-}
-
-.login-card {
-  background: #ffffff;
-  border: 1px solid #edf0f5;
-  box-shadow: 0 10px 32px rgba(15, 23, 42, 0.08);
-  border-radius: 18px;
-  padding: 30px;
-  width: 100%;
-  max-width: 390px;
-  display: grid;
-  gap: 14px;
-}
-
-.brand-login {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 16px;
-}
-
-.brand-building {
-  color: #2563eb;
-  font-size: 46px;
-}
-
-.brand-login h1 {
-  margin: 0;
-  color: #1d4ed8;
-}
-
-.brand-login p {
-  margin: 4px 0 0;
-  color: #6b7280;
-}
-
-.login-card button {
-  background: #2563eb;
-  color: white;
-  border: 0;
-  border-radius: 10px;
-  padding: 13px;
-  font-weight: 700;
-}
-
-.login-card small {
-  text-align: center;
-  color: #6b7280;
-  margin-top: 10px;
-}
-
-/* Ajuste específico para computador */
-@media (min-width: 1200px) {
-  .hotel-main {
-    padding-left: 36px;
-    padding-right: 36px;
-  }
-
-  .stats-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 1250px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .reservations-panel,
-  .occupancy-panel,
-  .actions-panel,
-  .revenue-panel {
-    grid-column: auto;
-  }
-}
-
-
-/* AJUSTE FINAL: dashboard compacto para caber na tela inicial do computador */
-.hotel-main {
-  padding: 24px 32px 18px !important;
-}
-
-.hotel-topbar {
-  margin-bottom: 22px !important;
-}
-
-.hotel-sidebar {
-  padding-top: 28px !important;
-}
-
-.hotel-brand {
-  padding-bottom: 34px !important;
-}
-
-.menu-link {
-  height: 48px !important;
-  margin: 0 !important;
-  font-size: 15px !important;
-}
-
-.hotel-menu {
-  gap: 6px !important;
-}
-
-.sidebar-user {
-  padding-top: 14px !important;
-  padding-bottom: 8px !important;
-}
-
-.stats-grid {
-  gap: 14px !important;
-  margin-bottom: 16px !important;
-}
-
-.stat-card {
-  min-height: 126px !important;
-  padding: 18px 20px !important;
-  gap: 16px !important;
-}
-
-.stat-icon {
-  width: 58px !important;
-  min-width: 58px !important;
-  height: 58px !important;
-  font-size: 28px !important;
-}
-
-.stat-info strong {
-  font-size: 28px !important;
-}
-
-.stat-info span {
-  margin-bottom: 5px !important;
-}
-
-.stat-info small {
-  margin-top: 4px !important;
-}
-
-.progress {
-  margin-top: 14px !important;
-}
-
-.dashboard-grid {
-  gap: 16px !important;
-}
-
-.white-panel {
-  padding: 20px 24px !important;
-  margin-bottom: 14px !important;
-}
-
-.panel-header {
-  margin-bottom: 14px !important;
-}
-
-.clean-table th {
-  padding: 10px 0 !important;
-}
-
-.clean-table td {
-  padding: 9px 0 !important;
-}
-
-.guest-avatar {
-  width: 34px !important;
-  height: 34px !important;
-}
-
-.donut-wrap {
-  min-height: 190px !important;
-  gap: 22px !important;
-}
-
-.donut {
-  width: 156px !important;
-  min-width: 156px !important;
-  height: 156px !important;
-}
-
-.donut > div {
-  width: 104px !important;
-  height: 104px !important;
-}
-
-.donut strong {
-  font-size: 25px !important;
-}
-
-.quick-actions {
-  gap: 14px !important;
-  margin-top: 14px !important;
-}
-
-.quick-actions button {
-  min-height: 82px !important;
-}
-
-.qa {
-  width: 32px !important;
-  height: 32px !important;
-  font-size: 19px !important;
-}
-
-.revenue-value {
-  margin-top: 14px !important;
-  font-size: 27px !important;
-}
-
-.fake-chart {
-  margin-top: 8px !important;
-  height: 128px !important;
-}
-
-.fake-chart svg {
-  height: 104px !important;
-}
-
-.revenue-panel p {
-  margin-bottom: 4px !important;
-}
-
-@media (min-width: 1260px) {
-  .hotel-main {
-    height: 100vh;
-    overflow: hidden;
-  }
-
-  .dashboard-grid {
-    grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.9fr) !important;
-  }
-}
-
-
-/* CORREÇÃO DO ALINHAMENTO DA COLUNA DIREITA DO DASHBOARD */
-@media (min-width: 1260px) {
-  .dashboard-grid {
-    grid-template-columns: minmax(0, 1.7fr) minmax(360px, 0.9fr) !important;
-    align-items: stretch !important;
-  }
-
-  .occupancy-panel,
-  .revenue-panel {
-    width: 100% !important;
-    min-height: 0 !important;
-  }
-
-  .occupancy-panel {
-    height: 256px !important;
-    margin-bottom: 14px !important;
-  }
-
-  .revenue-panel {
-    height: 166px !important;
-    margin-top: 0 !important;
-    overflow: hidden !important;
-  }
-
-  .actions-panel {
-    height: 162px !important;
-  }
-
-  .fake-chart {
-    height: 72px !important;
-    margin-top: 2px !important;
-    overflow: hidden !important;
-  }
-
-  .fake-chart svg {
-    height: 70px !important;
-  }
-
-  .chart-hours {
-    display: none !important;
-  }
-
-  .revenue-value {
-    margin-top: 8px !important;
-    font-size: 25px !important;
-  }
-
-  .revenue-panel p {
-    margin-top: 6px !important;
-    margin-bottom: 2px !important;
-  }
-
-  .donut-wrap {
-    min-height: 178px !important;
-  }
-
-  .donut {
-    width: 148px !important;
-    min-width: 148px !important;
-    height: 148px !important;
-  }
-
-  .donut > div {
-    width: 98px !important;
-    height: 98px !important;
-  }
-}
-
-
-/* NOVOS MÓDULOS DO MENU */
-.module-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 16px;
-  margin: 18px 0 24px;
-}
-
-.module-card {
-  background: #ffffff;
-  border: 1px solid #edf0f5;
-  border-radius: 14px;
-  padding: 18px;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
-}
-
-.module-card h3 {
-  margin: 0 0 10px;
-  color: #111827;
-}
-
-.module-card strong {
-  display: block;
-  color: #111827;
-  font-size: 30px;
-  margin-bottom: 8px;
-}
-
-.module-card p {
-  color: #6b7280;
-  margin: 0;
-}
-
-.module-card button {
-  margin-top: 14px;
-  background: #2563eb;
-  color: #ffffff;
-  border: 0;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 
 /* QUARTOS ORGANIZADOS POR ANDAR */
 .quartos-andares {
@@ -1222,35 +871,75 @@ textarea {
   padding: 8px 10px;
 }
 
-
-/* ESTOQUE REAL, CAIXA E AUDITORIA */
-.tabela-caixa {
-  margin-top: 20px;
+/* MÓDULOS */
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+  margin: 18px 0 24px;
 }
 
-.form-grid + .form-grid {
-  margin-top: 14px;
+.module-card {
+  background: #ffffff;
+  border: 1px solid #edf0f5;
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
 }
 
-.panel-header strong {
+.module-card h3 {
+  margin: 0 0 10px;
   color: #111827;
-  background: #eef6ff;
-  padding: 8px 12px;
-  border-radius: 999px;
 }
 
-.status.pending {
-  background: #fff7e6;
-  color: #d97706;
+.module-card strong {
+  display: block;
+  color: #111827;
+  font-size: 30px;
+  margin-bottom: 8px;
 }
 
-.status.confirmed {
-  background: #e9f9ef;
-  color: #16a34a;
+.module-card p {
+  color: #6b7280;
+  margin: 0;
 }
 
+.module-card button {
+  margin-top: 14px;
+  background: #2563eb;
+  color: #ffffff;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
 
-/* LOGIN PROFISSIONAL */
+.config-info {
+  color: #6b7280;
+  margin: -4px 0 18px;
+}
+
+.checkbox-line {
+  min-height: 46px;
+  background: #f8fafc;
+  border: 1px solid #dce3ef;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #374151;
+  font-weight: 700;
+}
+
+.checkbox-line input {
+  width: 18px;
+  height: 18px;
+  padding: 0 !important;
+}
+
+/* LOGIN */
 .login-page {
   min-height: 100vh !important;
   background:
@@ -1402,9 +1091,15 @@ textarea {
   text-align: center;
   color: #9ca3af !important;
   margin-top: 20px;
+  font-size: 12px !important;
+  letter-spacing: 0.3px;
 }
 
-/* IMPRESSÃO PROFISSIONAL DE RELATÓRIO */
+/* IMPRESSÃO */
+.print-company-header {
+  display: none;
+}
+
 @media print {
   @page {
     size: A4;
@@ -1452,11 +1147,24 @@ textarea {
     background: #ffffff !important;
   }
 
-  .stats-grid {
-    display: grid !important;
-    grid-template-columns: repeat(4, 1fr) !important;
-    gap: 8px !important;
-    margin: 0 0 14px !important;
+  .print-company-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #d1d5db;
+  }
+
+  .print-company-header h1 {
+    margin: 0;
+    font-size: 20px;
+    color: #111827 !important;
+  }
+
+  .print-company-header p {
+    margin: 3px 0;
+    font-size: 11px;
+    color: #374151 !important;
   }
 
   .stat-card,
@@ -1468,51 +1176,6 @@ textarea {
     background: #ffffff !important;
     color: #111827 !important;
     break-inside: avoid !important;
-  }
-
-  .stat-card {
-    min-height: 82px !important;
-    padding: 10px !important;
-  }
-
-  .stat-icon,
-  .progress {
-    display: none !important;
-  }
-
-  .stat-info span,
-  .stat-info small {
-    font-size: 10px !important;
-    color: #4b5563 !important;
-  }
-
-  .stat-info strong {
-    font-size: 18px !important;
-    color: #111827 !important;
-  }
-
-  .white-panel {
-    padding: 14px !important;
-    margin: 0 0 12px !important;
-    border-radius: 8px !important;
-  }
-
-  .panel-header {
-    display: block !important;
-    margin-bottom: 12px !important;
-  }
-
-  .panel-header h2::before {
-    content: "CRONOS - Sistema Hotel";
-    display: block;
-    font-size: 13px;
-    color: #2563eb;
-    margin-bottom: 6px;
-  }
-
-  .clean-table {
-    width: 100% !important;
-    border-collapse: collapse !important;
   }
 
   .clean-table th,
@@ -1527,20 +1190,62 @@ textarea {
     background: #f3f4f6 !important;
     font-weight: 700 !important;
   }
+}
 
-  .status {
-    border: 1px solid #d1d5db !important;
-    background: #ffffff !important;
-    color: #111827 !important;
-    padding: 3px 6px !important;
+/* ESCONDE BARRAS VISUAIS, MAS MANTÉM ROLAGEM */
+body::-webkit-scrollbar,
+.hotel-main::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+}
+
+body,
+.hotel-main {
+  scrollbar-width: none;
+}
+
+/* Responsivo básico */
+@media (max-width: 1250px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  a[href]::after {
-    content: "" !important;
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reservations-panel,
+  .occupancy-panel,
+  .actions-panel,
+  .revenue-panel {
+    grid-column: auto;
   }
 }
 
 @media (max-width: 900px) {
+  .hotel-layout {
+    flex-direction: column;
+  }
+
+  .hotel-sidebar {
+    width: 100%;
+    min-width: 100%;
+    min-height: auto;
+  }
+
+  .hotel-main {
+    padding: 24px 16px 90px;
+  }
+
+  .hotel-topbar {
+    flex-direction: column;
+  }
+
+  .topbar-right,
+  .search-field {
+    width: 100%;
+  }
+
   .login-wrapper {
     grid-template-columns: 1fr;
     max-width: 430px;
@@ -1556,68 +1261,466 @@ textarea {
 }
 
 
-/* CORREÇÃO DE ROLAGEM DAS TELAS GRANDES */
-html,
-body,
-#root {
-  height: auto !important;
-  min-height: 100% !important;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
+/* ÍCONES SVG NO ESTILO DA REFERÊNCIA */
+.menu-icon {
+  width: 22px !important;
+  height: 22px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  color: #4b5563;
+  flex-shrink: 0;
 }
 
-.hotel-layout {
-  min-height: 100vh !important;
-  height: auto !important;
-  align-items: stretch !important;
+.menu-svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.hotel-sidebar {
-  position: sticky !important;
-  top: 0 !important;
-  height: 100vh !important;
-  max-height: 100vh !important;
-  overflow-y: auto !important;
-  flex-shrink: 0 !important;
+.menu-link.active .menu-icon,
+.menu-link:hover .menu-icon {
+  color: #2563eb;
 }
 
+.brand-svg {
+  width: 42px;
+  height: 52px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hotel-logo-icon {
+  color: #1d4ed8 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.top-svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.search-field span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bell-button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  color: #4b5563 !important;
+}
+
+.bell-button .top-svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* AVATARES IA PADRÃO POR TIPO DE HÓSPEDE */
+.guest-avatar-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  object-fit: cover;
+  background: #eef2ff;
+  border: 2px solid #ffffff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10);
+  flex-shrink: 0;
+}
+
+.guest-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Ajuste para manter visual igual referência */
+.hotel-brand {
+  align-items: flex-start !important;
+}
+
+.hotel-brand h1 {
+  max-width: 145px;
+  word-break: normal;
+}
+
+.hotel-brand p {
+  max-width: 145px;
+  word-break: normal;
+}
+
+
+/* CORREÇÃO FINAL: RESERVAS SEM TELA PRETA */
+.reservas-page {
+  width: 100%;
+  color: #111827 !important;
+  background: transparent !important;
+}
+
+.reservas-page .white-panel,
+.reservas-page .reservation-card,
+.reservas-page .table-scroll,
+.reservas-page table,
+.reservas-page td,
+.reservas-page th {
+  color: #111827 !important;
+}
+
+.reservas-page .white-panel,
+.reservas-page .reservation-card {
+  background: #ffffff !important;
+  border: 1px solid #edf0f5 !important;
+}
+
+.reservas-page input,
+.reservas-page select,
+.reservas-page textarea {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #dce3ef !important;
+}
+
+.reservas-page h2,
+.reservas-page h3,
+.reservas-page p,
+.reservas-page strong {
+  color: #111827 !important;
+}
+
+.reservas-page .button-row input {
+  min-width: 220px;
+}
+
+/* AVATARES LOCAIS */
+.guest-avatar-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  object-fit: cover;
+  background: #eef2ff;
+  border: 2px solid #ffffff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10);
+  flex-shrink: 0;
+}
+
+/* NÃO DEIXAR O VITE/CSS PADRÃO ESCURECER TELAS */
+#root,
+.hotel-layout,
 .hotel-main {
-  height: auto !important;
-  min-height: 100vh !important;
-  max-height: none !important;
-  overflow-x: hidden !important;
-  overflow-y: visible !important;
-  padding-bottom: 90px !important;
+  background: #f7f8fc !important;
+  color: #111827 !important;
 }
 
-/* Remove travamento antigo do dashboard em 100vh */
-@media (min-width: 1260px) {
-  .hotel-main {
-    height: auto !important;
-    overflow-y: visible !important;
-  }
+
+/* CORREÇÃO DEFINITIVA DA ABA RESERVAS */
+.reservas-page {
+  display: block;
+  width: 100%;
+  background: transparent !important;
+  color: #111827 !important;
 }
 
-/* Garante que telas com muitos quartos/produtos/relatórios possam descer */
-.quartos-andares,
-.room-grid,
-.quartos-grid,
-.reservation-cards,
-.user-list,
-.module-grid,
-.table-scroll,
-.white-panel {
-  max-height: none !important;
-  overflow: visible !important;
+.reservas-page * {
+  box-sizing: border-box;
 }
 
-/* Permite rolagem horizontal só em tabelas largas */
-.table-scroll {
+.reservas-page .white-panel,
+.reservas-page .reservation-card {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #edf0f5 !important;
+}
+
+.reservas-page h2,
+.reservas-page h3,
+.reservas-page p,
+.reservas-page strong,
+.reservas-page small,
+.reservas-page td,
+.reservas-page th {
+  color: #111827 !important;
+}
+
+.reservas-page input,
+.reservas-page select,
+.reservas-page textarea {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #dce3ef !important;
+}
+
+.reservas-table-scroll {
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto !important;
   overflow-y: visible !important;
 }
 
-/* Evita que o rodapé/menu do Windows cubra o fim da tela */
-.footer {
-  margin-bottom: 40px !important;
+.reservas-table-scroll table {
+  min-width: 900px;
+}
+
+.empty-state {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  color: #64748b;
+  border-radius: 14px;
+  padding: 22px;
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
+.reservation-card .guest-cell {
+  margin-bottom: 14px;
+}
+
+.reservation-card .guest-cell h3 {
+  margin: 0;
+}
+
+.reservation-card .guest-cell small {
+  display: block;
+  margin-top: 3px;
+  text-transform: capitalize;
+  color: #6b7280 !important;
+}
+
+
+/* AJUSTE EXTRA: EVITA TELA PRETA NA ABA RESERVAS */
+.reservas-page {
+  min-height: 100vh;
+  background: #f7f8fc !important;
+  color: #111827 !important;
+}
+
+.reservas-page .white-panel,
+.reservas-page .reservation-card,
+.reservas-page .empty-state {
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+.reservas-page * {
+  color: inherit;
+}
+
+.reservas-page input,
+.reservas-page select,
+.reservas-page textarea {
+  color: #111827 !important;
+  background: #ffffff !important;
+}
+
+
+/* BARRA SUPERIOR FUNCIONAL: BUSCA, NOTIFICAÇÕES E DATA */
+.topbar-search-wrap,
+.notification-wrap {
+  position: relative;
+}
+
+.search-field {
+  position: relative;
+}
+
+.search-field input {
+  padding-right: 42px !important;
+}
+
+.search-action {
+  position: absolute;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.search-action:hover {
+  color: #2563eb;
+}
+
+.topbar-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 50;
+  background: #ffffff;
+  border: 1px solid #e5eaf3;
+  border-radius: 14px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.14);
+  overflow: hidden;
+}
+
+.search-results-box {
+  width: 390px;
+}
+
+.notifications-box {
+  width: 360px;
+}
+
+.notifications-box h4 {
+  margin: 0;
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf0f5;
+  color: #111827;
+}
+
+.dropdown-item {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #edf0f5;
+  background: #ffffff;
+  padding: 13px 16px;
+  text-align: left;
+  cursor: pointer;
+  display: block;
+}
+
+.dropdown-item:hover {
+  background: #f8fbff;
+}
+
+.dropdown-item strong {
+  display: block;
+  color: #111827;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.dropdown-item span {
+  display: block;
+  color: #64748b;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.dropdown-empty {
+  padding: 16px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.date-picker-functional {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+.date-picker-functional input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.date-picker-functional span {
+  color: #111827;
+  font-weight: 500;
+}
+
+@media (max-width: 900px) {
+  .search-results-box,
+  .notifications-box {
+    width: 300px;
+    right: auto;
+    left: 0;
+  }
+}
+
+
+/* RELATÓRIO POR PERÍODO */
+.report-filter {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(190px, 1fr));
+  gap: 14px;
+  align-items: end;
+  margin: 18px 0 18px;
+  background: #f8fafc;
+  border: 1px solid #edf0f5;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.report-filter label {
+  display: block;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.report-filter button {
+  height: 44px;
+  background: #2563eb;
+  color: #ffffff;
+  border: 0;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.period-title {
+  margin: 12px 0 18px;
+  color: #374151;
+  font-size: 14px;
+}
+
+.report-stats {
+  margin-top: 14px;
+}
+
+.report-section {
+  margin-top: 24px;
+}
+
+.report-section h3 {
+  margin: 0 0 12px;
+  color: #111827;
+}
+
+@media print {
+  .no-print,
+  .report-filter {
+    display: none !important;
+  }
+
+  .report-section {
+    break-inside: avoid;
+    margin-top: 18px !important;
+  }
+
+  .period-title {
+    font-size: 12px !important;
+    margin-bottom: 12px !important;
+  }
+}
+
+/* SERVIÇOS / CONSUMO DO QUARTO */
+.white-panel .config-info {
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0 0 16px;
 }
