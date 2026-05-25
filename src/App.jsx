@@ -1,5200 +1,1845 @@
-import { useEffect, useState } from 'react'
-import { supabase } from './supabase'
+
+import { useMemo, useState } from 'react'
 import './App.css'
+import hotelBrisasLogo from './assets/hotel-brisas-logo.jpeg'
 
+const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
-const icons = {
-  dashboard: (
-    <svg viewBox="0 0 24 24" className="menu-svg">
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
-    </svg>
-  ),
-  reservas: (
-    <svg viewBox="0 0 24 24" className="menu-svg">
-      <rect x="4" y="5" width="16" height="15" rx="2" />
-      <path d="M8 3v4M16 3v4M4 10h16" />
-    </svg>
-  ),
-  hospedes: (
-    <svg viewBox="0 0 24 24" className="menu-svg">
-      <circle cx="9" cy="8" r="3" />
-      <path d="M3.5 20c.8-4 3-6 5.5-6s4.7 2 5.5 6" />
-      <circle cx="17" cy="9" r="2.4" />
-      <path d="M14.5 19c.5-2.6 1.9-4 3.7-4 1.3 0 2.4.7 3.1 2.1" />
-    </svg>
-  ),
-  check: (
-    <svg viewBox="0 0 24 24" className="menu-svg">
-      <path d="M5 12h13" />
-      <path d="M14 8l4 4-4 4" />
-      <path d="M19 5v14" />
-    </svg>
-  ),
-  quartos: (
-    <svg viewBox="0 0 24 24" className="menu-svg">
-      <path d="M3 17V8a3 3 0 0 1 3-3h5a3 3 0 0 1 3 3v9" />
-      <path d="M3 12h18v5" />
-      <path d="M21 17v2M3 17v2" />
-      <path d="M14 10h5a2 2 0 0 1 2 2" />
-    </svg>
-  ),
-  servicos: (
-    <svg viewBox="0 0 24 24" className="menu-svg">
-      <path d="M4 11h16" />
-      <path d="M6 11a6 6 0 0 1 12 0" />
-      <path d="M3 16h18" />
-      <path d="M7 16v2M17 16v2" />
-    </svg>
-  ),
-  financeiro: (
-    <svg viewBox="0 0 24 24" className="menu-svg">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v10" />
-      <path d="M15 9.5c-.7-.8-1.7-1.2-3-1.2-1.6 0-2.7.7-2.7 1.8 0 3 5.4 1.4 5.4 4.2 0 1.1-1.1 1.9-2.8 1.9-1.4 0-2.5-.5-3.3-1.4" />
-    </svg>
-  ),
-  relatorios: (
-    <svg viewBox="0 0 24 24" className="menu-svg">
-      <path d="M5 4h14v16H5z" />
-      <path d="M8 8h8M8 12h8M8 16h5" />
-    </svg>
-  ),
-  config: (
-    <svg viewBox="0 0 24 24" className="menu-svg">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.8 1.8 0 0 0 .4 2l.1.1-2.1 2.1-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.7V21h-3v-.2a1.8 1.8 0 0 0-1.1-1.7 1.8 1.8 0 0 0-2 .4l-.1.1-2.1-2.1.1-.1a1.8 1.8 0 0 0 .4-2A1.8 1.8 0 0 0 5 14.4H4v-3h1a1.8 1.8 0 0 0 1.7-1.1 1.8 1.8 0 0 0-.4-2l-.1-.1 2.1-2.1.1.1a1.8 1.8 0 0 0 2 .4A1.8 1.8 0 0 0 11.4 5V4h3v1a1.8 1.8 0 0 0 1.1 1.7 1.8 1.8 0 0 0 2-.4l.1-.1 2.1 2.1-.1.1a1.8 1.8 0 0 0-.4 2 1.8 1.8 0 0 0 1.7 1.1h1v3h-1a1.8 1.8 0 0 0-1.5.5z" />
-    </svg>
-  ),
-  search: (
-    <svg viewBox="0 0 24 24" className="top-svg">
-      <circle cx="11" cy="11" r="7" />
-      <path d="M16.5 16.5 21 21" />
-    </svg>
-  ),
-  bell: (
-    <svg viewBox="0 0 24 24" className="top-svg">
-      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
-      <path d="M10 21h4" />
-    </svg>
-  ),
-  hotel: (
-    <svg viewBox="0 0 24 24" className="brand-svg">
-      <path d="M4 21V5l8-3 8 3v16" />
-      <path d="M8 21V9h8v12" />
-      <path d="M9.5 6.5h.1M14.5 6.5h.1M9.5 11.5h.1M14.5 11.5h.1M9.5 15.5h.1M14.5 15.5h.1" />
-    </svg>
-  )
+const todayISO = () => new Date().toISOString().slice(0, 10)
+const addDays = (date, days) => {
+  const d = new Date(date + 'T12:00:00')
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+const diffDays = (a, b) => Math.max(1, Math.round((new Date(b) - new Date(a)) / 86400000))
+const moneyNumber = (v) => Number(String(v || 0).replace(/\./g, '').replace(',', '.')) || 0
+const id = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random())
+const reservationCode = () => String(Math.floor(33000 + Math.random() * 9000))
+
+function useLocalState(key, initialValue) {
+  const [state, setState] = useState(() => {
+    try {
+      const stored = localStorage.getItem(key)
+      return stored ? JSON.parse(stored) : initialValue
+    } catch {
+      return initialValue
+    }
+  })
+  const save = (value) => {
+    setState(value)
+    localStorage.setItem(key, JSON.stringify(value))
+  }
+  return [state, save]
 }
 
-function avatarHospede(tipo = 'homem') {
-  const valor = String(tipo || '').toLowerCase()
+const roomTypesSeed = [
+  { id: 'casal', nome: 'Casal', capacidade: 2, diaria: 200 },
+  { id: 'triplo', nome: 'Triplo', capacidade: 3, diaria: 300 },
+  { id: 'quadruplo', nome: 'Quádruplo', capacidade: 4, diaria: 420 },
+  { id: 'quintuplo', nome: 'Quíntuplo', capacidade: 5, diaria: 500 },
+  { id: 'sextuplo', nome: 'Sêxtuplo', capacidade: 6, diaria: 560 },
+  { id: 'septuplo', nome: 'Séptuplo', capacidade: 7, diaria: 600 },
+  { id: 'octuplo', nome: 'Óctuplo', capacidade: 8, diaria: 620 },
+  { id: 'casal-varanda', nome: 'Casal com Varanda', capacidade: 2, diaria: 280 },
+  { id: 'triplo-varanda', nome: 'Triplo com Varanda', capacidade: 3, diaria: 380 },
+  { id: 'quadruplo-varanda', nome: 'Quádruplo com Varanda', capacidade: 4, diaria: 480 },
+  { id: 'quintuplo-varanda', nome: 'Quíntuplo com Varanda', capacidade: 5, diaria: 580 },
+  { id: 'sextuplo-varanda', nome: 'Sêxtuplo com Varanda', capacidade: 6, diaria: 660 },
+  { id: 'octuplo-varanda', nome: 'Óctuplo com Varanda', capacidade: 8, diaria: 720 },
+]
 
-  if (valor.includes('menino')) return '/avatars/menino.svg'
-  if (valor.includes('menina')) return '/avatars/menina.svg'
-  if (valor.includes('mulher') || valor.includes('feminino') || valor.includes('female')) return '/avatars/mulher.svg'
-
-  return '/avatars/homem.svg'
+const roomMapSeed = {
+  casal: ['119', '240'],
+  triplo: ['115', '116', '117', '118', '234', '235', '237', '238', '239', '359', '360', '361', '362', '363', '364', '365'],
+  quadruplo: ['106', '109', '110', '233', '353', '355', '358'],
+  quintuplo: ['230', '232', '344'],
+  sextuplo: ['229'],
+  septuplo: ['228', '356'],
+  octuplo: ['231'],
+  'casal-varanda': ['241', '242', '243', '244', '366', '367', '368', '369'],
+  'triplo-varanda': ['225', '350', '351'],
+  'quadruplo-varanda': ['222', '223', '352'],
+  'quintuplo-varanda': ['226', '227', '347', '348'],
+  'sextuplo-varanda': ['220', '221', '224', '349'],
+  'octuplo-varanda': ['346'],
 }
 
+const roomsSeed = roomTypesSeed.flatMap((type, typeIndex) =>
+  (roomMapSeed[type.id] || []).map((numero, roomIndex) => ({
+    id: numero,
+    numero,
+    tipoId: type.id,
+    tipo: type.nome,
+    andar: Number(numero) < 200 ? 'Térreo' : Number(numero) < 300 ? '1º andar' : '2º andar',
+    statusLimpeza: (typeIndex + roomIndex) % 9 === 0 ? 'verificar' : 'limpo',
+  }))
+)
+
+const clientsSeed = []
+
+const reservationsSeed = []
+
+const paymentsSeed = []
+
+const consumosSeed = []
+const guestsSeed = []
+
+const paymentMethodsSeed = [
+  { id: 'pm1', nome: 'Dinheiro', tipo: 'normal', ativo: true },
+  { id: 'pm2', nome: 'PIX', tipo: 'normal', ativo: true },
+  { id: 'pm3', nome: 'Cartão de débito', tipo: 'cartao', ativo: true },
+  { id: 'pm4', nome: 'Cartão de crédito', tipo: 'cartao', ativo: true },
+  { id: 'pm5', nome: 'Crédito do cliente', tipo: 'credito', ativo: true },
+]
+
+
+const MOVEMENT_STORAGE_KEYS = [
+  'fh_clients_v2',
+  'fh_reservations_v2',
+  'fh_payments_v2',
+  'fh_consumos_v1',
+  'fh_blocks_v2',
+  'fh_rates_v2',
+  'fh_precheckins_v2',
+  'fh_audit_logs_v1',
+]
+
+if (typeof localStorage !== 'undefined' && localStorage.getItem('fh_movimentos_zerados_v14') !== 'ok') {
+  MOVEMENT_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key))
+  localStorage.setItem('fh_movimentos_zerados_v14', 'ok')
+}
+
+const menu = [
+  ['dashboard', '▦', 'Dashboard'],
+  ['painel', '▥', 'Painel de reservas'],
+  ['reservas', '▣', 'Reservas'],
+  ['recepcao', '⇄', 'Recepção'],
+  ['clientes', '♙', 'Clientes'],
+  ['hospedes', '♟', 'Hóspedes'],
+  ['precheckin', '☑', 'Pré check-in'],
+  ['quartos', '▤', 'Quartos'],
+  ['tarifas', '◷', 'Tarifas'],
+  ['servicos', '⚑', 'Serviços'],
+  ['financeiro', '$', 'Financeiro'],
+  ['caixa', '▣', 'Caixa diário'],
+  ['relatorios', '▧', 'Relatórios'],
+  ['auditoria', '☷', 'Auditoria'],
+  ['config', '⚙', 'Configurações'],
+]
 
 function App() {
-  const [quartos, setQuartos] = useState([])
-  const [reservas, setReservas] = useState([])
-  const [consumos, setConsumos] = useState([])
-  const [pagamentos, setPagamentos] = useState([])
-  const [empresaConfig, setEmpresaConfig] = useState(null)
-  const [empresaNome, setEmpresaNome] = useState('')
-  const [empresaFantasia, setEmpresaFantasia] = useState('')
-  const [empresaCnpj, setEmpresaCnpj] = useState('')
-  const [empresaTelefone, setEmpresaTelefone] = useState('')
-  const [empresaEmail, setEmpresaEmail] = useState('')
-  const [empresaEndereco, setEmpresaEndereco] = useState('')
-  const [empresaCidade, setEmpresaCidade] = useState('')
-  const [empresaEstado, setEmpresaEstado] = useState('')
-  const [empresaObservacao, setEmpresaObservacao] = useState('')
-  const [categoriasProdutos, setCategoriasProdutos] = useState([])
-  const [produtos, setProdutos] = useState([])
-  const [movimentacoesEstoque, setMovimentacoesEstoque] = useState([])
-  const [caixa, setCaixa] = useState([])
-  const [usuarioLogado, setUsuarioLogado] = useState(null)
-  const [login, setLogin] = useState('')
-  const [senha, setSenha] = useState('')
-  const [buscaGlobal, setBuscaGlobal] = useState('')
-  const [mostrarResultadosBusca, setMostrarResultadosBusca] = useState(false)
-  const [mostrarNotificacoes, setMostrarNotificacoes] = useState(false)
-  const [dataSistema, setDataSistema] = useState(new Date().toISOString().slice(0, 10))
-  const [relatorioDataInicio, setRelatorioDataInicio] = useState(new Date().toISOString().slice(0, 10))
-  const [relatorioDataFim, setRelatorioDataFim] = useState(new Date().toISOString().slice(0, 10))
-  const [consumoReservaId, setConsumoReservaId] = useState('')
-  const [consumoProdutoId, setConsumoProdutoId] = useState('')
-  const [consumoQuantidade, setConsumoQuantidade] = useState('1')
-  const [consumoObservacao, setConsumoObservacao] = useState('')
-  const [quartoGestaoId, setQuartoGestaoId] = useState('')
-  const [novoNomeQuarto, setNovoNomeQuarto] = useState('')
-  const [produtoQuartoId, setProdutoQuartoId] = useState('')
-  const [quantidadeProdutoQuarto, setQuantidadeProdutoQuarto] = useState('')
-  const [observacaoProdutoQuarto, setObservacaoProdutoQuarto] = useState('')
-  const [telaAtiva, setTelaAtiva] = useState('dashboard')
+  const [tab, setTab] = useState('dashboard')
+  const [usuarios, setUsuarios] = useState([{ id: 'admin', nome: 'Administrador', email: '', perfil: 'Administrador', ativo: true }])
+  const [usuarioForm, setUsuarioForm] = useState({ nome: '', email: '', perfil: 'Recepção', senha: '', ativo: true })
+  const [search, setSearch] = useState('')
+  const [roomTypes, setRoomTypes] = useLocalState('fh_room_types_v3', roomTypesSeed)
+  const [rooms, setRooms] = useLocalState('fh_rooms_v3', roomsSeed)
+  const [clients, setClients] = useLocalState('fh_clients_v2', clientsSeed)
+  const [reservations, setReservations] = useLocalState('fh_reservations_v2', reservationsSeed)
+  const [payments, setPayments] = useLocalState('fh_payments_v2', paymentsSeed)
+  const [consumos, setConsumos] = useLocalState('fh_consumos_v1', consumosSeed)
+  const [guests, setGuests] = useLocalState('fh_guests_v1', guestsSeed)
+  const [blocks, setBlocks] = useLocalState('fh_blocks_v2', [])
+  const [rates, setRates] = useLocalState('fh_rates_v2', [])
+  const [precheckins, setPrecheckins] = useLocalState('fh_precheckins_v2', [])
+  const [paymentMethods, setPaymentMethods] = useLocalState('fh_payment_methods_v1', paymentMethodsSeed)
+  const [auditLogs, setAuditLogs] = useLocalState('fh_audit_logs_v1', [])
+  const [methodForm, setMethodForm] = useState({ nome: '', tipo: 'normal', ativo: true })
+  const [selectedReserva, setSelectedReserva] = useState(null)
+  const [selectedRoom, setSelectedRoom] = useState(null)
+  const [receiveReserva, setReceiveReserva] = useState(null)
+  const [cancelReserva, setCancelReserva] = useState(null)
+  const [serviceReserva, setServiceReserva] = useState(null)
+  const [transferReserva, setTransferReserva] = useState(null)
+  const [rescheduleReserva, setRescheduleReserva] = useState(null)
+  const [blockModal, setBlockModal] = useState(null)
+  const [toast, setToast] = useState('')
+  const [periodStart, setPeriodStart] = useState(todayISO())
+  const [periodDays, setPeriodDays] = useState(21)
+  const [groupByType, setGroupByType] = useState(true)
+  const [expandedTypes, setExpandedTypes] = useState({})
+  const [dragSelection, setDragSelection] = useState(null)
+  const [dragReservationRequest, setDragReservationRequest] = useState(null)
+  const [newReservation, setNewReservation] = useState({
+    tipoId: 'triplo', quartoId: '', clienteId: '', nome: '', cpf: '', telefone: '', email: '',
+    entrada: todayISO(), saida: addDays(todayISO(), 1), adultos: 2, criancas: 0, diaria: 300, canal: 'Direto', origem: 'Direto - recepção', observacao: ''
+  })
+  const [newClient, setNewClient] = useState({ nome: '', cpf: '', telefone: '', email: '', nascimento: '', endereco: '', observacao: '' })
+  const [rateForm, setRateForm] = useState({ tipoId: 'todos', inicio: todayISO(), fim: todayISO(), diasSemana: ['0','1','2','3','4','5','6'], valor: '', acao: 'criar' })
+  const [preBusca, setPreBusca] = useState('')
 
-  const [reservaContaId, setReservaContaId] = useState('')
-  const [centralReservaId, setCentralReservaId] = useState('')
-  const [descricaoConsumo, setDescricaoConsumo] = useState('')
-  const [valorConsumo, setValorConsumo] = useState('')
-  const [valorPagamento, setValorPagamento] = useState('')
-  const [formaPagamento, setFormaPagamento] = useState('Dinheiro')
+  const dates = useMemo(() => Array.from({ length: Number(periodDays) }, (_, i) => addDays(periodStart, i)), [periodStart, periodDays])
+  const futureReservations = reservations.filter(r => ['pendente', 'confirmada'].includes(r.status))
+  const hospedados = reservations.filter(r => r.status === 'hospedado')
+  const occupiedRoomIds = new Set(hospedados.map(r => r.quartoId))
+  const revenueToday = payments.filter(p => p.data === todayISO() && p.tipo === 'recebimento').reduce((s, p) => s + Number(p.valor), 0)
 
-  const [numero, setNumero] = useState('')
-  const [tipo, setTipo] = useState('')
-  const [valor, setValor] = useState('')
-  const [andar, setAndar] = useState('Térreo')
+  function notify(msg) {
+    setToast(msg)
+    setTimeout(() => setToast(''), 2600)
+  }
 
-  const [quartoId, setQuartoId] = useState('')
-  const [nomeHospede, setNomeHospede] = useState('')
-  const [telefone, setTelefone] = useState('')
-  const [entrada, setEntrada] = useState('')
-  const [saida, setSaida] = useState('')
-  const [qtdHospedes, setQtdHospedes] = useState(1)
-  const [valorReservaManual, setValorReservaManual] = useState('')
-  const [despesaReservaDescricao, setDespesaReservaDescricao] = useState('')
-  const [despesaReservaQuantidade, setDespesaReservaQuantidade] = useState('1')
-  const [despesaReservaValor, setDespesaReservaValor] = useState('')
-  const [despesasReserva, setDespesasReserva] = useState([])
-  const [tipoHospede, setTipoHospede] = useState('homem')
-  const [canalVenda, setCanalVenda] = useState('Direto')
-  const [observacao, setObservacao] = useState('')
-  const [observacaoCheckout, setObservacaoCheckout] = useState('')
+  function logAction(acao, detalhe) {
+    setAuditLogs([{ id: id(), data: new Date().toLocaleString('pt-BR'), usuario: 'Administrador', acao, detalhe }, ...auditLogs].slice(0, 300))
+  }
 
-  const [nomeCategoria, setNomeCategoria] = useState('')
-  const [produtoNome, setProdutoNome] = useState('')
-  const [produtoCategoriaId, setProdutoCategoriaId] = useState('')
-  const [produtoTipo, setProdutoTipo] = useState('Produto')
-  const [produtoValor, setProdutoValor] = useState('')
-  const [produtoEstoque, setProdutoEstoque] = useState('')
-  const [produtoEstoqueMinimo, setProdutoEstoqueMinimo] = useState('')
-  const [produtoLocalUso, setProdutoLocalUso] = useState('Geral')
-  const [produtoFrigobar, setProdutoFrigobar] = useState(false)
-  const [produtoMovimentoId, setProdutoMovimentoId] = useState('')
-  const [tipoMovimentoEstoque, setTipoMovimentoEstoque] = useState('entrada')
-  const [quantidadeMovimento, setQuantidadeMovimento] = useState('')
-  const [observacaoMovimento, setObservacaoMovimento] = useState('')
-  const [caixaTipo, setCaixaTipo] = useState('entrada')
-  const [caixaDescricao, setCaixaDescricao] = useState('')
-  const [caixaValor, setCaixaValor] = useState('')
-  const [caixaFormaPagamento, setCaixaFormaPagamento] = useState('Dinheiro')
-  const [avisoSistema, setAvisoSistema] = useState(null)
-  const [empresaLogo, setEmpresaLogo] = useState(() => localStorage.getItem('cronos_logo_hotel') || '')
+  function clientOf(r) {
+    return clients.find(c => c.id === r.clienteId) || { nome: r.nome || 'Cliente não informado', credito: 0 }
+  }
 
-  function mostrarAviso(mensagem, tipo = 'info') {
-    setAvisoSistema({ mensagem, tipo })
-    window.setTimeout(() => {
-      setAvisoSistema(null)
-    }, 3200)
+  function typeOf(idTipo) {
+    return roomTypes.find(t => t.id === idTipo) || roomTypes[0]
+  }
+
+  function roomOf(idQuarto) {
+    return rooms.find(q => q.id === idQuarto) || {}
+  }
+
+  function diariaTotal(r) {
+    return diffDays(r.entrada, r.saida) * Number(r.diaria || typeOf(r.tipoId).diaria || 0)
+  }
+
+  function servicesTotal(reservaId) {
+    return consumos.filter(c => c.reservaId === reservaId).reduce((s, c) => s + Number(c.qtd || 1) * Number(c.valor || 0), 0)
+  }
+
+  function reservationTotal(r) {
+    return diariaTotal(r) + servicesTotal(r.id)
+  }
+
+  function paidTotal(rid) {
+    return payments.filter(p => p.reservaId === rid && p.tipo === 'recebimento').reduce((s, p) => s + Number(p.valor), 0) -
+      payments.filter(p => p.reservaId === rid && p.tipo === 'estorno').reduce((s, p) => s + Number(p.valor), 0)
+  }
+
+  function balance(r) {
+    return reservationTotal(r) - paidTotal(r.id)
+  }
+
+  function isRoomAvailable(roomId, start, end, ignoreId = '') {
+    const conflictReservation = reservations.some(r => r.id !== ignoreId && r.quartoId === roomId && !['cancelada', 'checkout'].includes(r.status) && start < r.saida && end > r.entrada)
+    const conflictBlock = blocks.some(b => b.quartoId === roomId && start < b.fim && end > b.inicio)
+    return !conflictReservation && !conflictBlock
+  }
+
+  function availableRooms(tipoId = newReservation.tipoId, start = newReservation.entrada, end = newReservation.saida) {
+    return rooms.filter(q => q.tipoId === tipoId && isRoomAvailable(q.id, start, end))
   }
 
 
-  function carregarLogoHotel(arquivo) {
-    if (!arquivo) return
-
-    const leitor = new FileReader()
-    leitor.onload = () => {
-      const resultado = String(leitor.result || '')
-      setEmpresaLogo(resultado)
-      localStorage.setItem('cronos_logo_hotel', resultado)
-      mostrarAviso('Logo do hotel atualizada.', 'sucesso')
-    }
-    leitor.readAsDataURL(arquivo)
-  }
-
-  function removerLogoHotel() {
-    setEmpresaLogo('')
-    localStorage.removeItem('cronos_logo_hotel')
-    mostrarAviso('Logo removida.', 'sucesso')
-  }
-
-
-  function adicionarDespesaReserva() {
-    const descricao = despesaReservaDescricao.trim()
-    const quantidade = Number(despesaReservaQuantidade || 1)
-    const valorUnitario = converterValorDigitado(despesaReservaValor)
-
-    if (!descricao || quantidade <= 0 || valorUnitario <= 0) {
-      mostrarAviso('Informe descrição, quantidade e valor da despesa.', 'erro')
-      return
-    }
-
-    setDespesasReserva((lista) => [
-      ...lista,
-      {
-        id: `despesa-${Date.now()}`,
-        descricao,
-        quantidade,
-        valor_unitario: valorUnitario,
-        valor_total: quantidade * valorUnitario
-      }
-    ])
-
-    setDespesaReservaDescricao('')
-    setDespesaReservaQuantidade('1')
-    setDespesaReservaValor('')
-  }
-
-  function removerDespesaReserva(id) {
-    setDespesasReserva((lista) => lista.filter((item) => item.id !== id))
-  }
-
-  function totalDespesasReservaTemporarias() {
-    return despesasReserva.reduce((total, item) => total + Number(item.valor_total || 0), 0)
-  }
-
-  function valorDiariaReservaDigitado() {
-    return converterValorDigitado(valorReservaManual)
-  }
-
-  function totalHospedagemReservaTemporaria() {
-    return valorDiariaReservaDigitado() * calcularDiarias()
-  }
-
-  function totalReservaTemporariarelatório() {
-    return totalHospedagemReservaTemporaria() + totalDespesasReservaTemporarias()
-  }
-
-  async function entrarSistema() {
-    if (!login || !senha) {
-      alert('Informe login e senha')
-      return
-    }
-
-    const { data, error } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('login', login)
-      .eq('senha', senha)
-      .eq('ativo', true)
-      .single()
-
-    if (error || !data) {
-      alert('Login ou senha inválidos')
-      console.log(error)
-      return
-    }
-
-    setUsuarioLogado(data)
-    localStorage.setItem('cronos_usuario', JSON.stringify(data))
-
-    carregarQuartos()
-    carregarReservas()
-    carregarConsumos()
-    carregarPagamentos()
-    carregarCategoriasProdutos()
-    carregarProdutos()
-    carregarMovimentacoesEstoque()
-    carregarCaixa()
-    carregarEmpresaConfig()
-  }
-
-  function sairSistema() {
-    localStorage.removeItem('cronos_usuario')
-    setUsuarioLogado(null)
-    setLogin('')
-    setSenha('')
-  }
-
-
-  function podeAcessarFinanceiro() {
-    return (
-      usuarioLogado?.perfil === 'Administrador' ||
-      usuarioLogado?.perfil === 'Financeiro'
-    )
-  }
-
-  function podeCadastrarQuarto() {
-    return usuarioLogado?.perfil === 'Administrador'
-  }
-
-  function podeFazerReserva() {
-    return (
-      usuarioLogado?.perfil === 'Administrador' ||
-      usuarioLogado?.perfil === 'Recepção'
-    )
-  }
-
-
-  function podeAcessarEstoque() {
-    return (
-      usuarioLogado?.perfil === 'Administrador' ||
-      usuarioLogado?.perfil === 'Financeiro' ||
-      usuarioLogado?.perfil === 'Recepção'
-    )
-  }
-
-  function podeAcessarCaixa() {
-    return (
-      usuarioLogado?.perfil === 'Administrador' ||
-      usuarioLogado?.perfil === 'Financeiro'
-    )
-  }
-
-  const [usuarios, setUsuarios] = useState([])
-  const [novoNome, setNovoNome] = useState('')
-  const [novoLogin, setNovoLogin] = useState('')
-  const [novaSenha, setNovaSenha] = useState('')
-  const [novoPerfil, setNovoPerfil] = useState('Recepção')
-  const [novoTelefone, setNovoTelefone] = useState('')
-  const [editandoUsuario, setEditandoUsuario] = useState(null)
-
-
-  async function carregarUsuarios() {
-    const { data, error } = await supabase
-      .from('usuarios')
-      .select('*')
-      .order('nome')
-
-    if (error) {
-      console.log(error)
-      return
-    }
-
-    setUsuarios(data || [])
-  }
-
-  async function criarUsuario() {
-    if (!novoNome || !novoLogin || !novaSenha) {
-      alert('Preencha nome, login e senha')
-      return
-    }
-
-    const { error } = await supabase
-      .from('usuarios')
-      .insert({
-        nome: novoNome,
-        login: novoLogin,
-        senha: novaSenha,
-        perfil: novoPerfil,
-        telefone: novoTelefone,
-        ativo: true
-      })
-
-    if (error) {
-      alert('Erro ao criar usuário')
-      console.log(error)
-      return
-    }
-
-    setNovoNome('')
-    setNovoLogin('')
-    setNovaSenha('')
-    setNovoPerfil('Recepção')
-    setNovoTelefone('')
-
-    carregarUsuarios()
-
-    alert('Usuário criado com sucesso')
-  }
-
-
-  async function salvarEdicaoUsuario() {
-    if (!editandoUsuario) return
-
-    const { error } = await supabase
-      .from('usuarios')
-      .update({
-        nome: editandoUsuario.nome,
-        login: editandoUsuario.login,
-        senha: editandoUsuario.senha,
-        perfil: editandoUsuario.perfil,
-        telefone: editandoUsuario.telefone
-      })
-      .eq('id', editandoUsuario.id)
-
-    if (error) {
-      alert('Erro ao atualizar usuário')
-      console.log(error)
-      return
-    }
-
-    setEditandoUsuario(null)
-    carregarUsuarios()
-
-    alert('Usuário atualizado')
-  }
-
-  async function alterarStatusUsuario(usuario) {
-    const { error } = await supabase
-      .from('usuarios')
-      .update({
-        ativo: !usuario.ativo
-      })
-      .eq('id', usuario.id)
-
-    if (error) {
-      alert('Erro ao alterar status')
-      console.log(error)
-      return
-    }
-
-    carregarUsuarios()
-  }
-
-
-  async function registrarAuditoria(acao, detalhes = '') {
-    try {
-      await supabase.from('auditoria').insert({
-        usuario_id: usuarioLogado?.id || null,
-        acao,
-        detalhes
-      })
-    } catch (erro) {
-      console.log('Auditoria não registrada', erro)
-    }
-  }
-
-
-  async function carregarEmpresaConfig() {
-    const { data, error } = await supabase
-      .from('empresa_config')
-      .select('*')
-      .limit(1)
-      .single()
-
-    if (error) {
-      console.log(error)
-      return
-    }
-
-    setEmpresaConfig(data)
-    setEmpresaNome(data?.nome_empresa || '')
-    setEmpresaFantasia(data?.nome_fantasia || '')
-    setEmpresaCnpj(data?.cnpj || '')
-    setEmpresaTelefone(data?.telefone || '')
-    setEmpresaEmail(data?.email || '')
-    setEmpresaEndereco(data?.endereco || '')
-    setEmpresaCidade(data?.cidade || '')
-    setEmpresaEstado(data?.estado || '')
-    setEmpresaObservacao(data?.observacao || '')
-  }
-
-  async function salvarEmpresaConfig() {
-    const dados = {
-      nome_empresa: empresaNome,
-      nome_fantasia: empresaFantasia,
-      cnpj: empresaCnpj,
-      telefone: empresaTelefone,
-      email: empresaEmail,
-      endereco: empresaEndereco,
-      cidade: empresaCidade,
-      estado: empresaEstado,
-      observacao: empresaObservacao,
-      atualizado_em: new Date().toISOString()
-    }
-
-    let error = null
-
-    if (empresaConfig?.id) {
-      const resposta = await supabase
-        .from('empresa_config')
-        .update(dados)
-        .eq('id', empresaConfig.id)
-
-      error = resposta.error
-    } else {
-      const resposta = await supabase
-        .from('empresa_config')
-        .insert(dados)
-
-      error = resposta.error
-    }
-
-    if (error) {
-      alert('Erro ao salvar dados da empresa')
-      console.log(error)
-      return
-    }
-
-    await registrarAuditoria('Configuração da empresa alterada', empresaNome)
-
-    carregarEmpresaConfig()
-    alert('Dados da empresa salvos com sucesso')
-  }
-
-  async function carregarCategoriasProdutos() {
-    const { data, error } = await supabase
-      .from('categorias_produtos')
-      .select('*')
-      .order('nome')
-
-    if (error) {
-      console.log(error)
-      return
-    }
-
-    setCategoriasProdutos(data || [])
-  }
-
-  async function carregarProdutos() {
-    const { data, error } = await supabase
-      .from('produtos')
-      .select(`
-        *,
-        categorias_produtos (
-          nome
-        )
-      `)
-      .order('nome')
-
-    if (error) {
-      console.log(error)
-      return
-    }
-
-    setProdutos(data || [])
-  }
-
-  async function carregarMovimentacoesEstoque() {
-    const { data, error } = await supabase
-      .from('movimentacoes_estoque')
-      .select(`
-        *,
-        produtos (
-          nome
-        )
-      `)
-      .order('criado_em', { ascending: false })
-
-    if (error) {
-      console.log(error)
-      return
-    }
-
-    setMovimentacoesEstoque(data || [])
-  }
-
-  async function carregarCaixa() {
-    const { data, error } = await supabase
-      .from('caixa')
-      .select('*')
-      .order('criado_em', { ascending: false })
-
-    if (error) {
-      console.log(error)
-      return
-    }
-
-    setCaixa(data || [])
-  }
-
-  async function salvarCategoriaProduto() {
-    if (!nomeCategoria) {
-      alert('Informe o nome da categoria')
-      return
-    }
-
-    const { error } = await supabase
-      .from('categorias_produtos')
-      .insert({
-        nome: nomeCategoria
-      })
-
-    if (error) {
-      alert('Erro ao salvar categoria')
-      console.log(error)
-      return
-    }
-
-    await registrarAuditoria('Categoria criada', nomeCategoria)
-
-    setNomeCategoria('')
-    carregarCategoriasProdutos()
-    alert('Categoria salva com sucesso')
-  }
-
-  async function salvarProduto() {
-    if (!produtoNome) {
-      alert('Informe o nome do produto ou serviço')
-      return
-    }
-
-    const { error } = await supabase
-      .from('produtos')
-      .insert({
-        nome: produtoNome,
-        categoria_id: produtoCategoriaId || null,
-        tipo: produtoTipo,
-        valor_venda: Number(produtoValor || 0),
-        estoque_atual: Number(produtoEstoque || 0),
-        estoque_minimo: Number(produtoEstoqueMinimo || 0),
-        local_uso: produtoLocalUso,
-        usado_em_frigobar: produtoFrigobar,
-        ativo: true
-      })
-
-    if (error) {
-      alert('Erro ao salvar produto')
-      console.log(error)
-      return
-    }
-
-    await registrarAuditoria('Produto criado', produtoNome)
-
-    setProdutoNome('')
-    setProdutoCategoriaId('')
-    setProdutoTipo('Produto')
-    setProdutoValor('')
-    setProdutoEstoque('')
-    setProdutoEstoqueMinimo('')
-    setProdutoLocalUso('Geral')
-    setProdutoFrigobar(false)
-
-    carregarProdutos()
-    alert('Produto salvo com sucesso')
-  }
-
-  async function movimentarEstoque() {
-    if (!produtoMovimentoId || !quantidadeMovimento) {
-      alert('Selecione o produto e informe a quantidade')
-      return
-    }
-
-    const produto = produtos.find((item) => item.id === produtoMovimentoId)
-
-    if (!produto) {
-      alert('Produto não encontrado')
-      return
-    }
-
-    const quantidade = Number(quantidadeMovimento || 0)
-    const estoqueAtual = Number(produto.estoque_atual || 0)
-
-    const novoEstoque =
-      tipoMovimentoEstoque === 'entrada'
-        ? estoqueAtual + quantidade
-        : estoqueAtual - quantidade
-
-    const { error: erroMovimento } = await supabase
-      .from('movimentacoes_estoque')
-      .insert({
-        produto_id: produtoMovimentoId,
-        tipo: tipoMovimentoEstoque,
-        quantidade,
-        observacao: observacaoMovimento
-      })
-
-    if (erroMovimento) {
-      alert('Erro ao registrar movimentação')
-      console.log(erroMovimento)
-      return
-    }
-
-    const { error: erroProduto } = await supabase
-      .from('produtos')
-      .update({
-        estoque_atual: novoEstoque
-      })
-      .eq('id', produtoMovimentoId)
-
-    if (erroProduto) {
-      alert('Erro ao atualizar estoque')
-      console.log(erroProduto)
-      return
-    }
-
-    await registrarAuditoria(
-      'Movimentação de estoque',
-      `${tipoMovimentoEstoque} - ${produto.nome} - ${quantidade}`
-    )
-
-    setProdutoMovimentoId('')
-    setTipoMovimentoEstoque('entrada')
-    setQuantidadeMovimento('')
-    setObservacaoMovimento('')
-
-    carregarProdutos()
-    carregarMovimentacoesEstoque()
-    alert('Estoque atualizado com sucesso')
-  }
-
-  async function lancarCaixa() {
-    if (!caixaDescricao || !caixaValor) {
-      mostrarAviso('Informe a descrição e o valor do lançamento.', 'erro')
-      return
-    }
-
-    const { error } = await supabase
-      .from('caixa')
-      .insert({
-        tipo: caixaTipo,
-        descricao: caixaDescricao,
-        valor: Number(caixaValor || 0),
-        forma_pagamento: caixaFormaPagamento
-      })
-
-    if (error) {
-      mostrarAviso('Erro ao lançar caixa. Tente novamente.', 'erro')
-      console.log(error)
-      return
-    }
-
-    await registrarAuditoria(
-      'Lançamento de caixa',
-      `${caixaTipo} - ${caixaDescricao} - ${caixaValor}`
-    )
-
-    setCaixaTipo('entrada')
-    setCaixaDescricao('')
-    setCaixaValor('')
-    setCaixaFormaPagamento('Dinheiro')
-
-    carregarCaixa()
-    mostrarAviso('Lançamento registrado no caixa.', 'sucesso')
-  }
-
-  function saldoCaixa() {
-    return caixa.reduce((total, item) => {
-      const valor = Number(item.valor || 0)
-      return item.tipo === 'entrada'
-        ? total + valor
-        : total - valor
-    }, 0)
-  }
-
-  function totalEstoqueBaixo() {
-    return produtos.filter((produto) => {
-      return Number(produto.estoque_atual || 0) <= Number(produto.estoque_minimo || 0)
-    }).length
-  }
-
-  async function carregarQuartos() {
-    const { data, error } = await supabase
-      .from('quartos')
-      .select('*')
-      .order('numero')
-
-    if (error) {
-      alert('Erro ao carregar quartos')
-      console.log(error)
-      return
-    }
-
-    setQuartos(data || [])
-  }
-
-  async function carregarReservas() {
-    const { data, error } = await supabase
-      .from('reservas')
-      .select(`
-        *,
-        quartos (
-          numero,
-          tipo
-        )
-      `)
-      .order('criado_em', { ascending: false })
-
-    if (error) {
-      console.log(error)
-      return
-    }
-
-    setReservas(data || [])
-  }
-
-  async function carregarConsumos() {
-    const { data, error } = await supabase
-      .from('consumos')
-      .select('*')
-      .order('criado_em', { ascending: false })
-
-    if (error) {
-      console.log(error)
-      return
-    }
-
-    setConsumos(data || [])
-  }
-
-  async function carregarPagamentos() {
-    const { data, error } = await supabase
-      .from('pagamentos')
-      .select('*')
-      .order('data_pagamento', { ascending: false })
-
-    if (error) {
-      console.log(error)
-      return
-    }
-
-    setPagamentos(data || [])
-  }
-
-  async function salvarQuarto() {
-    if (!numero || !tipo) {
-      alert('Preencha número e tipo do quarto')
-      return
-    }
-
-    const { error } = await supabase.from('quartos').insert({
-      numero,
-      tipo,
-      valor_diaria: Number(valor || 0),
-      andar,
-      status: 'livre'
+  function createReservationByDrag(roomId, startDate, endDate) {
+    if (!roomId || !startDate || !endDate) return
+    const inicio = startDate < endDate ? startDate : endDate
+    const fimBase = startDate < endDate ? endDate : startDate
+    const fim = addDays(fimBase, 1)
+    const quarto = roomOf(roomId)
+    if (!quarto?.id) return notify('Quarto não encontrado.')
+    if (!isRoomAvailable(roomId, inicio, fim)) return notify('Esse período já possui reserva ou bloqueio.')
+    setDragReservationRequest({
+      roomId: quarto.id,
+      roomNumber: quarto.numero,
+      tipoId: quarto.tipoId,
+      tipo: quarto.tipo,
+      entrada: inicio,
+      saida: fim,
+      nome: '',
+      telefone: '',
+      cpf: ''
     })
-
-    if (error) {
-      alert('Erro ao salvar quarto')
-      console.log(error)
-      return
-    }
-
-    setNumero('')
-    setTipo('')
-    setValor('')
-    setAndar('Térreo')
-    carregarQuartos()
   }
 
-  async function alterarStatus(id, status) {
-    const { error } = await supabase
-      .from('quartos')
-      .update({ status })
-      .eq('id', id)
-
-    if (error) {
-      alert('Erro ao alterar status')
-      console.log(error)
-      return
+  function confirmDragReservation(data) {
+    if (!data || !data.nome || !data.nome.trim()) return notify('Informe o nome do cliente.')
+    const quarto = roomOf(data.roomId)
+    if (!quarto?.id) return notify('Quarto não encontrado.')
+    if (!isRoomAvailable(data.roomId, data.entrada, data.saida)) return notify('Esse período já possui reserva ou bloqueio.')
+    const cli = {
+      id: id(),
+      nome: `${data.nome.trim()} ${data.sobrenome || ''}`.trim(),
+      cpf: data.cpf || '',
+      telefone: data.telefone || '',
+      email: data.email || '',
+      nascimento: data.nascimento || '',
+      endereco: '',
+      observacao: '',
+      credito: 0,
+      vip: false
     }
+    const diaria = typeOf(quarto.tipoId).diaria || 0
+    const reserva = {
+      id: id(),
+      codigo: reservationCode(),
+      clienteId: cli.id,
+      quartoId: quarto.id,
+      tipoId: quarto.tipoId,
+      entrada: data.entrada,
+      saida: data.saida,
+      adultos: Number(data.adultos || typeOf(quarto.tipoId).capacidade || 1),
+      criancas: Number(data.criancas || 0),
+      diaria: moneyNumber(data.diaria) || diaria,
+      status: 'pendente',
+      origem: 'Painel de reservas',
+      canal: data.canal || 'Direto',
+      origem: data.origem || 'Painel de reservas',
+      observacao: data.observacao || 'Criada arrastando no painel de reservas.'
+    }
+    setClients([cli, ...clients])
+    setReservations([reserva, ...reservations])
+    setDragReservationRequest(null)
+    setSelectedReserva(reserva)
+    logAction('Reserva criada por arrasto', `Reserva ${reserva.codigo} criada no quarto ${quarto.numero} de ${data.entrada} até ${data.saida}.`)
+    notify(`Reserva ${reserva.codigo} criada pelo período selecionado.`)
+  }
 
-    if (status === 'livre') {
-      const reservasAbertas = (Array.isArray(reservas) ? reservas : []).filter((reserva) => {
-        return String(reserva.quarto_id) === String(id) &&
-          !reserva.checkout &&
-          reserva.status !== 'finalizada' &&
-          reserva.status !== 'cancelada'
-      })
 
-      if (reservasAbertas.length > 0) {
-        const idsReservasAbertas = reservasAbertas.map((reserva) => reserva.id)
-
-        const { error: erroReservas } = await supabase
-          .from('reservas')
-          .update({
-            checkout: true,
-            status: 'finalizada',
-            observacao_checkout: 'Quarto liberado manualmente. Conta encerrada automaticamente.'
-          })
-          .in('id', idsReservasAbertas)
-
-        if (erroReservas) {
-          alert('Quarto liberado, mas houve erro ao encerrar a conta da reserva')
-          console.log(erroReservas)
-        }
+  function saveReservation() {
+    if (!newReservation.clienteId) {
+      if (!newReservation.nome?.trim() || !newReservation.cpf?.trim() || !newReservation.telefone?.trim() || !newReservation.email?.trim()) {
+        notify('Dados obrigatórios para criar reserva: nome, CPF/CNPJ, telefone/WhatsApp e e-mail.')
+        return
       }
     }
 
-    carregarQuartos()
-    carregarReservas()
+    let clienteId = newReservation.clienteId
+    if (!clienteId) {
+      if (!newReservation.nome.trim()) return notify('Informe o nome do cliente.')
+      const cli = { id: id(), nome: newReservation.nome, cpf: newReservation.cpf, telefone: newReservation.telefone, email: newReservation.email, nascimento: '', endereco: '', observacao: '', credito: 0, vip: false }
+      setClients([...clients, cli])
+      clienteId = cli.id
+    }
+    if (!newReservation.quartoId) return notify('Selecione um quarto disponível.')
+    if (!isRoomAvailable(newReservation.quartoId, newReservation.entrada, newReservation.saida)) return notify('Quarto indisponível no período.')
+    const reserva = {
+      id: id(),
+      codigo: reservationCode(),
+      clienteId,
+      quartoId: newReservation.quartoId,
+      tipoId: newReservation.tipoId,
+      entrada: newReservation.entrada,
+      saida: newReservation.saida,
+      adultos: Number(newReservation.adultos),
+      criancas: Number(newReservation.criancas),
+      diaria: Number(newReservation.diaria || typeOf(newReservation.tipoId).diaria),
+      status: 'pendente',
+      origem: newReservation.origem,
+      canal: newReservation.canal,
+      observacao: newReservation.observacao
+    }
+    setReservations([reserva, ...reservations])
+    setSelectedReserva(reserva)
+    logAction('Reserva criada', `Reserva ${reserva.codigo} criada para o quarto ${reserva.quartoId}.`)
+    notify(`Reserva ${reserva.codigo} criada. Check-in só libera após pagamento.`)
   }
 
-  function calcularDiarias() {
-    if (!entrada || !saida) return 0
-
-    const dataEntrada = new Date(entrada)
-    const dataSaida = new Date(saida)
-    const diferenca = dataSaida - dataEntrada
-    const diarias = diferenca / (1000 * 60 * 60 * 24)
-
-    return diarias > 0 ? diarias : 0
+  function receivePayment(form) {
+    const r = receiveReserva
+    const valor = moneyNumber(form.valor)
+    if (!r || valor <= 0) return notify('Informe um valor para receber.')
+    const cliente = clientOf(r)
+    if (form.forma === 'Crédito do cliente') {
+      if (Number(cliente.credito || 0) < valor) return notify('Crédito insuficiente para esse cliente.')
+      setClients(clients.map(c => c.id === cliente.id ? { ...c, credito: Number(c.credito || 0) - valor } : c))
+    }
+    setPayments([{ id: id(), reservaId: r.id, data: todayISO(), tipo: 'recebimento', forma: form.forma, valor, pagante: cliente.nome, observacao: form.observacao || form.forma }, ...payments])
+    setReservations(reservations.map(x => x.id === r.id ? { ...x, status: balance(x) - valor <= 0 && x.status === 'pendente' ? 'confirmada' : x.status } : x))
+    setReceiveReserva(null)
+    logAction('Pagamento recebido', `Reserva ${r.codigo}: ${form.forma} no valor de ${BRL.format(valor)}.`)
+    notify('Pagamento recebido.')
   }
 
-  async function criarReserva() {
-    if (!quartoId || !nomeHospede || !entrada || !saida) {
-      alert('Preencha quarto, hóspede, entrada e saída')
+  function doCheckin(r) {
+    if (balance(r) > 0) return notify('Check-in bloqueado: precisa pagar primeiro.')
+    setReservations(reservations.map(x => x.id === r.id ? { ...x, status: 'livre' } : x))
+    setSelectedReserva({ ...r, status: 'livre' })
+    logAction('Check-in', `Reserva ${r.codigo} entrou no quarto ${r.quartoId}.`)
+    notify('Check-in realizado.')
+  }
+
+  function doCheckout(r) {
+    const totalConsumosAbertos = consumos
+      .filter(c => c.reservaId === r.id)
+      .reduce((s, c) => s + Number(c.qtd || 1) * Number(c.valor || 0), 0)
+    const pagoConsumos = payments
+      .filter(p => p.reservaId === r.id && p.tipo === 'recebimento' && String(p.observacao || '').toLowerCase().includes('consumo'))
+      .reduce((s, p) => s + Number(p.valor || 0), 0)
+    const saldoConsumo = Math.max(0, totalConsumosAbertos - pagoConsumos)
+    if (saldoConsumo > 0) {
+      notify(`Checkout bloqueado. Existe consumo em aberto no quarto: ${BRL.format(saldoConsumo)}.`)
+      setTab('quartos')
       return
     }
 
-    const quartoSelecionado = quartos.find((q) => q.id === quartoId)
+    setReservations(reservations.map(x => x.id === r.id ? { ...x, status: 'checkout' } : x))
+    setRooms(rooms.map(q => q.id === r.quartoId ? { ...q, statusLimpeza: 'verificar' } : q))
+    setSelectedReserva(null)
+    logAction('Check-out', `Reserva ${r.codigo} saiu do quarto ${r.quartoId}. Quarto marcado para verificar.`)
+    notify('Check-out realizado. Quarto marcado para verificar.')
+  }
 
-    if (!quartoSelecionado) {
-      alert('Quarto não encontrado')
+  function cancelWithCredit({ motivo, observacao, multa }) {
+    const r = cancelReserva
+    const recebido = paidTotal(r.id)
+    const multaValor = moneyNumber(multa)
+    const credito = Math.max(0, recebido - multaValor)
+    const cliente = clientOf(r)
+    const newPayments = [...payments]
+    if (multaValor > 0) newPayments.unshift({ id: id(), reservaId: r.id, data: todayISO(), tipo: 'multa', forma: 'Multa de cancelamento', valor: multaValor, pagante: cliente.nome, observacao: motivo })
+    if (credito > 0) newPayments.unshift({ id: id(), reservaId: r.id, data: todayISO(), tipo: 'estorno', forma: 'Crédito do cliente', valor: credito, pagante: cliente.nome, observacao: observacao || 'Cancelamento convertido em crédito' })
+    setPayments(newPayments)
+    setClients(clients.map(c => c.id === cliente.id ? { ...c, credito: Number(c.credito || 0) + credito } : c))
+    setReservations(reservations.map(x => x.id === r.id ? { ...x, status: 'cancelada', cancelamento: { motivo, observacao, credito, multa: multaValor } } : x))
+    setCancelReserva(null)
+    setSelectedReserva(null)
+    logAction('Cancelamento / estorno', `Reserva ${r.codigo} cancelada. Crédito gerado: ${BRL.format(credito)}. Multa: ${BRL.format(multaValor)}.`)
+    notify(`Reserva cancelada. Crédito gerado: ${BRL.format(credito)}.`)
+  }
+
+
+
+  function moveReservation(reservaId, novoQuartoId) {
+    const r = reservations.find(x => x.id === reservaId)
+    if (!r || !novoQuartoId) return
+    if (novoQuartoId === r.quartoId) return
+    if (!isRoomAvailable(novoQuartoId, r.entrada, r.saida, r.id)) return notify('Esse quarto não está livre no período da reserva.')
+    const novoQuarto = roomOf(novoQuartoId)
+    const reservaAtualizada = { ...r, quartoId: novoQuartoId, tipoId: novoQuarto.tipoId }
+    setReservations(reservations.map(x => x.id === r.id ? reservaAtualizada : x))
+    setRooms(rooms.map(q => q.id === r.quartoId ? { ...q, statusLimpeza: 'verificar' } : q))
+    setSelectedReserva(reservaAtualizada)
+    logAction('Reserva movida no mapa', `Reserva ${r.codigo}: quarto ${r.quartoId} para ${novoQuarto.numero}.`)
+    notify(`Reserva movida para o quarto ${novoQuarto.numero}.`)
+  }
+
+  function transferRoom(form) {
+    const r = transferReserva
+    if (!r) return
+    if (!form.quartoId) return notify('Selecione o novo quarto.')
+    if (form.quartoId === r.quartoId) return notify('Esse já é o quarto atual.')
+    if (!isRoomAvailable(form.quartoId, r.entrada, r.saida, r.id)) return notify('O quarto escolhido está indisponível no período da reserva.')
+    const novoQuarto = roomOf(form.quartoId)
+    const reservaAtualizada = { ...r, quartoId: form.quartoId, tipoId: novoQuarto.tipoId, observacao: `${r.observacao || ''} ${form.observacao || 'Troca/alocação de quarto realizada pela recepção.'}`.trim() }
+    setReservations(reservations.map(x => x.id === r.id ? reservaAtualizada : x))
+    setRooms(rooms.map(q => q.id === r.quartoId ? { ...q, statusLimpeza: 'verificar' } : q))
+    setSelectedReserva(reservaAtualizada)
+    setTransferReserva(null)
+    logAction('Troca/alocação de quarto', `Reserva ${r.codigo}: quarto ${r.quartoId} para ${novoQuarto.numero}.`)
+    notify(`Reserva ${r.codigo} alocada no quarto ${novoQuarto.numero}.`)
+  }
+
+
+
+  function rescheduleReservation(form) {
+    const r = rescheduleReserva
+    if (!r) return
+    if (!form.entrada || !form.saida) return notify('Informe entrada e saída.')
+    if (form.entrada >= form.saida) return notify('A saída precisa ser depois da entrada.')
+    if (!form.quartoId) return notify('Selecione um quarto disponível para a nova data.')
+    if (!isRoomAvailable(form.quartoId, form.entrada, form.saida, r.id)) return notify('Esse quarto não está livre na nova data.')
+    const novoQuarto = roomOf(form.quartoId)
+    const novasDiarias = diffDays(form.entrada, form.saida)
+    const reservaAtualizada = {
+      ...r,
+      entrada: form.entrada,
+      saida: form.saida,
+      quartoId: form.quartoId,
+      tipoId: novoQuarto.tipoId,
+      diaria: moneyNumber(form.diaria) || r.diaria,
+      status: r.status === 'cancelada' ? 'pendente' : r.status,
+      observacao: `${r.observacao || ''} ${form.observacao || 'Reserva remarcada pela recepção.'}`.trim(),
+      remarcacao: { data: todayISO(), entradaAnterior: r.entrada, saidaAnterior: r.saida, quartoAnterior: r.quartoId, novasDiarias }
+    }
+    setReservations(reservations.map(x => x.id === r.id ? reservaAtualizada : x))
+    setSelectedReserva(reservaAtualizada)
+    setRescheduleReserva(null)
+    logAction('Reserva remarcada', `Reserva ${r.codigo}: ${r.entrada} até ${r.saida} para ${form.entrada} até ${form.saida}, quarto ${novoQuarto.numero}.`)
+    notify(`Reserva ${r.codigo} remarcada.`)
+  }
+
+  function sendReservationWhatsapp(r) {
+    const cliente = clientOf(r)
+    const quarto = roomOf(r.quartoId)
+    const msg = `Olá ${cliente.nome}, sua reserva ${r.codigo} está registrada. Quarto ${quarto.numero} - ${quarto.tipo}. Entrada: ${r.entrada} às 12:00. Saída: ${r.saida} às 11:59. Valor total: ${BRL.format(reservationTotal(r))}. Saldo: ${BRL.format(balance(r))}.`
+    window.open(`https://wa.me/55${String(cliente.telefone || '').replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank')
+    logAction('WhatsApp da reserva', `Mensagem da reserva ${r.codigo} enviada/aberta no WhatsApp.`)
+  }
+
+  function limparQuarto(quartoId) {
+    setRooms(rooms.map(q => q.id === quartoId ? { ...q, statusLimpeza: 'limpo' } : q))
+    logAction('Governança', `Quarto ${quartoId} marcado como limpo/liberado.`)
+    notify(`Quarto ${quartoId} marcado como limpo/liberado.`)
+  }
+
+  function saveConsumo(form) {
+    const valor = moneyNumber(form.valor)
+    const qtd = Number(form.qtd || 1)
+    if (!serviceReserva) return
+    if (!form.item.trim()) return notify('Informe o item do consumo.')
+    if (valor <= 0) return notify('Informe o valor do consumo.')
+    setConsumos([{ id: id(), reservaId: serviceReserva.id, data: todayISO(), item: form.item, qtd, valor, observacao: form.observacao || '' }, ...consumos])
+    setServiceReserva(null)
+    logAction('Consumo lançado', `Reserva ${serviceReserva.codigo}: ${form.item}, qtd ${qtd}, valor ${BRL.format(valor)}.`)
+    notify('Consumo lançado na conta do quarto.')
+  }
+
+  function saveBlock(data) {
+    if (!data.quartoId || !data.inicio || !data.fim) return notify('Informe quarto e período.')
+    setBlocks([{ id: id(), quartoId: data.quartoId, inicio: data.inicio, fim: data.fim, motivo: data.motivo || 'Bloqueio manual' }, ...blocks])
+    setBlockModal(null)
+    logAction('Bloqueio manual', `Quarto ${data.quartoId} bloqueado de ${data.inicio} até ${data.fim}.`)
+    notify('Período bloqueado no quarto.')
+  }
+
+  function saveRate() {
+    const valor = moneyNumber(rateForm.valor)
+    if (valor <= 0) return notify('Informe o valor da tarifa.')
+
+    const applyAll = rateForm.tipoId === 'todos'
+    const targets = applyAll ? roomTypes : roomTypes.filter(t => t.id === rateForm.tipoId)
+
+    if (!targets.length) return notify('Selecione o tipo de quarto.')
+
+    const novosLancamentos = targets.map(t => ({
+      id: id(),
+      ...rateForm,
+      tipoId: t.id,
+      tipoNome: t.nome,
+      valor,
+      todos: applyAll
+    }))
+
+    setRates([...novosLancamentos, ...rates])
+
+    if (rateForm.acao !== 'remover') {
+      setRoomTypes(roomTypes.map(t =>
+        applyAll || t.id === rateForm.tipoId ? { ...t, diaria: valor } : t
+      ))
+    }
+
+    const detalhe = applyAll
+      ? `Todos os tipos de quarto: ${BRL.format(valor)} de ${rateForm.inicio} até ${rateForm.fim}.`
+      : `${typeOf(rateForm.tipoId).nome}: ${BRL.format(valor)} de ${rateForm.inicio} até ${rateForm.fim}.`
+
+    logAction('Tarifa alterada', detalhe)
+    notify(applyAll ? 'Tarifa aplicada para todos os quartos.' : 'Tarifa criada/modificada para o período.')
+  }
+
+
+  function saveProduct() {
+    if (!productForm.nome?.trim()) return notify('Informe o nome do produto.')
+    const estoque = Number(productForm.estoque || 0)
+    const valor = moneyNumber(productForm.valor)
+    if (estoque < 0) return notify('Estoque não pode ser negativo.')
+    if (valor <= 0) return notify('Informe o valor de venda do produto.')
+    const produto = {
+      id: id(),
+      nome: productForm.nome.trim(),
+      categoria: productForm.categoria || 'Geral',
+      estoque,
+      valor
+    }
+    setProducts([produto, ...products])
+    setProductForm({ nome: '', categoria: 'Frigobar', estoque: '', valor: '' })
+    logAction('Produto cadastrado', `${produto.nome} - estoque ${produto.estoque} - ${BRL.format(produto.valor)}`)
+    notify('Produto cadastrado no estoque.')
+  }
+
+  function saveClient() {
+    if (!clientForm.nome?.trim() || !clientForm.cpf?.trim() || !clientForm.telefone?.trim() || !clientForm.email?.trim() || !clientForm.nascimento?.trim()) {
+      notify('Dados obrigatórios do cliente: nome, CPF/CNPJ, telefone, e-mail e data de nascimento.')
       return
     }
 
-    const diarias = calcularDiarias()
+    if (!newClient.nome.trim()) return notify('Informe o nome do cliente.')
+    const cli = { id: id(), ...newClient, credito: 0, vip: false }
+    setClients([cli, ...clients])
+    setNewClient({ nome: '', cpf: '', telefone: '', email: '', nascimento: '', endereco: '', observacao: '' })
+    logAction('Cliente cadastrado', `${cli.nome} cadastrado.`)
+    notify('Cliente cadastrado. Ao criar reserva, o código será gerado automaticamente.')
+  }
 
-    if (diarias <= 0) {
-      alert('A data de saída precisa ser maior que a data de entrada')
-      return
+  function createPrecheckin(reserva) {
+    const token = id().slice(0, 8)
+    const link = `${location.origin}/pre-checkin/${reserva.codigo}-${token}`
+    setPrecheckins([{ id: id(), reservaId: reserva.id, codigo: reserva.codigo, token, link, status: 'enviado', data: todayISO(), nomeCompleto: '', selfie: '', documentoFoto: '', endereco: '', nascimento: '', observacao: '' }, ...precheckins])
+    const cliente = clientOf(reserva)
+    const msg = `Olá ${cliente.nome}, segue o link do pré check-in da sua reserva ${reserva.codigo}: ${link}`
+    window.open(`https://wa.me/55${String(cliente.telefone || '').replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank')
+    logAction('Pré check-in enviado', `Reserva ${reserva.codigo}: link enviado por WhatsApp.`)
+    notify('Link de pré check-in gerado para WhatsApp.')
+  }
+
+  function savePaymentMethod() {
+    const nome = methodForm.nome.trim()
+    if (!nome) return notify('Informe o nome da forma de pagamento.')
+    if (paymentMethods.some(m => m.nome.toLowerCase() === nome.toLowerCase())) return notify('Essa forma de pagamento já existe.')
+    const nova = { id: id(), nome, tipo: methodForm.tipo, ativo: methodForm.ativo }
+    setPaymentMethods([nova, ...paymentMethods])
+    setMethodForm({ nome: '', tipo: 'normal', ativo: true })
+    logAction('Forma de pagamento criada', `${nome} criada nas configurações.`)
+    notify('Forma de pagamento criada.')
+  }
+
+  function togglePaymentMethod(mid) {
+    setPaymentMethods(paymentMethods.map(m => m.id === mid ? { ...m, ativo: !m.ativo } : m))
+    logAction('Forma de pagamento alterada', 'Forma de pagamento ativada/desativada.')
+  }
+
+  function roomStatus(q) {
+    const hosp = hospedados.find(r => r.quartoId === q.id)
+    if (hosp) return ['status-blue', 'Alugado / Check-in']
+    if (q.statusLimpeza === 'verificar') return ['status-orange', 'Verificar saída']
+    if (q.statusLimpeza === 'manutencao') return ['status-red', 'Manutenção']
+    const blocked = blocks.find(b => b.quartoId === q.id && todayISO() >= b.inicio && todayISO() < b.fim)
+    if (blocked) return ['status-red', 'Bloqueado']
+    const fut = futureReservations.find(r => r.quartoId === q.id)
+    if (fut) return ['status-green', 'Reserva futura']
+    return ['status-free', 'Disponível']
+  }
+
+  function openRoom(q) {
+    setSelectedRoom(q)
+  }
+
+  function printReceipt(r) {
+    const cliente = clientOf(r), quarto = roomOf(r.quartoId)
+    const html = `
+      <html><head><title>Reserva ${r.codigo}</title><style>
+      body{font-family:Arial;margin:40px;color:#111}.center{text-align:center}.logo{font-size:30px;font-weight:800}.logo-print-brisas{width:96px;height:96px;object-fit:contain;margin-bottom:6px}.line{border-top:1px solid #ccc;margin:18px 0}
+      table{width:100%;border-collapse:collapse;margin-top:20px}td,th{border:1px solid #ccc;padding:8px;text-align:left}.right{text-align:right}.assinatura{margin-top:50px;border-top:1px solid #333;width:70%}
+      </style></head><body>
+      <div class="center"><img class="logo-print-brisas" src="data:image/jpeg;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/9oADAMBAAIAAwAAACH33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333330AAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAD33333333333333333333330AAAAAAAAAAAAAAAQ00wAAAAAAAAAAAAAAD33333333333333333333330AAAAAAAAAAAFSPkFnUNNuI0AAAAAAAAAAD33333333333333333333330AAAAAAAAArWcIAAAAAAACJpQEAAAAAAAAD33333333333333333333330AAAAAAAAILIAAAAAAAA6KAADY4AAAAAAAD33333333333333333333330AAAAAATioqYJkK274gCkX1VF3KwGsAAAAD33333333333333333333330AAAAASlBUkZMGIZuLIRL54IPyxd0kAAAAD33333333333333333333330AAAABUEZcysEgkPoXKGV2kABmfMkAAAAAD33333333333333333333330AAAAHZ6f5UUBRIvaAAAAsQABTIP0IAAAAD33333333333333333333330AAATzUkkY+ysDep6sUFAPRTWWVLZqUAAAD33333333333333333333330AAAH4IFclgpvXYsa4AtQKiiAlHGckqIAAD33333333333333333333330AAAJEASW6gBR4E/Ss/vz78ZE2lRcbYoAAD33333333333333333333330ABHMAAAG1RgzwG3g9qV44Vs/eivSEBUAAD33333333333333333333330ABWEABxuD/wCLKWBt8s2eBFRztCwy3AUrAA19999999999999999999999AAsqmYZhEdRF6LAgDbU2TXGWpB0NzJBJAA99999999999999999999999AAtAAElVWhAeS0SznGlEiQgHgEAiiAQBAA99999999999999999999999AATABluaiZveirQQNS3L6AAHBggAAAHMAA99999999999999999999999AAHAA+zAAAxRh3bsAGGAQAAQgAAAAADIAA99999999999999999999999AAJIFiAAAAAS9jKlNYAAAAIJFIAABCBBAA99999999999999999999999AAmCGqAAAFxdIZ7aVeiCx7yl9qvmZhTqAA99999999999999999999999AAACRpAE2Wu53k7AXaSCuxmb0KY6NA1pAA99999999999999999999999AAROAAdBdxhpHthuY02aJwcfo7CpAAfAAA99999999999999999999999AAAWBAQywgAAyTgK+DEDX4ZGtQyAAVLAAA99999999999999999999999AAAijAAAAAAHFrQkPtHLVjAAAAAAADBAAA99999999999999999999999AAAAiDAAAAAD5H9NA5SHrgIAAAAAT+AAAA99999999999999999999999AAAAGGIAAAADgjgQAfDyRCgAAAABBBAAAA99999999999999999999999AAAAAGxi2qgBpyJwTKNrAZjANs2GAAAAAA99999999999999999999999AAAAAAAqPuL1M/KUAkDrFVeAqJjAAAAAAA99999999999999999999999AAAAAAUKyacVkSAAUTgEIZHpfmaIAAAAAA99999999999999999999999AAAAAAR5qO2V4sLAWiKyeT529EaLAAAAAA99999999999999999999999AAAAAAAxqehQh3PWvwDhzAQATRQAAAQAAA99999999999999999999999AAAAAAAAAAAAAAXpXgAAAAAAAAAAAAAAAA19999999999999999999999AAAAAAAWuOZGkOODxm22qHllSdNdAAAAAA99999999999999999999999AAAAAAAytrKKf98VU493qvXwet6nAAAAAA99999999999999999999999AAAAAAm+tjzpdEW9MHCTR41uFmMltBAAAA99999999999999999999999AAAAAA9xV9XmvCPQt0MqJxBbLF1lhLAAAA999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999/9oADAMBAAIAAwAAABA+t9/8+t9/8+t9/wDPrff/AD633+z63z/zyzz/AM8s8/8APLPP/PLPP/PLPP8Ay/28wxy20wxy20wxy20wx620wxy20ww6200w6280w+280w+280w+080w+0z8z8y09x8y09x8y09x8y09x4xw8x41x0z51x8z71x8z71x8z71x8z70x4w3410734106z4106z4106z4106zw1w6z4zx6z57x6357x6357x6155x6083+1w6371w6371w6371w637106371062y9062y9162y9162y91+2y90+2wz633/z633/AM+t9/8APrff/Prff7PrfP8Azyzz/wA8s8/88s8/88s8/wDPLPP/AC/28wxy20wxy20wxy20wx620wxy20ww6200w6280w+280w+280w+080w+0z8z8y09x8y09x8y09x8y09x4xw8x41x0z51x8z71x8z71x8z71x8z70x4w3410/3410+3410+3410+341063w1w634zx6357x6357x6357x6155x6083+1063+1063+1063+1063+1063+1062y9062y9162y9162y91+2y90+2wz733/AO+99/8Avvff/vvff/vvff8A773z/wA888/8888/8888/wDPPPP/ADzzz/y/280xy+00x6+00x6+00x6+00x6200w6208w6288w+288w+288w+0884+0z9z9y09x9609x9609x9609x54w9x51w1z51w9z70x8z70x8z70x8z70x4z3410/3410+3410+3410+341263w1w634zx6357x6357x6357x6155x6083+1063+1063+1063+1063+1063+1062y9062y91+2y91+2y91+2y90+2wz733/wC+99/++99/++99/wDvvff/AL73z/zzzz/zzzz/AM888/8APPPP/PPPP/L/AG80xy+00x6+00x6+00x6+00x6200w+208w+288w+288w+288w+0884+0z9z9y09x9609x9609x9609x54w9x51w1z51w9z70x8z70x8z70x8z70x4z3410/3410+3410+3410+341263w1w634zx6357x6357x6357x6155x6083+1063+1063+1063+1063+1063+1062y9062y91+2y91+2y91+2y90+2wz733/7733/7733/AO+99/8Avvff/vvfP/PPPP8Azzzz/wA888/8888/8888/wDL/bzTHL7TTHr7TTHr7TTHr7TTHrbTTD7bTzD7bzzD7bzzD7bzzD7Tzzj7TP3P3LT3H3rT3H3rT3H3rT3HnjD3HnXDXPnXD3PvTHzPvTHzPvTHzPvTHjPfjXT/AH410+3410+3410+341263w1w634zx6357x6357x6357x6155x6083+1063+1063+1063+1063+1063+1062y9062y91+2y91+2y91+2y90+2wz733/7733/AO+99/8Avvff/vvff/vvfP8Azzzz/wA888/8888/8888/wDPPPP/AC/280xy+00x6+00x6+00x6+00x6200w+208w+288w+288w+288w+0884+0z9z9y09x9609x9609x9609x54w9x51w1z51w9z70x8z70x8z70x8z70x4z3410/3410+3410+3410+341263w1w634zx6357x6357x6357x6155x6083+1063+1063+1063+1063+1063+1062y9062y91+2y91+2y91+2y90+2wz733/AO+99/8Avvff/vvff/vvff8A773z/wA888/8888/8888/wDPPPP/ADzzz/y/280xy+00x6+33z7/AN98+/8AffPvfffP/ff/AD/3/wD8/wDf/wDz/wBvPMPtPPOPtM/c/ctPcfetPcAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAADs+9MfM+9MeM9+NdP9+NdPt8AAAAAAAAAAAAAAAQ00wAAAAAAAAAAAAAAD+e8eteecetPN/tdOt/tdOt8AAAAAAAAAAAdQyIJOFiQCIcAAAAAAAAAADsvdftsvdPtsM+99/8Avvff/wDwAAAAAAAACfzMwAAAAAAAAqWAwAAAAAAAALzzz/zzzz/y/wBvNMcvtNMev8AAAAAAABHMMAAAAAAAAFmgDCo4AAAAAAADvPMPtPPOPtM/M/MtPcfOtPcAAAAAATxoeKHlHd3sQAoYNXgcUQckAAAADsu9MfMu9MeM9+NdP9+NdPt8AAAAATcBPUkp2IYvI0iMKKLKamJ+sAAAAD+f8etefcetPNvtdONv9dOt8AAAAAJI6d7iicHbo0HX7UIAB/HGsAAAAADsvdftsvdPtsM+99+++99//wDAAAASWGe1NxNXC1wgAAEiCIA1QAOhAAAAArPPP/LPPP8Ay/0wwxy20wxy3wAABII1+8UoFmpJzdBAUEk2Lto3YgDgAAAO04w+0044+0z8x4y09x46w9wAAFfoYWlL58RJx7x7X6y/SgDRfa0AgQAAOw48x8w48x4w34107341073wAAPwYBOd7LJq86r0gG5iH1H/AMYPZbKYAAD+f8etefcetP8Ab7XTjb/XTrfAAXEAAAAgxGk+ZxImG/Stz1Tt5B3hAGAAA7L3X7bL3T7bDPvffvvvff8A/wAABGMAA5Oa+pZ3yVcPCfNcpEdaWPkEBSgACM88/wDLPPP/AC/0wwxy20wxy3wAJCWVPQR9kPevQEPn+oixy1UUdI7aQ4wAO04w+0044+0z8x4y09x46w9wAKwABytcCEOhWQnRTEsfUJGYAAMwQEAgAOw48x8w48x4w34107341073wAFABbjeRerH5VUB/RhgUgAJn2oAAAADAAP5/wAetefcetP9vtdONv8AXTrfAAcASdQAAATDTtWxgCUAAAAAgAAAAAUBAA7L3X7bL3T7bDPbPfvPbPf/AHwBMiA+wAAAAFaeiSxWAAAAADyyAABwQSwALyzz7zyzx7yz220xy221xz3wAByVYQAADeiJuZO16kneLzk7z8Y2+QKgAOw0w+2w0w+2z9w8w49w8w49wAFCQSwAHtecEGqAq7XW8zXVsd8W2wJ6gAOw4050w4050z3w/wBO98P9O98ABMkABgWeR4a/Sy4TiN3XAZCZF3kABwAAD+P8eteP8etfJvNdOtuNdOt8AAAEsDCFOAACINHzkPTvZenFOHEAALAAADsPdetsPdOts89s9u89s9/98AADGQAAAAAAI+JcYqEYd+kAAAAAADgMAAC8s8+88s8e8s9ttMctttcc98AAAC8AAAAAAM6Ww4DkIeoYAAAAAAB8AAADsNMPtsNMPts/cPMOPcPMOPcAAABZkgAAABGIGEED0FDMKAAAAAeOEAAADsONOdMONOdM98P9O98P9O98AAAABeN/vnH+pslZDn4sBkIAn/4YAAAAAD+P8eteP8etfJvNdOtuNdOt8AAAAAAC2b+Ns2APpFY5Ic+0CcbYAAAAAADsPdetsPdOts89s9u89s9/98AAAAABXJKvusxkBVzNq8umuNxI8AAAAAAC8u9+88s9e8s9NtMctttcc98AAAAABTeNGXspQFhAhjbFG7ok7ekAAAAADtNMPtMNMPtM/c/cOPcfcOPcAAAAABAQ7yPENHTT1oPNEBCKAHEAABAAADsvdedMvdOdM98P9O98P9O98AAAAAAAAAAAAAAXreAAAAAAAAAAAAAAgADeP8et+P8AHrfybz3Trbj3TrfAAAAAAAbjPXPoPTsfHD2nYGFlzH/AAAAAA7D3TrbD3TrbPfLPbv8Ayz3/AP8AAAAAAAADP8PbGnkjkYeQnw8YrP6YAAAAAA/LvfvfLvXvbPTbXHLbbXHPfAAAAAAl6HgA93MfqwUrgHw5mzmMthDAAAA7DTD7TDTD7TP3P3Dz3H3Dj3AAAAAA+WCzEyiHUMTEozLvCogJn2DoAAAA7L3XnTL3TnTPfD/TvfD/AE738/8AP/8Az/z/AP8AP/P/APz/AN+/4z1+/wDP/fv/AD/37/j/AB634/x638m8906249062490624906249042w9062w9062w9062w9062w9062w9062z3yz27/wAs9v8A/LPb/wDyz2//AMs9v+8s9/8AfLvf/fLvf/fLvf8A3y7373y7172z021xy221xz221xz221x7201xz201wy2w0wy2w0w+2w0w+2w0w+0w0w+0z9z9w89x9w49x9w49x9w49x9w49x9141y9141y9150y9150y9150y9050z3w/wBO98P9O9+P9O9+P9O98P8ATvfD/Xrfj/Xrfj/Hrfj/AB634/x634/x638m8906249062490624906249042w9062w9062w9062w9062w9062w9062z3yz27/yz2/8A8s9v/wDLPb//ACz2/wC8s9/98u9/98u9/wDfLvf/AHy7373y7172z021xy221xz221xz221x7201xz201wy2w0wy2w0w+2w0w+2w0w+0w0w+0z9z9w89x9w49x9w49x9w49x9w49x9141y9141y9150y9150y9150y9050z3w/073w/0734/0734/wBO98P9O98P9et+P9et+P8AHrfj/Hrfj/Hrfj/Hrfybz3Trbj3Trbj3Trbj3Trbj3TjbD3TrbD3TrbD3TrbD3TrbD3TrbD3TrbPfLPfv/LPf/8Ayz3/AP8ALPf/APyz3/7yz3/3y73/AN8u9/8AfLvf/fLvfvfLvXvbPTbXHLbbXHPbbXHPbbXHvbTXHPbTXDPbDTDPbDTD/bDTD/bDTD7TDTD7TP3P3Dz3H3Dj3H3Dj3H3Dj3H3Dj3H3XjXL3XjXL3XnTL3XnTL3XnTL3TnTPfD/TvfD/Tvfj/AE734/073w/073w/1634/wBet+P8et+P8et+P8et+P8AHrfybz3Trbj3Trbj3Trbj3Trbj3TjbD3TrbD3TrbD3TrbD3TrbD3TrbD3TrbPfLPfv8Ayz3/AP8ALPf/APyz3/8A8s9/+8s9/wDfLvf/AHy73/3y73/3y7373y7172z121wz121wz021wz021w7001wz001wz0w0wz0w0w/0w0w/0w0w+0w0w+0z9z9w89x9w49x9w49x9w49x9w49x9141y9141y9150y9150y9150y9050z3w/073w/wBO9+P9O9+P9O98P9O98P8AXrfj/Xrfj/Hrfj/Hrfj/AB634/x63828906249062490624906249042w9062w9062w9062w9062w9062w9062z2yz37+yz3/wDss9//ALLPf/7LPf8A6yz372y7372y7372y7372y7372y7172z121wz121wz021wz021w7001wz001wz0w0wz0w0w/0w0w/wBMNMPtMNMPtM/c/cONcfcONcfcONcfcONcfcONcfdeNcvdeNcvdeNMvdeNMvdedMvdOdM98N9O98N9O98N9O98N9O98N9O98N8et8M8et+M8et+M8et+M8et8M8et/NvPdOtuPdOtuPdOtuPdOtuPdONMPdOtMPdOtMPdOtMPdOtMPdOtMPdOtM88s9+88s9+88s9+88s9+88s9+88s9+88u9+88u9+88u9+88u9+88u9essNdtcMtdNcM9NNcM9NNcO9NNcM9NNcMtMNMMtMNMOtMNMOtMNMPtMNMPtM/c/cONcfcONcfcONcfcONcfcONcfdeNcvdeNcvdeNMvdeNMvdedMvdOdM98N9O98N9O98N9O98N9O98N9O98N8et8M8et+M8et+M8et+M8et8M8et/NvPdOtuPdOtuPdOtuPdOtuPdONMPdOtMPdOtMPdOtMPdOtMPdOtMPdOtM//xAA1EQACAgEDAgMFBwQCAwAAAAABAgADEQQSMRMhEDJBFCJQUWEFICMzQEJxMFKBkSSgYqHB/9oACAECAQE/AP8Au6d5g/EwpY4ETQ2Nz2nstNf5jTqaVOBme21jypPbz6LPbz6rPbUPmSdTSvyMT2Wmz8to+isTjvCCDg/DERnOFGYmjVBuuOI2rrrG2pY+pss5P9GvU2V8GLqqrRi0SzRZG6o5EZSpwfhNGla33m7CPqa6BspEexrDlj/RqqD92OBFoos91G7y2tqm2t4V2vWcqYttWpG2zsZdp2qPfj4Pp9MFHUt4mo1Rs91ewiVs5wogorT8xv8AUFumThcz2yscJBrajyk62lfsRieyUWeRo/2e48pzHqdPMPAsSAImdwxzPtDG5fn4dHeu5IQVODKNV22W9xNRpun76cQAnsIy7Tj4Hp6Ai9W3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"/><div class="logo">HOTEL BRISAS</div><b>Sistema de Gestão</b><br/>Impresso em ${new Date().toLocaleString('pt-BR')}</div>
+      <div class="line"></div>
+      <div><b>Contratante / Hóspede:</b> ${cliente.nome}<br/><b>CPF:</b> ${cliente.cpf || ''}<br/><b>E-mail:</b> ${cliente.email || ''}<br/><b>Telefone:</b> ${cliente.telefone || ''}</div>
+      <p><b>Reserva:</b> ${r.codigo}<br/><b>Quarto:</b> ${quarto.numero} - ${quarto.tipo}<br/><b>Entrada:</b> ${r.entrada} 12:00<br/><b>Saída:</b> ${r.saida} 11:59</p>
+      <table><tr><th>Item</th><th>Data</th><th>Produto</th><th>Qtd.</th><th>Preço Total</th></tr>
+      <tr><td>1</td><td>${r.entrada}</td><td>Diária</td><td>${diffDays(r.entrada,r.saida)}</td><td class="right">${BRL.format(reservationTotal(r))}</td></tr>
+      ${payments.filter(p=>p.reservaId===r.id).map((p,i)=>`<tr><td>${i+2}</td><td>${p.data}</td><td>${p.forma}</td><td>1</td><td class="right">${p.tipo==='recebimento'?'-':''}${BRL.format(p.valor)}</td></tr>`).join('')}
+      </table>
+      <p><b>Despesas:</b> ${BRL.format(reservationTotal(r))} &nbsp; <b>Pago:</b> ${BRL.format(paidTotal(r.id))} &nbsp; <b>Saldo:</b> ${BRL.format(balance(r))}</p>
+      <div class="assinatura">Assinatura:</div>
+      </body></html>`
+    const w = window.open('', '_blank')
+    w.document.write(html)
+    w.document.close()
+    w.print()
+  }
+
+
+  function exportSystemData() {
+    const data = {
+      roomTypes,
+      rooms,
+      clients,
+      reservations,
+      payments,
+      consumos,
+      blocks,
+      rates,
+      precheckins,
+      paymentMethods,
+      auditLogs,
+      exportedAt: new Date().toISOString()
     }
-
-    const valorDiariaDigitado = converterValorDigitado(valorReservaManual)
-
-    if (valorDiariaDigitado <= 0) {
-      mostrarAviso('Informe o valor da diária da hospedagem.', 'erro')
-      return
-    }
-
-    const valorDiaria = valorDiariaDigitado
-    const valorHospedagem = valorDiaria * diarias
-    const valorDespesasExtras = totalDespesasReservaTemporarias()
-    const valorTotal = valorHospedagem + valorDespesasExtras
-
-    const { data: reservaCriada, error } = await supabase.from('reservas').insert({
-      quarto_id: quartoId,
-      nome_hospede: nomeHospede,
-      telefone,
-      data_entrada: entrada,
-      data_saida: saida,
-      qtd_hospedes: Number(qtdHospedes || 1),
-      tipo_hospede: tipoHospede,
-      valor_diaria: valorDiaria,
-      valor_total: valorTotal,
-      canal_venda: canalVenda,
-      observacao,
-      status: 'reservada'
-    })
-      .select('*')
-      .single()
-
-    if (error) {
-      alert('Erro ao criar reserva')
-      console.log(error)
-      return
-    }
-
-    await supabase
-      .from('quartos')
-      .update({ status: 'reservado' })
-      .eq('id', quartoId)
-
-    const despesasExtrasPDF = despesasReserva.map((item) => ({ ...item }))
-
-    if (reservaCriada && despesasExtrasPDF.length > 0) {
-      const { error: erroDespesas } = await supabase.from('consumos').insert(
-        despesasExtrasPDF.map((item) => ({
-          reserva_id: reservaCriada.id,
-          descricao: `${item.descricao} x${item.quantidade}`,
-          valor: Number(item.valor_total || 0)
-        }))
-      )
-
-      if (erroDespesas) {
-        mostrarAviso('Reserva criada, mas houve erro ao salvar as despesas extras.', 'erro')
-        console.log(erroDespesas)
-      }
-    }
-
-    const reservaParaEnvio = reservaCriada
-      ? {
-          ...reservaCriada,
-          quartos: {
-            numero: quartoSelecionado.numero,
-            tipo: quartoSelecionado.tipo
-          },
-          despesas_extras_pdf: despesasExtrasPDF
-        }
-      : null
-
-    if (reservaParaEnvio) {
-      gerarRelatorioReservaPDF(reservaParaEnvio)
-      abrirWhatsAppReserva(reservaParaEnvio)
-    }
-
-    setQuartoId('')
-    setNomeHospede('')
-    setTelefone('')
-    setEntrada('')
-    setSaida('')
-    setQtdHospedes(1)
-    setValorReservaManual('')
-    setDespesasReserva([])
-    setDespesaReservaDescricao('')
-    setDespesaReservaQuantidade('1')
-    setDespesaReservaValor('')
-    setTipoHospede('homem')
-    setCanalVenda('Direto')
-    setObservacao('')
-
-    carregarQuartos()
-    carregarReservas()
-    mostrarAviso('Reserva criada. Resumo gerado e WhatsApp aberto para envio ao hóspede.', 'sucesso')
-  }
-
-  async function fazerCheckin(reserva) {
-    const { error } = await supabase
-      .from('reservas')
-      .update({
-        checkin: true,
-        status: 'em hospedagem'
-      })
-      .eq('id', reserva.id)
-
-    if (error) {
-      alert('Erro ao fazer check-in')
-      console.log(error)
-      return
-    }
-
-    await supabase
-      .from('quartos')
-      .update({ status: 'ocupado' })
-      .eq('id', reserva.quarto_id)
-
-    carregarQuartos()
-    carregarReservas()
-    alert('Check-in realizado com sucesso')
-  }
-
-  async function fazerCheckout(reserva) {
-    const { error } = await supabase
-      .from('reservas')
-      .update({
-        checkout: true,
-        status: 'finalizada',
-        observacao_checkout: observacaoCheckout
-      })
-      .eq('id', reserva.id)
-
-    if (error) {
-      alert('Erro ao fazer check-out')
-      console.log(error)
-      return
-    }
-
-    await supabase
-      .from('quartos')
-      .update({ status: 'livre' })
-      .eq('id', reserva.quarto_id)
-
-    setObservacaoCheckout('')
-
-    carregarQuartos()
-    carregarReservas()
-
-    window.print()
-
-    alert('Check-out realizado com sucesso')
-  }
-
-  async function lancarConsumo() {
-    if (!reservaContaId || !descricaoConsumo || !valorConsumo) {
-      mostrarAviso('Selecione uma reserva e informe descrição e valor do consumo.', 'erro')
-      return
-    }
-
-    const { error } = await supabase.from('consumos').insert({
-      reserva_id: reservaContaId,
-      descricao: descricaoConsumo,
-      valor: Number(valorConsumo || 0)
-    })
-
-    if (error) {
-      mostrarAviso('Erro ao lançar consumo. Tente novamente.', 'erro')
-      console.log(error)
-      return
-    }
-
-    setDescricaoConsumo('')
-    setValorConsumo('')
-    carregarConsumos()
-    mostrarAviso('Consumo lançado na conta da reserva.', 'sucesso')
-  }
-
-  async function registrarPagamento() {
-    if (!reservaContaId || !valorPagamento || !formaPagamento) {
-      mostrarAviso('Selecione a reserva, informe o valor e a forma de pagamento.', 'erro')
-      return
-    }
-
-    const { error } = await supabase.from('pagamentos').insert({
-      reserva_id: reservaContaId,
-      valor: Number(valorPagamento || 0),
-      forma_pagamento: formaPagamento
-    })
-
-    if (error) {
-      mostrarAviso('Erro ao registrar pagamento. Tente novamente.', 'erro')
-      console.log(error)
-      return
-    }
-
-    await supabase.from('caixa').insert({
-      tipo: 'entrada',
-      descricao: 'Pagamento de reserva',
-      valor: Number(valorPagamento || 0),
-      forma_pagamento: formaPagamento,
-      reserva_id: reservaContaId
-    })
-
-    await registrarAuditoria(
-      'Pagamento registrado',
-      `${formaPagamento} - ${valorPagamento}`
-    )
-
-    setValorPagamento('')
-    setFormaPagamento('Dinheiro')
-    carregarPagamentos()
-    carregarCaixa()
-    mostrarAviso('Pagamento registrado com sucesso.', 'sucesso')
-  }
-
-
-  function isReservaTeste(reserva) {
-    const nome = String(reserva?.nome_hospede || '').trim().toLowerCase()
-    const telefoneReserva = String(reserva?.telefone || '').replace(/\D/g, '')
-    const observacaoReserva = String(reserva?.observacao || '').toLowerCase()
-
-    return (
-      nome === 'teste' ||
-      nome.includes('teste') ||
-      observacaoReserva.includes('teste') ||
-      telefoneReserva === '00000000000' ||
-      telefoneReserva === '0000000000'
-    )
-  }
-
-  async function limparDadosTesteSistema() {
-    if (usuarioLogado?.perfil !== 'Administrador') {
-      mostrarAviso('Apenas administrador pode limpar dados de teste.', 'erro')
-      return
-    }
-
-    const reservasTeste = (Array.isArray(reservas) ? reservas : []).filter(isReservaTeste)
-
-    if (reservasTeste.length === 0) {
-      mostrarAviso('Nenhuma reserva de teste encontrada.', 'info')
-      return
-    }
-
-    const confirmar = confirm(
-      `Foram encontradas ${reservasTeste.length} reserva(s) de teste. Deseja apagar reservas, consumos, pagamentos e lançamentos de caixa vinculados a elas?`
-    )
-
-    if (!confirmar) return
-
-    const idsReservas = reservasTeste.map((reserva) => reserva.id)
-    const idsQuartos = [...new Set(reservasTeste.map((reserva) => reserva.quarto_id).filter(Boolean))]
-
-    try {
-      await supabase.from('consumos').delete().in('reserva_id', idsReservas)
-      await supabase.from('pagamentos').delete().in('reserva_id', idsReservas)
-      await supabase.from('caixa').delete().in('reserva_id', idsReservas)
-      await supabase.from('reservas').delete().in('id', idsReservas)
-
-      if (idsQuartos.length > 0) {
-        await supabase.from('quartos').update({ status: 'livre' }).in('id', idsQuartos)
-      }
-
-      await registrarAuditoria('Limpeza de dados de teste', `${reservasTeste.length} reserva(s) removida(s)`)
-
-      carregarQuartos()
-      carregarReservas()
-      carregarConsumos()
-      carregarPagamentos()
-      carregarCaixa()
-
-      mostrarAviso('Dados de teste removidos com sucesso.', 'sucesso')
-    } catch (erro) {
-      console.log(erro)
-      mostrarAviso('Erro ao limpar dados de teste.', 'erro')
-    }
-  }
-
-  function totalConsumosReserva(reservaId) {
-    return consumos
-      .filter((consumo) => consumo.reserva_id === reservaId)
-      .reduce((total, consumo) => total + Number(consumo.valor || 0), 0)
-  }
-
-  function totalPagamentosReserva(reservaId) {
-    return pagamentos
-      .filter((pagamento) => pagamento.reserva_id === reservaId)
-      .reduce((total, pagamento) => total + Number(pagamento.valor || 0), 0)
-  }
-
-  function reservaEncerrada(reserva) {
-    return Boolean(reserva?.checkout) ||
-      reserva?.status === 'finalizada' ||
-      reserva?.status === 'cancelada'
-  }
-
-  function calcularSaldoReserva(reserva) {
-    if (!reserva || reservaEncerrada(reserva)) return 0
-
-    const totalReserva = Number(reserva.valor_total || 0)
-    const totalConsumos = totalConsumosReserva(reserva.id)
-    const totalPagamentos = totalPagamentosReserva(reserva.id)
-
-    return Math.max(0, totalReserva + totalConsumos - totalPagamentos)
-  }
-
-  function formatarMoeda(valor) {
-    return Number(valor || 0).toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    })
-  }
-
-  function converterValorDigitado(valorDigitado) {
-    const texto = String(valorDigitado || '').trim()
-
-    if (!texto) return 0
-
-    const normalizado = texto
-      .replace(/R\$/gi, '')
-      .replace(/\s/g, '')
-      .replace(/\./g, '')
-      .replace(',', '.')
-
-    const numero = Number(normalizado)
-
-    return Number.isFinite(numero) ? numero : 0
-  }
-
-  function telefoneWhatsApp(telefoneInformado) {
-    const numeros = String(telefoneInformado || '').replace(/\D/g, '')
-
-    if (!numeros) return ''
-    if (numeros.startsWith('55')) return numeros
-
-    return `55${numeros}`
-  }
-
-  function abrirWhatsAppReserva(reserva) {
-    if (!reserva?.telefone) {
-      mostrarAviso('Reserva criada. Informe o telefone do hóspede para abrir o WhatsApp.', 'info')
-      return
-    }
-
-    const numeroWhatsApp = telefoneWhatsApp(reserva.telefone)
-    const mensagem = [
-      `Olá, ${reserva.nome_hospede || 'hóspede'}!`,
-      '',
-      `Segue o resumo da sua reserva no ${empresaFantasia || empresaConfig?.nome_fantasia || 'hotel'}:`,
-      `Quarto: ${reserva.quartos?.numero || '-'}`,
-      `Entrada: ${dataBrasil(reserva.data_entrada)}`,
-      `Saída: ${dataBrasil(reserva.data_saida)}`,
-      `Noites: ${calcularNoitesReserva(reserva)}`,
-      `Hospedagem: ${formatarMoeda(Number(reserva.valor_diaria || 0) * calcularNoitesReserva(reserva))}`,
-      `Outras despesas: ${formatarMoeda((Array.isArray(reserva.despesas_extras_pdf) ? reserva.despesas_extras_pdf : []).reduce((total, item) => total + Number(item.valor_total || 0), 0))}`,
-      `Valor total: ${formatarMoeda(reserva.valor_total)}`,
-      '',
-      'Também gerei o resumo da reserva para envio.'
-    ].join('\n')
-
-    window.open(`https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensagem)}`, '_blank')
-  }
-
-
-  function gerarRelatorioReservaPDF(reserva) {
-    if (!reserva) return
-
-    const linhas = gerarLinhasContaReserva(reserva)
-    const totalDiarias = Number(reserva.valor_diaria || 0) * calcularNoitesReserva(reserva)
-    const totalDespesasExtrasPDF = (Array.isArray(reserva.despesas_extras_pdf) ? reserva.despesas_extras_pdf : [])
-      .reduce((total, item) => total + Number(item.valor_total || 0), 0)
-    const totalConsumos = totalConsumosReserva(reserva.id) + totalDespesasExtrasPDF
-    const totalRecebido = totalPagamentosReserva(reserva.id)
-    const saldo = calcularSaldoReserva(reserva)
-    const logoHtml = empresaLogo
-      ? `<img src="${empresaLogo}" style="max-height:72px;max-width:180px;object-fit:contain" />`
-      : `<div style="font-size:28px;font-weight:900;color:#1e40af">${empresaFantasia || empresaConfig?.nome_fantasia || 'CRONOS HOTEL'}</div>`
-
-    const janela = window.open('', '_blank', 'width=900,height=700')
-    if (!janela) {
-      mostrarAviso('Não foi possível abrir o relatório. Libere pop-ups do navegador.', 'erro')
-      return
-    }
-
-    janela.document.write(`
-      <html>
-        <head>
-          <title>Relatório da reserva</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 28px; color: #111827; }
-            .topo { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; border-bottom:3px solid #1d4ed8; padding-bottom:16px; margin-bottom:18px; }
-            .empresa h1 { margin:0; font-size:22px; }
-            .empresa p { margin:4px 0; color:#475569; }
-            .titulo { background:#eff6ff; border:1px solid #bfdbfe; padding:14px; border-radius:10px; margin-bottom:18px; }
-            .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
-            .box { border:1px solid #e5e7eb; border-radius:10px; padding:10px; }
-            .box span { display:block; font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700; }
-            .box strong { font-size:16px; }
-            table { width:100%; border-collapse:collapse; margin-top:14px; }
-            th { background:#1e3a8a; color:white; text-align:left; padding:9px; font-size:12px; }
-            td { border-bottom:1px solid #e5e7eb; padding:9px; font-size:12px; }
-            .totais { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:18px; }
-            .total { border-radius:10px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; }
-            .saldo { background:${saldo > 0 ? '#fef2f2' : '#f0fdf4'}; }
-            @media print { button { display:none } body { margin:18px } }
-          </style>
-        </head>
-        <body>
-          <div class="topo">
-            <div>${logoHtml}</div>
-            <div class="empresa">
-              <h1>${empresaFantasia || empresaConfig?.nome_fantasia || 'Hotel'}</h1>
-              <p>${empresaNome || empresaConfig?.nome_empresa || ''}</p>
-              <p>${empresaCnpj ? 'CNPJ: ' + empresaCnpj : ''} ${empresaTelefone ? ' | Tel: ' + empresaTelefone : ''}</p>
-              <p>${empresaEndereco || ''} ${empresaCidade ? ' - ' + empresaCidade : ''} ${empresaEstado ? '/' + empresaEstado : ''}</p>
-            </div>
-          </div>
-
-          <div class="titulo">
-            <h2 style="margin:0">Resumo da Reserva</h2>
-            <p style="margin:6px 0 0">Reserva de ${reserva.nome_hospede || 'Hóspede'} - Quarto ${reserva.quartos?.numero || '-'}</p>
-          </div>
-
-          <div class="grid">
-            <div class="box"><span>Entrada</span><strong>${dataBrasil(reserva.data_entrada)}</strong></div>
-            <div class="box"><span>Saída</span><strong>${dataBrasil(reserva.data_saida)}</strong></div>
-            <div class="box"><span>Noites</span><strong>${calcularNoitesReserva(reserva)}</strong></div>
-            <div class="box"><span>Canal</span><strong>${reserva.canal_venda || 'Direto'}</strong></div>
-            <div class="box"><span>Hóspede</span><strong>${reserva.nome_hospede || '-'}</strong></div>
-            <div class="box"><span>Telefone</span><strong>${reserva.telefone || '-'}</strong></div>
-            <div class="box"><span>Quarto</span><strong>${reserva.quartos?.numero || '-'}</strong></div>
-            <div class="box"><span>Status</span><strong>${reserva.status || 'reservada'}</strong></div>
-          </div>
-
-          <table>
-            <thead><tr><th>Tipo</th><th>Data</th><th>Descrição</th><th>Qtd.</th><th>Valor</th></tr></thead>
-            <tbody>
-              ${linhas.map((linha) => `<tr><td>${linha.tipo === 'pagamento' ? 'Pagamento' : 'Despesa'}</td><td>${formatarDataCurta(linha.data)}</td><td>${linha.produto}</td><td>${linha.quantidade}</td><td>${formatarMoeda(linha.valor)}</td></tr>`).join('')}
-            </tbody>
-          </table>
-
-          <div class="totais">
-            <div class="total"><span>Diárias</span><h3>${formatarMoeda(totalDiarias)}</h3></div>
-            <div class="total"><span>Consumos</span><h3>${formatarMoeda(totalConsumos)}</h3></div>
-            <div class="total"><span>Recebido</span><h3>${formatarMoeda(totalRecebido)}</h3></div>
-            <div class="total saldo"><span>Saldo</span><h3>${formatarMoeda(saldo)}</h3></div>
-          </div>
-
-          <p style="margin-top:22px;color:#64748b">${empresaObservacao || empresaConfig?.observacao || ''}</p>
-          <button onclick="window.print()" style="margin-top:20px;padding:12px 18px;border:0;border-radius:8px;background:#1d4ed8;color:white;font-weight:700">Imprimir / Salvar relatório</button>
-          <script>setTimeout(() => window.print(), 500)</script>
-        </body>
-      </html>
-    `)
-    janela.document.close()
-  }
-
-
-  function totalQuartosStatus(status) {
-    return quartos.filter((q) => q.status === status).length
-  }
-
-  function reservasHoje() {
-    const hoje = new Date().toISOString().split('T')[0]
-
-    return reservas.filter(
-      (r) =>
-        r.data_entrada === hoje ||
-        r.data_saida === hoje
-    ).length
-  }
-
-  function obterDataLocalISO(data = new Date()) {
-    const ano = data.getFullYear()
-    const mes = String(data.getMonth() + 1).padStart(2, '0')
-    const dia = String(data.getDate()).padStart(2, '0')
-
-    return `${ano}-${mes}-${dia}`
-  }
-
-  function obterDataPagamento(pagamento) {
-    return String(
-      pagamento?.data_pagamento ||
-      pagamento?.criado_em ||
-      pagamento?.created_at ||
-      ''
-    ).slice(0, 10)
-  }
-
-  function dataRelativaISO(dias) {
-    const data = new Date()
-    data.setDate(data.getDate() + dias)
-    return obterDataLocalISO(data)
-  }
-
-  function faturamentoTotal() {
-    return pagamentos.reduce(
-      (total, pagamento) =>
-        total + Number(pagamento.valor || 0),
-      0
-    )
-  }
-
-  function faturamentoPorData(dataReferencia) {
-    return (Array.isArray(pagamentos) ? pagamentos : [])
-      .filter((pagamento) => obterDataPagamento(pagamento) === dataReferencia)
-      .reduce((total, pagamento) => total + Number(pagamento.valor || 0), 0)
-  }
-
-  function percentualReceitaDia(valorHoje, valorOntem) {
-    const hoje = Number(valorHoje || 0)
-    const ontem = Number(valorOntem || 0)
-
-    if (hoje <= 0 && ontem <= 0) return 0
-    if (hoje > 0 && ontem <= 0) return 100
-
-    return Math.round(((hoje - ontem) / ontem) * 100)
-  }
-
-  function percentualSeguro(valor, total) {
-    const numeroValor = Number(valor || 0)
-    const numeroTotal = Number(total || 0)
-
-    if (numeroTotal <= 0) return 0
-
-    const percentual = Math.round((numeroValor / numeroTotal) * 100)
-
-    return Math.min(100, Math.max(0, percentual))
-  }
-
-  function ocupacaoPercentual() {
-    return percentualSeguro(totalQuartosStatus('ocupado'), quartos.length)
-  }
-
-  useEffect(() => {
-    const usuarioSalvo = localStorage.getItem('cronos_usuario')
-
-    if (usuarioSalvo) {
-      setUsuarioLogado(JSON.parse(usuarioSalvo))
-      carregarQuartos()
-      carregarReservas()
-      carregarConsumos()
-      carregarPagamentos()
-      carregarCategoriasProdutos()
-      carregarProdutos()
-      carregarMovimentacoesEstoque()
-      carregarCaixa()
-      carregarEmpresaConfig()
-      carregarUsuarios()
-    }
-  }, [])
-
-  function corStatus(status) {
-    if (status === 'livre') return '#16a34a'
-    if (status === 'ocupado') return '#dc2626'
-    if (status === 'reservado') return '#eab308'
-    if (status === 'limpeza') return '#2563eb'
-    return '#64748b'
-  }
-
-  function gerarDatasMapa() {
-    const datas = []
-
-    for (let i = 0; i < 7; i++) {
-      const data = new Date()
-      data.setDate(data.getDate() + i)
-
-      datas.push(
-        data.toISOString().split('T')[0]
-      )
-    }
-
-    return datas
-  }
-
-  const datasMapa = gerarDatasMapa()
-
-
-  if (!usuarioLogado) {
-    return (
-      <div className="login-page">
-        <div className="login-wrapper">
-          <div className="login-left">
-            <div className="login-logo-box">
-              <div className="brand-building">{icons.hotel}</div>
-              <div>
-                <h1>CRONOS</h1>
-                <p>Sistema Hotel</p>
-              </div>
-            </div>
-
-            <h2>Gestão completa para hotelaria</h2>
-            <p>
-              Controle reservas, quartos, hóspedes, financeiro, estoque e relatórios em uma única plataforma.
-            </p>
-
-            <div className="login-benefits">
-              <span>Reservas</span>
-              <span>Check-in</span>
-              <span>Financeiro</span>
-              <span>Estoque</span>
-            </div>
-          </div>
-
-          <div className="login-card">
-            <div className="brand-login">
-              <div>
-                <h1>Entrar no sistema</h1>
-                <p>Acesse sua conta para continuar</p>
-              </div>
-            </div>
-
-            <label>Usuário</label>
-            <input
-              placeholder="Digite seu login"
-              value={login}
-              onChange={(e) => setLogin(e.target.value)}
-            />
-
-            <label>Senha</label>
-            <input
-              placeholder="Digite sua senha"
-              type="password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-            />
-
-            <button onClick={entrarSistema}>
-              Entrar
-            </button>
-
-            <small>
-              DEVELOPED BY DINHO OLIVEIRA
-            </small>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const proximasReservas = (Array.isArray(reservas) ? reservas : [])
-    .filter((reserva) => {
-      const status = String(reserva.status || '').toLowerCase()
-      return !reserva.checkout && status !== 'finalizada' && status !== 'cancelada'
-    })
-    .sort((a, b) => String(a.data_entrada || '').localeCompare(String(b.data_entrada || '')))
-    .slice(0, 5)
-  const totalQuartosReal = quartos.length
-  const totalQuartos = totalQuartosReal || 1
-  const ocupados = totalQuartosStatus('ocupado')
-  const reservados = totalQuartosStatus('reservado')
-  const disponiveis = totalQuartosStatus('livre')
-  const percentualOcupacao = ocupacaoPercentual()
-  const percentualHospedes = percentualSeguro(
-    reservas.reduce((total, reserva) => total + Number(reserva.qtd_hospedes || 0), 0),
-    Math.max(totalQuartosReal * 4, 1)
-  )
-  const percentualReservasHoje = percentualSeguro(reservasHoje(), Math.max(reservas.length, 1))
-  const percentualCheckouts = percentualSeguro(
-    reservas.filter((reserva) => reserva.checkout).length,
-    Math.max(reservas.length, 1)
-  )
-  const receitaHoje = faturamentoPorData(obterDataLocalISO())
-  const receitaOntem = faturamentoPorData(dataRelativaISO(-1))
-  const percentualReceitaHoje = percentualReceitaDia(receitaHoje, receitaOntem)
-  const receitaSubiu = percentualReceitaHoje >= 0
-  const reservaContaSelecionada = reservas.find((reserva) => String(reserva.id) === String(reservaContaId))
-  const totalDiariasConta = Number(reservaContaSelecionada?.valor_total || 0)
-  const totalConsumosConta = reservaContaSelecionada ? totalConsumosReserva(reservaContaSelecionada.id) : 0
-  const totalPagamentosConta = reservaContaSelecionada ? totalPagamentosReserva(reservaContaSelecionada.id) : 0
-  const saldoContaSelecionada = reservaContaSelecionada ? calcularSaldoReserva(reservaContaSelecionada) : 0
-  const reservaCentralSelecionada = (Array.isArray(reservas) ? reservas : []).find((reserva) => String(reserva.id) === String(centralReservaId))
-  const totalDiariasCentral = Number(reservaCentralSelecionada?.valor_total || 0)
-  const totalConsumosCentral = reservaCentralSelecionada ? totalConsumosReserva(reservaCentralSelecionada.id) : 0
-  const totalPagamentosCentral = reservaCentralSelecionada ? totalPagamentosReserva(reservaCentralSelecionada.id) : 0
-  const saldoCentralSelecionada = reservaCentralSelecionada ? calcularSaldoReserva(reservaCentralSelecionada) : 0
-
-
-  function calcularNoitesReserva(reserva) {
-    if (!reserva?.data_entrada || !reserva?.data_saida) return 1
-
-    const entrada = new Date(`${reserva.data_entrada}T12:00:00`)
-    const saida = new Date(`${reserva.data_saida}T12:00:00`)
-    const dias = Math.round((saida - entrada) / (1000 * 60 * 60 * 24))
-
-    return Math.max(1, dias || 1)
-  }
-
-  function formatarDataCurta(dataISO) {
-    if (!dataISO) return '-'
-    const partes = String(dataISO).slice(0, 10).split('-')
-    if (partes.length !== 3) return dataISO
-    return `${partes[2]}/${partes[1]}/${partes[0].slice(2)}`
-  }
-
-  function gerarLinhasContaReserva(reserva) {
-    if (!reserva) return []
-
-    const noites = calcularNoitesReserva(reserva)
-    const valorDiaria = Number(reserva.valor_total || 0) / noites
-    const linhasDiarias = []
-
-    if (reserva.data_entrada) {
-      const dataBase = new Date(`${reserva.data_entrada}T12:00:00`)
-      for (let indice = 0; indice < noites; indice++) {
-        const dataLinha = new Date(dataBase)
-        dataLinha.setDate(dataBase.getDate() + indice)
-        linhasDiarias.push({
-          tipo: 'despesa',
-          data: obterDataLocalISO(dataLinha),
-          produto: `${indice + 1} - Diária`,
-          quantidade: 1,
-          valor: valorDiaria
-        })
-      }
-    } else if (Number(reserva.valor_total || 0) > 0) {
-      linhasDiarias.push({
-        tipo: 'despesa',
-        data: '',
-        produto: '1 - Diária',
-        quantidade: 1,
-        valor: Number(reserva.valor_total || 0)
-      })
-    }
-
-    const linhasConsumo = consumos
-      .filter((consumo) => consumo.reserva_id === reserva.id)
-      .map((consumo, indice) => ({
-        tipo: 'despesa',
-        data: String(consumo.criado_em || consumo.created_at || '').slice(0, 10),
-        produto: `${100 + indice} - ${consumo.descricao || 'Consumo'}`,
-        quantidade: 1,
-        valor: Number(consumo.valor || 0)
-      }))
-
-    const linhasPagamento = pagamentos
-      .filter((pagamento) => pagamento.reserva_id === reserva.id)
-      .map((pagamento, indice) => ({
-        tipo: 'pagamento',
-        data: obterDataPagamento(pagamento),
-        produto: `${300 + indice} - ${pagamento.forma_pagamento || 'Pagamento'} recebido`,
-        quantidade: 1,
-        valor: -Math.abs(Number(pagamento.valor || 0))
-      }))
-
-    const linhasDespesasExtrasPDF = (Array.isArray(reserva.despesas_extras_pdf) ? reserva.despesas_extras_pdf : [])
-      .map((item, indice) => ({
-        tipo: 'despesa',
-        data: obterDataLocalISO(),
-        produto: `${200 + indice} - ${item.descricao || 'Despesa extra'}`,
-        quantidade: Number(item.quantidade || 1),
-        valor: Number(item.valor_total || 0)
-      }))
-
-    return [...linhasDiarias, ...linhasConsumo, ...linhasDespesasExtrasPDF, ...linhasPagamento]
-  }
-
-
-  function abrirCentralReserva(reserva) {
-    if (!reserva) return
-    setCentralReservaId(reserva.id)
-    setReservaContaId(reserva.id)
-    setTelaAtiva('reservas')
-  }
-
-  function abrirCentralQuarto(quarto) {
-    const reserva = reservaAbertaDoQuarto(quarto.id)
-    if (reserva) {
-      abrirCentralReserva(reserva)
-      return
-    }
-
-    setQuartoId(quarto.id)
-    setTelaAtiva('reservas')
-  }
-
-  function statusOperacionalReserva(reserva) {
-    if (!reserva) return 'Livre'
-    if (reserva.checkout) return 'Check-out finalizado'
-    if (reserva.checkin) return calcularSaldoReserva(reserva) > 0 ? 'Hospedado com saldo' : 'Hospedado pago'
-    return 'Reservado aguardando check-in'
-  }
-
-  function alertasOperacionais() {
-    const hoje = obterDataLocalISO()
-    const lista = []
-
-    ;(Array.isArray(reservas) ? reservas : []).forEach((reserva) => {
-      const saldo = calcularSaldoReserva(reserva)
-
-      if (!reserva.checkout && reserva.data_saida === hoje) {
-        lista.push({ tipo: 'checkout', titulo: 'Check-out hoje', detalhe: `${reserva.nome_hospede || 'Hóspede'} - Quarto ${reserva.quartos?.numero || '-'}`, reserva })
-      }
-
-      if (!reserva.checkout && saldo > 0) {
-        lista.push({ tipo: 'saldo', titulo: 'Saldo pendente', detalhe: `${reserva.nome_hospede || 'Hóspede'} deve ${formatarMoeda(saldo)}`, reserva })
-      }
-
-      if (!reserva.checkout && reserva.data_saida && reserva.data_saida < hoje) {
-        lista.push({ tipo: 'vencida', titulo: 'Reserva vencida', detalhe: `${reserva.nome_hospede || 'Hóspede'} passou da saída prevista`, reserva })
-      }
-    })
-
-    ;(Array.isArray(quartos) ? quartos : []).forEach((quarto) => {
-      if (quarto.status === 'limpeza') {
-        lista.push({ tipo: 'limpeza', titulo: 'Quarto em limpeza', detalhe: `Quarto ${quarto.numero || '-'} aguardando liberação`, quarto })
-      }
-    })
-
-    return lista.slice(0, 12)
-  }
-
-  function tituloTela() {
-    if (telaAtiva === 'dashboard') return 'Dashboard'
-        if (telaAtiva === 'reservas') return 'Reservas'
-    if (telaAtiva === 'quartos') return 'Quartos'
-    if (telaAtiva === 'restaurante') return 'Consumos por quarto'
-    if (telaAtiva === 'servicos') return 'Serviços do Hóspede'
-    if (telaAtiva === 'financeiro') return 'Finanças'
-    if (telaAtiva === 'hospedes') return 'Hóspedes'
-    if (telaAtiva === 'estoque') return 'Estoque'
-    if (telaAtiva === 'relatorios') return 'Relatórios'
-        if (telaAtiva === 'configuracoes') return 'Configurações'
-    return 'Dashboard'
-  }
-
-  function subtituloTela() {
-    if (telaAtiva === 'dashboard') return 'Visão geral do hotel'
-        if (telaAtiva === 'reservas') return 'Criação de reservas, disponibilidade e mapa dos quartos'
-    if (telaAtiva === 'quartos') return 'Configuração dos quartos, frigobar e produtos preparados'
-    if (telaAtiva === 'restaurante') return 'Produtos e serviços consumidos por hóspedes ativos'
-    if (telaAtiva === 'servicos') return 'Portal de serviços do hóspede'
-    if (telaAtiva === 'financeiro') return 'Caixa e recebimentos'
-    if (telaAtiva === 'hospedes') return 'Hóspedes e histórico'
-    if (telaAtiva === 'estoque') return 'Produtos, quantidades e movimentações'
-    if (telaAtiva === 'relatorios') return 'Relatórios do sistema'
-        if (telaAtiva === 'configuracoes') return 'Empresa, logo e usuários'
-    return 'Visão geral do hotel'
-  }
-
-
-  function dataBrasil(data) {
-    if (!data) return ''
-
-    const partes = String(data).split('-')
-
-    if (partes.length === 3) {
-      return `${partes[2]}/${partes[1]}/${partes[0]}`
-    }
-
-    return data
-  }
-
-  function resultadosBuscaGlobal() {
-    const termo = buscaGlobal.trim().toLowerCase()
-
-    if (!termo) return []
-
-    const resultados = []
-
-    ;(Array.isArray(reservas) ? reservas : []).forEach((reserva) => {
-      const nome = String(reserva.nome_hospede || '').toLowerCase()
-      const telefoneReserva = String(reserva.telefone || '').toLowerCase()
-      const quarto = String(reserva.quartos?.numero || '').toLowerCase()
-
-      if (
-        nome.includes(termo) ||
-        telefoneReserva.includes(termo) ||
-        quarto.includes(termo)
-      ) {
-        resultados.push({
-          tipo: 'Reserva',
-          titulo: reserva.nome_hospede || 'Reserva',
-          detalhe: `Quarto ${reserva.quartos?.numero || '-'} | ${reserva.data_entrada || '-'} até ${reserva.data_saida || '-'}`,
-          tela: 'reservas'
-        })
-      }
-    })
-
-    ;(Array.isArray(quartos) ? quartos : []).forEach((quarto) => {
-      const numero = String(quarto.numero || '').toLowerCase()
-      const tipo = String(quarto.tipo || '').toLowerCase()
-      const andar = String(quarto.andar || '').toLowerCase()
-      const status = String(quarto.status || '').toLowerCase()
-
-      if (
-        numero.includes(termo) ||
-        tipo.includes(termo) ||
-        andar.includes(termo) ||
-        status.includes(termo)
-      ) {
-        resultados.push({
-          tipo: 'Quarto',
-          titulo: `Quarto ${quarto.numero || '-'}`,
-          detalhe: `${quarto.andar || 'Sem andar'} | ${quarto.tipo || 'A definir'} | ${quarto.status || 'livre'}`,
-          tela: 'reservas'
-        })
-      }
-    })
-
-    ;(Array.isArray(produtos) ? produtos : []).forEach((produto) => {
-      const nome = String(produto.nome || '').toLowerCase()
-      const local = String(produto.local_uso || '').toLowerCase()
-
-      if (nome.includes(termo) || local.includes(termo)) {
-        resultados.push({
-          tipo: 'Produto',
-          titulo: produto.nome || 'Produto',
-          detalhe: `${produto.local_uso || 'Geral'} | Estoque: ${produto.estoque_atual || 0}`,
-          tela: 'estoque'
-        })
-      }
-    })
-
-    return resultados.slice(0, 8)
-  }
-
-  function notificacoesSistema() {
-    const lista = []
-
-    const quartosLimpeza = (Array.isArray(quartos) ? quartos : []).filter((quarto) => quarto.status === 'limpeza')
-    const quartosOcupados = (Array.isArray(quartos) ? quartos : []).filter((quarto) => quarto.status === 'ocupado')
-    const reservasDoDia = (Array.isArray(reservas) ? reservas : []).filter((reserva) => reserva.data_entrada === dataSistema)
-    const estoqueBaixo = (Array.isArray(produtos) ? produtos : []).filter((produto) => {
-      return Number(produto.estoque_atual || 0) <= Number(produto.estoque_minimo || 0)
-    })
-
-    if (reservasDoDia.length > 0) {
-      lista.push({
-        titulo: `${reservasDoDia.length} reserva${reservasDoDia.length === 1 ? '' : 's'} para hoje`,
-        detalhe: 'Entradas previstas para a data selecionada.',
-        tela: 'reservas'
-      })
-    }
-
-    if (quartosLimpeza.length > 0) {
-      lista.push({
-        titulo: `${quartosLimpeza.length} quarto${quartosLimpeza.length === 1 ? '' : 's'} em limpeza`,
-        detalhe: 'Acompanhe a liberação dos quartos.',
-        tela: 'reservas'
-      })
-    }
-
-    if (quartosOcupados.length > 0) {
-      lista.push({
-        titulo: `${quartosOcupados.length} quarto${quartosOcupados.length === 1 ? '' : 's'} ocupado${quartosOcupados.length === 1 ? '' : 's'}`,
-        detalhe: 'Confira hóspedes e contas em aberto.',
-        tela: 'reservas'
-      })
-    }
-
-    if (estoqueBaixo.length > 0) {
-      lista.push({
-        titulo: `${estoqueBaixo.length} produto${estoqueBaixo.length === 1 ? '' : 's'} com estoque baixo`,
-        detalhe: 'Verifique os itens com baixa quantidade.',
-        tela: 'estoque'
-      })
-    }
-
-    if (lista.length === 0) {
-      lista.push({
-        titulo: 'Nenhuma pendência no momento',
-        detalhe: 'Sistema sem alertas importantes.',
-        tela: 'dashboard'
-      })
-    }
-
-    return lista
-  }
-
-  function quantidadeNotificacoes() {
-    return notificacoesSistema().filter((item) => item.titulo !== 'Nenhuma pendência no momento').length
-  }
-
-
-
-  function reservaAbertaDoQuarto(quartoId) {
-    return (Array.isArray(reservas) ? reservas : []).find((reserva) => {
-      return reserva.quarto_id === quartoId && !reserva.checkout
-    })
-  }
-
-  function consumosDaReserva(reservaId) {
-    return (Array.isArray(consumos) ? consumos : []).filter((consumo) => {
-      return consumo.reserva_id === reservaId
-    })
-  }
-
-  function consumosAtivosDaReserva(reservaId) {
-    return (Array.isArray(consumos) ? consumos : []).filter((consumo) => {
-      return String(consumo.reserva_id) === String(reservaId)
-    })
-  }
-
-  function reservasAtivasComConsumo() {
-    return (Array.isArray(reservas) ? reservas : []).filter((reserva) => {
-      return !reserva.checkout && consumosAtivosDaReserva(reserva.id).length > 0
-    })
-  }
-
-
-  function totalConsumoAbertoQuarto(quartoId) {
-    const reserva = reservaAbertaDoQuarto(quartoId)
-
-    if (!reserva) return 0
-
-    return consumosDaReserva(reserva.id).reduce((total, consumo) => {
-      return total + Number(consumo.valor || 0)
-    }, 0)
-  }
-
-  function resumoConsumoAbertoQuarto(quartoId) {
-    const reserva = reservaAbertaDoQuarto(quartoId)
-
-    if (!reserva) return []
-
-    return consumosDaReserva(reserva.id).slice(0, 3)
-  }
-
-  function reservasPorPeriodo() {
-    return (Array.isArray(reservas) ? reservas : []).filter((reserva) => {
-      const entradaReserva = reserva.data_entrada || ''
-      const saidaReserva = reserva.data_saida || ''
-
-      return (
-        (entradaReserva >= relatorioDataInicio && entradaReserva <= relatorioDataFim) ||
-        (saidaReserva >= relatorioDataInicio && saidaReserva <= relatorioDataFim)
-      )
-    })
-  }
-
-  function pagamentosPorPeriodo() {
-    return (Array.isArray(pagamentos) ? pagamentos : []).filter((pagamento) => {
-      const dataPagamento = String(pagamento.criado_em || '').slice(0, 10)
-      return dataPagamento >= relatorioDataInicio && dataPagamento <= relatorioDataFim
-    })
-  }
-
-  function consumosPorPeriodo() {
-    return (Array.isArray(consumos) ? consumos : []).filter((consumo) => {
-      const dataConsumo = String(consumo.criado_em || '').slice(0, 10)
-      return dataConsumo >= relatorioDataInicio && dataConsumo <= relatorioDataFim
-    })
-  }
-
-  function totalReservasPeriodo() {
-    return reservasPorPeriodo().reduce((total, reserva) => {
-      return total + Number(reserva.valor_total || 0)
-    }, 0)
-  }
-
-  function totalPagamentosPeriodo() {
-    return pagamentosPorPeriodo().reduce((total, pagamento) => {
-      return total + Number(pagamento.valor || 0)
-    }, 0)
-  }
-
-  function totalConsumosPeriodo() {
-    return consumosPorPeriodo().reduce((total, consumo) => {
-      return total + Number(consumo.valor || 0)
-    }, 0)
-  }
-
-  async function lancarConsumoQuarto() {
-    if (!consumoReservaId || !consumoProdutoId || !consumoQuantidade) {
-      alert('Selecione a reserva, o produto e informe a quantidade')
-      return
-    }
-
-    const reserva = (Array.isArray(reservas) ? reservas : []).find((item) => item.id === consumoReservaId)
-    const produto = (Array.isArray(produtos) ? produtos : []).find((item) => item.id === consumoProdutoId)
-
-    if (!reserva || !produto) {
-      alert('Reserva ou produto não encontrado')
-      return
-    }
-
-    const quantidade = Number(consumoQuantidade || 0)
-    const valorUnitario = Number(produto.valor_venda || 0)
-    const valorTotal = quantidade * valorUnitario
-    const estoqueAtual = Number(produto.estoque_atual || 0)
-    const novoEstoque = estoqueAtual - quantidade
-
-    if (produto.tipo === 'Produto' && novoEstoque < 0) {
-      const confirma = confirm('O estoque deste produto ficará negativo. Deseja continuar?')
-      if (!confirma) return
-    }
-
-    const { error: erroConsumo } = await supabase
-      .from('consumos')
-      .insert({
-        reserva_id: consumoReservaId,
-        descricao: `${produto.nome} x${quantidade}${consumoObservacao ? ' - ' + consumoObservacao : ''}`,
-        valor: valorTotal
-      })
-
-    if (erroConsumo) {
-      mostrarAviso('Erro ao lançar consumo. Tente novamente.', 'erro')
-      console.log(erroConsumo)
-      return
-    }
-
-    if (produto.tipo === 'Produto') {
-      const { error: erroProduto } = await supabase
-        .from('produtos')
-        .update({
-          estoque_atual: novoEstoque
-        })
-        .eq('id', consumoProdutoId)
-
-      if (erroProduto) {
-        alert('Consumo lançado, mas houve erro ao baixar estoque')
-        console.log(erroProduto)
-      }
-
-      await supabase
-        .from('movimentacoes_estoque')
-        .insert({
-          produto_id: consumoProdutoId,
-          tipo: 'saida',
-          quantidade,
-          observacao: `Consumo lançado no quarto ${reserva.quartos?.numero || '-'}`
-        })
-    }
-
-    await registrarAuditoria(
-      'Consumo lançado no quarto',
-      `${produto.nome} x${quantidade} - Reserva ${reserva.nome_hospede || ''}`
-    )
-
-    setConsumoReservaId('')
-    setConsumoProdutoId('')
-    setConsumoQuantidade('1')
-    setConsumoObservacao('')
-
-    carregarConsumos()
-    carregarProdutos()
-    carregarMovimentacoesEstoque()
-
-    alert('Consumo lançado na conta do quarto com sucesso')
-  }
-
-  function produtoEhDoQuarto(produto, quarto) {
-    const local = String(produto?.local_uso || '').toLowerCase().trim()
-    const numeroQuarto = String(quarto?.numero || '').toLowerCase().trim()
-
-    if (!produto || !quarto) return false
-
-    return (
-      local === `quarto ${numeroQuarto}` ||
-      local === `frigobar quarto ${numeroQuarto}` ||
-      local.includes(`quarto ${numeroQuarto}`)
-    )
-  }
-
-  function produtosDoQuarto(quartoIdSelecionado) {
-    const quarto = (Array.isArray(quartos) ? quartos : []).find((item) => String(item.id) === String(quartoIdSelecionado))
-    if (!quarto) return []
-
-    return (Array.isArray(produtos) ? produtos : []).filter((produto) => produtoEhDoQuarto(produto, quarto))
-  }
-
-  function produtosDisponiveisParaQuarto() {
-    return (Array.isArray(produtos) ? produtos : []).filter((produto) => produto.ativo !== false && produto.tipo === 'Produto')
-  }
-
-  async function renomearQuarto() {
-    if (!quartoGestaoId || !novoNomeQuarto.trim()) {
-      mostrarAviso('Selecione um quarto e informe o novo nome/número.', 'erro')
-      return
-    }
-
-    const { error } = await supabase
-      .from('quartos')
-      .update({ numero: novoNomeQuarto.trim() })
-      .eq('id', quartoGestaoId)
-
-    if (error) {
-      mostrarAviso('Erro ao renomear quarto.', 'erro')
-      console.log(error)
-      return
-    }
-
-    await registrarAuditoria('Quarto renomeado', novoNomeQuarto.trim())
-    setNovoNomeQuarto('')
-    carregarQuartos()
-    mostrarAviso('Quarto atualizado com sucesso.', 'sucesso')
-  }
-
-  async function adicionarProdutoAoQuarto() {
-    if (!quartoGestaoId || !produtoQuartoId) {
-      mostrarAviso('Selecione o quarto e o produto.', 'erro')
-      return
-    }
-
-    const quarto = (Array.isArray(quartos) ? quartos : []).find((item) => String(item.id) === String(quartoGestaoId))
-    const produto = (Array.isArray(produtos) ? produtos : []).find((item) => String(item.id) === String(produtoQuartoId))
-
-    if (!quarto || !produto) {
-      mostrarAviso('Quarto ou produto não encontrado.', 'erro')
-      return
-    }
-
-    const quantidade = Number(quantidadeProdutoQuarto || 0)
-    const atual = Number(produto.estoque_atual || 0)
-
-    const dadosAtualizacao = {
-      local_uso: `Quarto ${quarto.numero}`,
-      usado_em_frigobar: true
-    }
-
-    if (quantidade > 0) {
-      dadosAtualizacao.estoque_atual = quantidade
-    }
-
-    const { error } = await supabase
-      .from('produtos')
-      .update(dadosAtualizacao)
-      .eq('id', produtoQuartoId)
-
-    if (error) {
-      mostrarAviso('Erro ao adicionar produto ao quarto.', 'erro')
-      console.log(error)
-      return
-    }
-
-    if (quantidade > 0 && quantidade !== atual) {
-      await supabase.from('movimentacoes_estoque').insert({
-        produto_id: produtoQuartoId,
-        tipo: quantidade >= atual ? 'entrada' : 'saida',
-        quantidade: Math.abs(quantidade - atual),
-        observacao: observacaoProdutoQuarto || `Ajuste de frigobar do quarto ${quarto.numero}`
-      })
-    }
-
-    await registrarAuditoria('Produto vinculado ao quarto', `${produto.nome} - Quarto ${quarto.numero}`)
-    setProdutoQuartoId('')
-    setQuantidadeProdutoQuarto('')
-    setObservacaoProdutoQuarto('')
-    carregarProdutos()
-    carregarMovimentacoesEstoque()
-    mostrarAviso('Produto organizado no quarto.', 'sucesso')
-  }
-
-  async function removerProdutoDoQuarto(produto) {
-    if (!produto?.id) return
-
-    const { error } = await supabase
-      .from('produtos')
-      .update({ local_uso: 'Geral', usado_em_frigobar: false })
-      .eq('id', produto.id)
-
-    if (error) {
-      mostrarAviso('Erro ao remover produto do quarto.', 'erro')
-      console.log(error)
-      return
-    }
-
-    carregarProdutos()
-    mostrarAviso('Produto removido do quarto.', 'sucesso')
-  }
-
-  function menuClasse(tela) {
-    return `menu-link ${telaAtiva === tela ? 'active' : ''}`
-  }
-
-  function renderizarQuartosPorAndar(andar) {
-    const quartosDoAndar = quartos.filter((quarto) => quarto.andar === andar)
-
-    return (
-      <div className="andar-bloco" key={andar}>
-        <div className="andar-cabecalho">
-          <h2>{andar}</h2>
-
-          <span>
-            {quartosDoAndar.length} quarto{quartosDoAndar.length === 1 ? '' : 's'}
-          </span>
-        </div>
-
-        <div className="quartos-grid">
-          {quartosDoAndar.map((quarto) => (
-            <div
-              key={quarto.id}
-              className={`quarto-card ${quarto.status}`}
-            >
-              <div>
-                <h3>Quarto {quarto.numero}</h3>
-                <p>{quarto.tipo}</p>
-                <small>{formatarMoeda(quarto.valor_diaria)}</small>
-
-                {totalConsumoAbertoQuarto(quarto.id) > 0 && (
-                  <div className="quarto-consumo-alerta">
-                    <strong>Consumo aberto:</strong>
-                    <span>{formatarMoeda(totalConsumoAbertoQuarto(quarto.id))}</span>
-
-                    <div className="quarto-consumo-lista">
-                      {resumoConsumoAbertoQuarto(quarto.id).map((consumo) => (
-                        <small key={consumo.id}>
-                          {consumo.descricao}
-                        </small>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <span className={`status-quarto ${quarto.status}`}>
-                {quarto.status}
-              </span>
-
-              <div className="button-row">
-                <button onClick={() => alterarStatus(quarto.id, 'livre')}>Livre</button>
-                <button onClick={() => alterarStatus(quarto.id, 'ocupado')}>Ocupado</button>
-                <button onClick={() => alterarStatus(quarto.id, 'reservado')}>Reservado</button>
-                <button onClick={() => alterarStatus(quarto.id, 'limpeza')}>Limpeza</button>
-              </div>
-            </div>
-          ))}
-
-          {quartosDoAndar.length === 0 && (
-            <p className="sem-quartos">
-              Nenhum quarto cadastrado neste andar.
-            </p>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  function renderizarQuartosOperacionalPorAndar(andar) {
-    const quartosDoAndar = quartos.filter((quarto) => quarto.andar === andar)
-
-    return (
-      <div className="operacional-andar" key={`operacional-${andar}`}>
-        <div className="andar-cabecalho operacional-cabecalho">
-          <h2>{andar}</h2>
-          <span>{quartosDoAndar.length} quarto{quartosDoAndar.length === 1 ? '' : 's'}</span>
-        </div>
-
-        <div className="operacional-grid">
-          {quartosDoAndar.map((quarto) => {
-            const reservaAtual = reservaAbertaDoQuarto(quarto.id)
-            const saldoAtual = reservaAtual ? calcularSaldoReserva(reservaAtual) : 0
-            const consumoAberto = totalConsumoAbertoQuarto(quarto.id)
-            const statusAtual = quarto.status || 'livre'
-
-            return (
-              <div key={quarto.id} className={`operacional-card ${statusAtual}`}>
-                <div className="operacional-card-topo">
-                  <div>
-                    <span className="operacional-label">Quarto</span>
-                    <h3>{quarto.numero}</h3>
-                  </div>
-
-                  <span className={`status-quarto ${statusAtual}`}>{statusAtual}</span>
-                </div>
-
-                <div className="operacional-info">
-                  <p><strong>Tipo:</strong> {quarto.tipo || 'A definir'}</p>
-                  <p><strong>Diária:</strong> {formatarMoeda(quarto.valor_diaria)}</p>
-
-                  {reservaAtual ? (
-                    <>
-                      <p><strong>Hóspede:</strong> {reservaAtual.nome_hospede || 'Hóspede'}</p>
-                      <p><strong>Período:</strong> {reservaAtual.data_entrada || '-'} até {reservaAtual.data_saida || '-'}</p>
-                      <p><strong>Saldo:</strong> <span className={saldoAtual > 0 ? 'saldo-alerta' : 'saldo-ok'}>{formatarMoeda(saldoAtual)}</span></p>
-                      {consumoAberto > 0 && <p><strong>Consumo aberto:</strong> {formatarMoeda(consumoAberto)}</p>}
-                    </>
-                  ) : (
-                    <p className="operacional-vazio">Sem hóspede vinculado no momento.</p>
-                  )}
-                </div>
-
-                <div className="operacional-acoes">
-                  {reservaAtual && !reservaAtual.checkin && !reservaAtual.checkout && (
-                    <button className="acao-primaria" onClick={() => fazerCheckin(reservaAtual)}>Fazer check-in</button>
-                  )}
-
-                  {reservaAtual && reservaAtual.checkin && !reservaAtual.checkout && (
-                    <button className="acao-perigo" onClick={() => fazerCheckout(reservaAtual)}>Fazer check-out</button>
-                  )}
-
-                  {!reservaAtual && (
-                    <button className="acao-primaria" onClick={() => setTelaAtiva('reservas')}>Criar reserva</button>
-                  )}
-
-                  <button onClick={() => alterarStatus(quarto.id, 'livre')}>Livre</button>
-                  <button onClick={() => alterarStatus(quarto.id, 'limpeza')}>Limpeza</button>
-                </div>
-              </div>
-            )
-          })}
-
-          {quartosDoAndar.length === 0 && (
-            <p className="sem-quartos">Nenhum quarto cadastrado neste andar.</p>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `backup-sistema-hotel-${todayISO()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    logAction('Backup exportado', 'Backup completo dos dados do sistema foi gerado.')
+    notify('Backup exportado com sucesso.')
+  }
+
+  function clearOperationalData() {
+    const ok = window.confirm('Tem certeza que deseja zerar reservas, clientes, financeiro, consumos, pré check-in, bloqueios e auditoria? Os quartos e categorias serão mantidos.')
+    if (!ok) return
+    setClients([])
+    setReservations([])
+    setPayments([])
+    setConsumos([])
+    setBlocks([])
+    setRates([])
+    setPrecheckins([])
+    setAuditLogs([])
+    setSelectedReserva(null)
+    setSelectedRoom(null)
+    localStorage.removeItem('fh_clients_v2')
+    localStorage.removeItem('fh_reservations_v2')
+    localStorage.removeItem('fh_payments_v2')
+    localStorage.removeItem('fh_consumos_v1')
+    localStorage.removeItem('fh_blocks_v2')
+    localStorage.removeItem('fh_rates_v2')
+    localStorage.removeItem('fh_precheckins_v2')
+    localStorage.removeItem('fh_audit_logs_v1')
+    notify('Sistema zerado. Quartos e categorias mantidos.')
+  }
+
+  function restoreRoomDefaults() {
+    const ok = window.confirm('Restaurar quartos e categorias para o padrão definido pelo hotel?')
+    if (!ok) return
+    setRoomTypes(roomTypesSeed)
+    setRooms(roomsSeed)
+    localStorage.setItem('fh_room_types_v3', JSON.stringify(roomTypesSeed))
+    localStorage.setItem('fh_rooms_v3', JSON.stringify(roomsSeed))
+    logAction('Quartos restaurados', 'Quartos e categorias foram restaurados para o padrão.')
+    notify('Quartos e categorias restaurados.')
+  }
+
+
+  const pageTitle = menu.find(m => m[0] === tab)?.[2] || 'Dashboard'
 
   return (
     <div className="hotel-layout">
-      <style>{`
-        .operacional-resumo {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-          gap: 16px;
-          margin-bottom: 18px;
-        }
-
-        .operacional-resumo-card {
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 18px;
-          padding: 18px;
-          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
-          border-left: 7px solid #2563eb;
-        }
-
-        .operacional-resumo-card span,
-        .operacional-label {
-          display: block;
-          color: #64748b;
-          font-size: 13px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: .04em;
-        }
-
-        .operacional-resumo-card strong {
-          display: block;
-          color: #0f172a;
-          font-size: 34px;
-          margin: 6px 0 2px;
-        }
-
-        .operacional-resumo-card small {
-          color: #64748b;
-          font-weight: 700;
-        }
-
-        .operacional-resumo-card.livre { border-left-color: #16a34a; }
-        .operacional-resumo-card.ocupado { border-left-color: #dc2626; }
-        .operacional-resumo-card.reservado { border-left-color: #f59e0b; }
-        .operacional-resumo-card.limpeza { border-left-color: #7c3aed; }
-
-        .panel-subtitle {
-          margin: 6px 0 0;
-          color: #64748b;
-          font-weight: 600;
-        }
-
-
-        .despesas-reserva-box {
-          background: #f8fafc;
-          border: 1px solid #dbeafe;
-          border-radius: 16px;
-          padding: 14px;
-        }
-
-        .despesas-reserva-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          margin-bottom: 10px;
-          color: #0f172a;
-        }
-
-        .despesas-reserva-header span {
-          color: #1d4ed8;
-          font-weight: 900;
-        }
-
-        .despesas-reserva-form {
-          display: grid;
-          grid-template-columns: 1.5fr 90px 150px 180px;
-          gap: 10px;
-        }
-
-        .despesas-reserva-lista {
-          display: grid;
-          gap: 8px;
-          margin-top: 10px;
-        }
-
-        .despesa-reserva-item {
-          display: grid;
-          grid-template-columns: 1fr 180px 130px 100px;
-          align-items: center;
-          gap: 10px;
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 10px;
-        }
-
-        .despesa-reserva-item span,
-        .despesa-reserva-item strong {
-          color: #0f172a;
-          font-weight: 900;
-        }
-
-        .despesa-reserva-item small {
-          color: #64748b;
-          font-weight: 700;
-        }
-
-        .resumo-reserva-criacao {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 16px;
-          background: #eff6ff;
-          border: 1px solid #bfdbfe;
-          border-radius: 14px;
-          padding: 12px;
-          color: #1e3a8a;
-          font-weight: 800;
-        }
-
-        .resumo-reserva-criacao strong {
-          color: #0f172a;
-          font-size: 18px;
-        }
-
-        @media (max-width: 900px) {
-          .despesas-reserva-form,
-          .despesa-reserva-item {
-            grid-template-columns: 1fr;
-          }
-
-          .resumo-reserva-criacao {
-            align-items: flex-start;
-            flex-direction: column;
-          }
-        }
-
-        .operacional-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-          gap: 16px;
-        }
-
-        .operacional-card {
-          background: linear-gradient(180deg, #ffffff, #f8fafc);
-          border: 1px solid #e5e7eb;
-          border-left: 8px solid #2563eb;
-          border-radius: 18px;
-          padding: 18px;
-          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
-        }
-
-        .operacional-card.livre { border-left-color: #16a34a; }
-        .operacional-card.ocupado { border-left-color: #dc2626; }
-        .operacional-card.reservado { border-left-color: #f59e0b; }
-        .operacional-card.limpeza { border-left-color: #7c3aed; }
-
-        .operacional-card-topo {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 14px;
-        }
-
-        .operacional-card h3 {
-          margin: 2px 0 0;
-          color: #020617;
-          font-size: 28px;
-        }
-
-        .operacional-info {
-          background: #f1f5f9;
-          border-radius: 14px;
-          padding: 12px;
-          min-height: 142px;
-        }
-
-        .operacional-info p {
-          margin: 0 0 8px;
-          color: #334155;
-        }
-
-        .operacional-vazio {
-          color: #64748b !important;
-          font-weight: 700;
-        }
-
-        .saldo-alerta {
-          color: #dc2626;
-          font-weight: 900;
-        }
-
-        .saldo-ok {
-          color: #16a34a;
-          font-weight: 900;
-        }
-
-        .operacional-acoes {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 14px;
-        }
-
-        .operacional-acoes button {
-          border: 0;
-          border-radius: 10px;
-          padding: 10px 12px;
-          background: #e2e8f0;
-          color: #0f172a;
-          font-weight: 800;
-          cursor: pointer;
-        }
-
-        .operacional-acoes .acao-primaria {
-          background: #2563eb;
-          color: #ffffff;
-        }
-
-        .operacional-acoes .acao-perigo {
-          background: #dc2626;
-          color: #ffffff;
-        }
-
-
-        .central-modal-overlay {
-          position: fixed;
-          inset: 0;
-          z-index: 9998;
-          background: rgba(15, 23, 42, 0.55);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 24px;
-        }
-
-        .central-modal {
-          width: min(1180px, 100%);
-          max-height: 92vh;
-          overflow: auto;
-          background: #f8fafc;
-          border-radius: 24px;
-          box-shadow: 0 30px 90px rgba(2, 6, 23, 0.35);
-          border: 1px solid #e2e8f0;
-        }
-
-        .central-modal-header {
-          position: sticky;
-          top: 0;
-          z-index: 2;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          padding: 20px 22px;
-          background: linear-gradient(135deg, #0f172a, #1d4ed8);
-          color: #ffffff;
-        }
-
-        .central-modal-header h2 { margin: 0; font-size: 24px; }
-        .central-modal-header p { margin: 4px 0 0; color: rgba(255,255,255,0.78); }
-        .central-modal-header button { border: 0; border-radius: 12px; background: rgba(255,255,255,0.16); color: #fff; padding: 10px 14px; font-weight: 900; cursor: pointer; }
-
-        .central-modal-body {
-          display: grid;
-          grid-template-columns: 1.25fr 0.75fr;
-          gap: 18px;
-          padding: 18px;
-        }
-
-        .central-card {
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 18px;
-          padding: 16px;
-          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
-          margin-bottom: 14px;
-        }
-
-        .central-card h3 { margin: 0 0 12px; color: #0f172a; }
-        .central-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
-        .central-info { padding: 12px; border-radius: 14px; background: #f1f5f9; }
-        .central-info span { display: block; font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 900; }
-        .central-info strong { display: block; margin-top: 4px; color: #0f172a; }
-
-        .central-resumo-lateral {
-          position: sticky;
-          top: 88px;
-          align-self: start;
-        }
-
-        .central-total-box {
-          border-radius: 22px;
-          padding: 20px;
-          color: #ffffff;
-          background: linear-gradient(135deg, #1e3a8a, #2563eb);
-          box-shadow: 0 18px 40px rgba(37, 99, 235, 0.28);
-        }
-
-        .central-total-box span { display: block; color: rgba(255,255,255,0.78); font-weight: 800; }
-        .central-total-box strong { display: block; font-size: 32px; margin: 6px 0 14px; }
-        .central-total-row { display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.18); padding-top: 10px; margin-top: 10px; }
-
-        .central-acoes-rapidas { display: grid; gap: 10px; margin-top: 14px; }
-        .central-acoes-rapidas button { border: 0; border-radius: 14px; padding: 12px; font-weight: 900; cursor: pointer; background: #e2e8f0; color: #0f172a; }
-        .central-acoes-rapidas .primary { background: #16a34a; color: #fff; }
-        .central-acoes-rapidas .danger { background: #dc2626; color: #fff; }
-        .central-acoes-rapidas .blue { background: #2563eb; color: #fff; }
-
-        .operacao-alertas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-bottom: 18px; }
-        .operacao-alerta { border: 0; text-align: left; background: #ffffff; border-left: 7px solid #f59e0b; border-radius: 16px; padding: 14px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); cursor: pointer; }
-        .operacao-alerta.saldo { border-left-color: #dc2626; }
-        .operacao-alerta.checkout { border-left-color: #2563eb; }
-        .operacao-alerta.vencida { border-left-color: #7f1d1d; }
-        .operacao-alerta.limpeza { border-left-color: #7c3aed; }
-        .operacao-alerta strong { display: block; color: #0f172a; margin-bottom: 4px; }
-        .operacao-alerta span { color: #64748b; font-weight: 700; }
-
-        .operacao-quarto-card { cursor: pointer; }
-        .operacao-quarto-card:hover { transform: translateY(-2px); box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12); }
-
-        .central-mini-form { display: grid; grid-template-columns: 1fr 150px auto; gap: 10px; margin-top: 10px; }
-        .central-mini-form input, .central-mini-form select { width: 100%; min-height: 40px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 0 10px; }
-        .central-mini-form button { border: 0; border-radius: 12px; background: #2563eb; color: #fff; font-weight: 900; padding: 0 14px; cursor: pointer; }
-
-        @media (max-width: 980px) {
-          .central-modal-body { grid-template-columns: 1fr; }
-          .central-resumo-lateral { position: static; }
-          .central-mini-form { grid-template-columns: 1fr; }
-        }
-
-        .toast-cronos {
-          position: fixed;
-          top: 22px;
-          right: 24px;
-          z-index: 9999;
-          min-width: 320px;
-          max-width: 430px;
-          padding: 16px 18px;
-          border-radius: 18px;
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-          animation: toastEntrada 0.22s ease-out;
-        }
-
-        .toast-cronos.sucesso { border-left: 7px solid #16a34a; }
-        .toast-cronos.erro { border-left: 7px solid #dc2626; }
-        .toast-cronos.info { border-left: 7px solid #2563eb; }
-
-        .toast-icone {
-          width: 32px;
-          height: 32px;
-          border-radius: 999px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 900;
-          color: #ffffff;
-          background: #2563eb;
-          flex: 0 0 auto;
-        }
-
-        .toast-cronos.sucesso .toast-icone { background: #16a34a; }
-        .toast-cronos.erro .toast-icone { background: #dc2626; }
-
-        .toast-conteudo strong {
-          display: block;
-          font-size: 15px;
-          margin-bottom: 3px;
-          color: #0f172a;
-        }
-
-        .toast-conteudo span {
-          display: block;
-          font-size: 14px;
-          color: #475569;
-          line-height: 1.35;
-        }
-
-        @keyframes toastEntrada {
-          from { opacity: 0; transform: translateY(-10px) scale(0.98); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        .financeiro-facil-grid {
-          display: grid;
-          grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.6fr);
-          gap: 18px;
-          align-items: stretch;
-        }
-
-        .financeiro-card {
-          border: 1px solid #e5e7eb;
-          border-radius: 22px;
-          padding: 18px;
-          background: #f8fafc;
-        }
-
-        .financeiro-card h3 { margin: 0 0 4px; }
-        .financeiro-card p { margin: 0 0 14px; color: #64748b; }
-
-        .financeiro-conta-resumo {
-          background: linear-gradient(135deg, #1d4ed8, #2563eb);
-          color: #ffffff;
-          border-radius: 22px;
-          padding: 20px;
-          box-shadow: 0 18px 40px rgba(37, 99, 235, 0.22);
-        }
-
-        .financeiro-conta-resumo .muted { color: rgba(255,255,255,0.78); }
-        .financeiro-conta-resumo h3 { margin: 6px 0 12px; font-size: 24px; }
-
-        .financeiro-resumo-linhas {
-          display: grid;
-          gap: 10px;
-          margin-top: 16px;
-        }
-
-        .financeiro-resumo-linhas div {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          padding: 10px 12px;
-          border-radius: 14px;
-          background: rgba(255,255,255,0.12);
-        }
-
-        .saldo-grande {
-          font-size: 30px;
-          font-weight: 900;
-          letter-spacing: -0.02em;
-        }
-
-        .financeiro-acoes {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 14px;
-        }
-
-        .financeiro-form-simples {
-          display: grid;
-          gap: 10px;
-        }
-
-        .financeiro-form-simples button,
-        .financeiro-form-simples select,
-        .financeiro-form-simples input {
-          width: 100%;
-        }
-
-        .financeiro-dica {
-          margin-top: 12px;
-          padding: 12px 14px;
-          border-radius: 16px;
-          background: #eff6ff;
-          color: #1d4ed8;
-          font-weight: 700;
-          font-size: 13px;
-        }
-
-        @media (max-width: 980px) {
-          .financeiro-facil-grid,
-          .financeiro-acoes {
-            grid-template-columns: 1fr;
-          }
-        }
-
-
-
-        .fasthotel-window {
-          background: #f3f0df;
-          border: 1px solid #9ca3af;
-          box-shadow: 0 14px 36px rgba(15, 23, 42, 0.16);
-          margin-bottom: 18px;
-          font-size: 14px;
-        }
-
-        .fasthotel-titlebar {
-          height: 44px;
-          background: linear-gradient(180deg, #eef2ff 0%, #dbe4f0 100%);
-          border-bottom: 1px solid #9ca3af;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 14px;
-          color: #111827;
-          font-size: 18px;
-        }
-
-        .fasthotel-window-actions {
-          display: flex;
-          gap: 5px;
-        }
-
-        .fasthotel-window-actions button {
-          width: 25px;
-          height: 25px;
-          border-radius: 4px;
-          border: 1px solid #6b7280;
-          background: #584a3f;
-          color: #ffffff;
-          font-weight: 800;
-          cursor: pointer;
-        }
-
-        .fasthotel-toolbar {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 12px;
-          padding: 10px 14px;
-          border-bottom: 1px solid #c7c7b4;
-          color: #111827;
-          flex-wrap: wrap;
-        }
-
-        .fasthotel-toolbar label {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          font-size: 13px;
-          color: #111827;
-        }
-
-        .fasthotel-toolbar input[type="checkbox"] {
-          width: 20px;
-          height: 20px;
-          accent-color: #65518f;
-        }
-
-        .fasthotel-link {
-          margin-right: auto;
-          background: transparent;
-          border: 0;
-          color: #334155;
-          text-decoration: underline;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .fasthotel-reserva-select {
-          display: grid;
-          grid-template-columns: 140px 1fr;
-          align-items: center;
-          gap: 10px;
-          padding: 12px 14px;
-          background: #f6f2dc;
-          border-bottom: 1px solid #c7c7b4;
-        }
-
-        .fasthotel-reserva-select span {
-          font-weight: 800;
-          color: #111827;
-        }
-
-        .fasthotel-reserva-select select,
-        .fasthotel-mini-form input,
-        .fasthotel-mini-form select {
-          border: 1px solid #9ca3af;
-          border-radius: 3px;
-          min-height: 36px;
-          padding: 0 10px;
-          background: #ffffff;
-          color: #111827;
-        }
-
-        .fasthotel-account-box {
-          margin: 12px 14px 18px;
-          border: 1px solid #79808a;
-          background: #fffdee;
-        }
-
-        .fasthotel-account-header {
-          background: #b5b2bd;
-          border-bottom: 1px solid #7f7b88;
-          padding: 10px 14px;
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 12px;
-        }
-
-        .fasthotel-account-header h2 {
-          margin: 0 0 8px;
-          font-size: 22px;
-          color: #3f3a46;
-        }
-
-        .fasthotel-account-header h2 span {
-          font-weight: 500;
-        }
-
-        .fasthotel-meta {
-          display: flex;
-          gap: 18px;
-          flex-wrap: wrap;
-          font-size: 13px;
-          color: #1f2937;
-        }
-
-        .checkedin-pill {
-          background: #3b39e6;
-          color: #ffffff;
-          padding: 6px 18px;
-          border-radius: 999px;
-          font-weight: 800;
-          white-space: nowrap;
-        }
-
-        .fasthotel-table-wrap {
-          padding: 10px 10px 0;
-          overflow-x: auto;
-        }
-
-        .fasthotel-table {
-          width: 100%;
-          border-collapse: collapse;
-          min-width: 760px;
-          font-size: 13px;
-        }
-
-        .fasthotel-table th {
-          background: #65518f;
-          color: #ffffff;
-          text-align: left;
-          padding: 7px 8px;
-          border-right: 1px solid rgba(255,255,255,0.18);
-        }
-
-        .fasthotel-table td {
-          padding: 7px 8px;
-          border: 1px solid #c9c4a9;
-          background: #f9f5dc;
-          color: #111827;
-        }
-
-        .fasthotel-table tr:nth-child(even) td {
-          background: #ebe7cd;
-        }
-
-        .fasthotel-table .payment-line td {
-          background: #dbeafe;
-        }
-
-        .fasthotel-table tfoot td {
-          background: #65518f !important;
-          color: #ffffff;
-          font-weight: 900;
-        }
-
-        .delete-line {
-          color: #b91c1c !important;
-          font-weight: 900;
-          text-align: center;
-        }
-
-        .fasthotel-summary-row {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          flex-wrap: wrap;
-          padding: 10px;
-          color: #111827;
-        }
-
-        .fasthotel-summary-row strong {
-          margin-right: 8px;
-        }
-
-        .dark-action,
-        .light-action,
-        .fasthotel-mini-form button {
-          min-height: 36px;
-          border-radius: 3px;
-          padding: 0 18px;
-          border: 1px solid #6b7280;
-          font-weight: 800;
-          cursor: pointer;
-        }
-
-        .dark-action {
-          background: #243c5a;
-          color: #ffffff;
-        }
-
-        .light-action {
-          background: #e5e7eb;
-          color: #111827;
-        }
-
-        .fasthotel-empty {
-          margin: 14px;
-          padding: 34px;
-          background: #fffdee;
-          border: 1px dashed #9ca3af;
-          color: #374151;
-          text-align: center;
-          font-weight: 700;
-        }
-
-        .fasthotel-dual-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-          gap: 18px;
-          margin-bottom: 18px;
-        }
-
-        .fasthotel-operation-panel h2 {
-          margin-bottom: 5px;
-        }
-
-        .fasthotel-mini-form {
-          display: grid;
-          grid-template-columns: 1fr 1fr auto;
-          gap: 10px;
-          margin-top: 16px;
-        }
-
-        .fasthotel-mini-form button {
-          background: #2563eb;
-          color: #ffffff;
-          border-color: #2563eb;
-        }
-
-        .fasthotel-mini-form button:disabled {
-          opacity: 0.45;
-          cursor: not-allowed;
-        }
-
-
-        .linha-clicavel { cursor: pointer; }
-        .linha-clicavel:hover { background: #f1f7ff; }
-        .painel-alertas-dashboard { margin-bottom: 18px; }
-        .alerta-operacional.ok { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
-        .operacao-modo-limpo { border-left: 5px solid #2563eb; margin-bottom: 18px; }
-        .operacao-quarto-card { cursor: pointer; }
-        .operacao-quarto-card:hover { transform: translateY(-2px); box-shadow: 0 14px 35px rgba(15,23,42,.10); }
-
-        .operacao-form-reserva {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
-          gap: 12px;
-          margin-top: 16px;
-        }
-
-        .operacao-form-reserva input,
-        .operacao-form-reserva select {
-          width: 100%;
-          border: 1px solid #dbe3ef;
-          border-radius: 12px;
-          padding: 13px 14px;
-          background: #fff;
-          font-weight: 700;
-          color: #0f172a;
-        }
-
-        .operacao-form-reserva .form-wide { grid-column: span 2; }
-        .operacao-form-reserva button {
-          border: 0;
-          border-radius: 12px;
-          background: #2563eb;
-          color: #fff;
-          font-weight: 900;
-          padding: 13px 16px;
-          cursor: pointer;
-        }
-
-
-        .operacao-conta-fixa {
-          display: grid;
-          grid-template-columns: minmax(0, 1.5fr) minmax(280px, .7fr);
-          gap: 16px;
-          align-items: start;
-          margin-bottom: 18px;
-        }
-
-        @media (max-width: 980px) {
-          .operacao-conta-fixa { grid-template-columns: 1fr; }
-          .operacao-form-reserva .form-wide { grid-column: span 1; }
-        }
-
-        @media (max-width: 820px) {
-          .fasthotel-reserva-select,
-          .fasthotel-mini-form {
-            grid-template-columns: 1fr;
-          }
-        }
-
-
-        .sidebar-logo-img { width: 46px; height: 46px; object-fit: contain; border-radius: 10px; background: #fff; }
-        .logo-config-box { display:flex; gap:16px; align-items:center; padding:14px; border:1px dashed #93c5fd; border-radius:16px; background:#eff6ff; margin-bottom:16px; }
-        .logo-preview { width:92px; height:72px; border-radius:14px; background:#fff; border:1px solid #dbeafe; display:flex; align-items:center; justify-content:center; overflow:hidden; color:#1d4ed8; font-weight:900; }
-        .logo-preview img { width:100%; height:100%; object-fit:contain; }
-        .logo-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-        .logo-upload-label { cursor:pointer; background:#2563eb; color:white; padding:11px 14px; border-radius:12px; font-weight:900; }
-        .logo-upload-label input { display:none; }
-        .map-busy, .map-free { display:inline-flex; align-items:center; justify-content:center; min-width:76px; padding:10px 12px; border-radius:12px; font-weight:900; box-shadow:0 6px 14px rgba(15,23,42,.10); border:1px solid transparent; }
-        .map-busy { background:#dc2626 !important; color:white !important; border-color:#991b1b; }
-        .map-free { background:#16a34a !important; color:white !important; border-color:#166534; }
-        .clean-table tbody tr:hover { background:#f8fafc; }
-        .reservation-actions-extra { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-
-        .operacao-form-reserva {
-          grid-template-columns: repeat(5, minmax(0, 1fr));
-          align-items: start;
-        }
-
-        .operacao-form-reserva .form-wide,
-        .operacao-form-reserva .despesas-reserva-box,
-        .operacao-form-reserva .resumo-reserva-criacao {
-          grid-column: 1 / -1;
-        }
-
-        .despesas-reserva-box {
-          padding: 16px;
-          overflow: hidden;
-        }
-
-        .despesas-reserva-header {
-          margin-bottom: 14px;
-        }
-
-        .despesas-reserva-form {
-          display: grid;
-          grid-template-columns: minmax(260px, 1fr) 90px 160px 190px;
-          gap: 12px;
-          align-items: stretch;
-        }
-
-        .despesas-reserva-form button {
-          width: 100%;
-          min-height: 46px;
-          white-space: nowrap;
-        }
-
-        .despesas-reserva-lista {
-          margin-top: 12px;
-        }
-
-        .despesa-reserva-item {
-          grid-template-columns: minmax(180px, 1fr) 180px 140px 110px;
-        }
-
-        .resumo-reserva-criacao {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          align-items: center;
-          gap: 12px;
-          margin-top: 0;
-          min-height: auto;
-        }
-
-        .resumo-reserva-criacao span,
-        .resumo-reserva-criacao strong {
-          display: block;
-          background: #ffffff;
-          border: 1px solid #dbeafe;
-          border-radius: 12px;
-          padding: 12px 14px;
-          line-height: 1.25;
-        }
-
-        .btn-criar-reserva-pdf {
-          grid-column: 1 / -1;
-          justify-self: end;
-          width: min(320px, 100%);
-          min-height: 48px;
-          margin-top: 0;
-        }
-
-        @media (max-width: 1100px) {
-          .operacao-form-reserva {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-          .despesas-reserva-form,
-          .resumo-reserva-criacao {
-            grid-template-columns: 1fr 1fr;
-          }
-          .despesas-reserva-form button,
-          .resumo-reserva-criacao strong {
-            grid-column: 1 / -1;
-          }
-        }
-
-        @media (max-width: 720px) {
-          .operacao-form-reserva,
-          .despesas-reserva-form,
-          .resumo-reserva-criacao,
-          .despesa-reserva-item {
-            grid-template-columns: 1fr;
-          }
-          .btn-criar-reserva-pdf {
-            justify-self: stretch;
-            width: 100%;
-          }
-        }
-        .reservation-actions-extra button { border:0; border-radius:10px; padding:10px 12px; background:#1d4ed8; color:#fff; font-weight:800; cursor:pointer; }
-        .hotel-menu button { min-height: 52px; }
-
-        /* CORREÇÃO FINAL DO FORMULÁRIO DE RESERVA - NÃO REMOVER */
-        .operacao-form-reserva {
-          display: grid !important;
-          grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-          gap: 12px !important;
-          align-items: stretch !important;
-        }
-
-        .operacao-form-reserva > input,
-        .operacao-form-reserva > select {
-          width: 100% !important;
-          min-width: 0 !important;
-          height: 44px !important;
-        }
-
-        .operacao-form-reserva .despesas-reserva-box {
-          grid-column: span 3 !important;
-          min-height: 150px !important;
-          padding: 14px !important;
-          display: flex !important;
-          flex-direction: column !important;
-          overflow: visible !important;
-        }
-
-        .despesas-reserva-header {
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: center !important;
-          gap: 12px !important;
-          margin-bottom: 12px !important;
-        }
-
-        .despesas-reserva-form {
-          display: grid !important;
-          grid-template-columns: minmax(220px, 1fr) 80px 145px 170px !important;
-          gap: 10px !important;
-          align-items: stretch !important;
-        }
-
-        .despesas-reserva-form input,
-        .despesas-reserva-form button {
-          width: 100% !important;
-          height: 44px !important;
-          min-width: 0 !important;
-        }
-
-        .resumo-reserva-criacao {
-          grid-column: span 1 !important;
-          min-height: 150px !important;
-          display: flex !important;
-          flex-direction: column !important;
-          justify-content: center !important;
-          gap: 8px !important;
-          padding: 14px !important;
-          overflow: visible !important;
-        }
-
-        .resumo-reserva-criacao span,
-        .resumo-reserva-criacao strong {
-          width: 100% !important;
-          display: block !important;
-          padding: 10px 12px !important;
-          border-radius: 10px !important;
-          line-height: 1.25 !important;
-          font-size: 13px !important;
-          word-break: normal !important;
-          white-space: normal !important;
-        }
-
-        .resumo-reserva-criacao strong {
-          font-size: 15px !important;
-        }
-
-        .operacao-form-reserva .btn-criar-reserva-pdf,
-        .operacao-form-reserva > .primary-button {
-          grid-column: span 1 !important;
-          width: 100% !important;
-          min-height: 150px !important;
-          height: 100% !important;
-          align-self: stretch !important;
-          margin: 0 !important;
-          border-radius: 14px !important;
-          white-space: normal !important;
-        }
-
-        @media (max-width: 1250px) {
-          .operacao-form-reserva { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-          .operacao-form-reserva .despesas-reserva-box,
-          .resumo-reserva-criacao,
-          .operacao-form-reserva .btn-criar-reserva-pdf,
-          .operacao-form-reserva > .primary-button { grid-column: 1 / -1 !important; min-height: auto !important; }
-          .despesas-reserva-form { grid-template-columns: 1fr 90px 150px 180px !important; }
-        }
-
-        @media (max-width: 720px) {
-          .operacao-form-reserva,
-          .despesas-reserva-form { grid-template-columns: 1fr !important; }
-        }
-
-
-      `}
-</style>
       <aside className="hotel-sidebar">
         <div className="hotel-brand">
-          <div className="hotel-logo-icon">{empresaLogo ? <img src={empresaLogo} alt="Logo do hotel" className="sidebar-logo-img" /> : icons.hotel}</div>
-          <div>
-            <h1>{empresaConfig?.nome_fantasia || 'CRONOS'}</h1>
-            <p>{empresaConfig?.nome_empresa || 'Sistema Hotel'}</p>
-          </div>
+          <img className="hotel-logo-img" src={hotelBrisasLogo} alt="Hotel Brisas" />
+          <div><h1>HOTEL BRISAS</h1><p>Sistema de Gestão</p></div>
         </div>
-
-        <nav className="hotel-menu professional-menu">
-          <div className="menu-section-label">Visão geral</div>
-          <button className={menuClasse('dashboard')} onClick={() => setTelaAtiva('dashboard')}>
-            <span className="menu-icon">{icons.dashboard}</span> Dashboard
-          </button>
-
-          <div className="menu-section-label">Operação</div>
-          <button className={menuClasse('reservas')} onClick={() => setTelaAtiva('reservas')}>
-            <span className="menu-icon">{icons.reservas}</span> Reservas
-          </button>
-
-          <button className={menuClasse('quartos')} onClick={() => setTelaAtiva('quartos')}>
-            <span className="menu-icon">{icons.quartos}</span> Quartos
-          </button>
-
-          <button className={menuClasse('restaurante')} onClick={() => setTelaAtiva('restaurante')}>
-            <span className="menu-icon">{icons.servicos}</span> Recepção / Restaurante
-          </button>
-
-          <button className={menuClasse('servicos')} onClick={() => setTelaAtiva('servicos')}>
-            <span className="menu-icon">{icons.servicos}</span> Serviços do Hóspede
-          </button>
-
-          <div className="menu-section-label">Gestão</div>
-          <button className={menuClasse('financeiro')} onClick={() => setTelaAtiva('financeiro')}>
-            <span className="menu-icon">{icons.financeiro}</span> Finanças
-          </button>
-
-          <button className={menuClasse('estoque')} onClick={() => setTelaAtiva('estoque')}>
-            <span className="menu-icon">{icons.quartos}</span> Estoque
-          </button>
-
-          <button className={menuClasse('relatorios')} onClick={() => setTelaAtiva('relatorios')}>
-            <span className="menu-icon">{icons.relatorios}</span> Relatórios
-          </button>
-
-          <button className={menuClasse('configuracoes')} onClick={() => setTelaAtiva('configuracoes')}>
-            <span className="menu-icon">{icons.config}</span> Configurações
-          </button>
+        <nav className="hotel-menu">
+          {menu.map(([key, icon, label]) => (
+            <button key={key} className={'menu-link ' + (tab === key ? 'active' : '')} onClick={() => setTab(key)}>
+              <span>{icon}</span>{label}
+            </button>
+          ))}
         </nav>
-
-        <div className="sidebar-user">
-          <div className="user-avatar">
-            {usuarioLogado.nome?.slice(0, 1)}
-          </div>
-
-          <div>
-            <strong>{usuarioLogado.nome}</strong>
-            <small>{usuarioLogado.perfil}</small>
-          </div>
-        </div>
-
-        <button className="logout-button" onClick={sairSistema}>
-          ↪ Sair
-        </button>
+        <div className="sidebar-user"><div className="user-avatar">LA</div><div><strong>Lucas Almeida</strong><small>Administrador</small></div></div>
       </aside>
 
       <main className="hotel-main">
         <header className="hotel-topbar">
-          <div className="topbar-title">
-            <button className="hamburger">☰</button>
-
-            <div>
-              <h2>{tituloTela()}</h2>
-              <p>{subtituloTela()}</p>
-            </div>
-          </div>
-
+          <div className="topbar-title"><button className="hamburger">☰</button><div><h2>{pageTitle}</h2><p>Sistema de Gestão do Hotel Brisas</p></div></div>
           <div className="topbar-right">
-            <div className="topbar-search-wrap">
-              <div className="search-field">
-                <input
-                  placeholder="Buscar hóspede, quarto ou produto..."
-                  value={buscaGlobal}
-                  onChange={(e) => {
-                    setBuscaGlobal(e.target.value)
-                    setMostrarResultadosBusca(true)
-                    setMostrarNotificacoes(false)
-                  }}
-                  onFocus={() => {
-                    setMostrarResultadosBusca(true)
-                    setMostrarNotificacoes(false)
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && resultadosBuscaGlobal()[0]) {
-                      setTelaAtiva(resultadosBuscaGlobal()[0].tela)
-                      setMostrarResultadosBusca(false)
-                    }
-                  }}
-                />
-
-                <button
-                  type="button"
-                  className="search-action"
-                  onClick={() => {
-                    setMostrarResultadosBusca(!mostrarResultadosBusca)
-                    setMostrarNotificacoes(false)
-                  }}
-                >
-                  {icons.search}
-                </button>
-              </div>
-
-              {mostrarResultadosBusca && buscaGlobal.trim() && (
-                <div className="topbar-dropdown search-results-box">
-                  {resultadosBuscaGlobal().length === 0 && (
-                    <div className="dropdown-empty">
-                      Nenhum resultado encontrado
-                    </div>
-                  )}
-
-                  {resultadosBuscaGlobal().map((resultado, index) => (
-                    <button
-                      key={`${resultado.tipo}-${index}`}
-                      type="button"
-                      className="dropdown-item"
-                      onClick={() => {
-                        setTelaAtiva(resultado.tela)
-                        setMostrarResultadosBusca(false)
-                      }}
-                    >
-                      <strong>{resultado.tipo}: {resultado.titulo}</strong>
-                      <span>{resultado.detalhe}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="notification-wrap">
-              <button
-                type="button"
-                className="bell-button"
-                onClick={() => {
-                  setMostrarNotificacoes(!mostrarNotificacoes)
-                  setMostrarResultadosBusca(false)
-                }}
-              >
-                {icons.bell}
-                <small>{quantidadeNotificacoes()}</small>
-              </button>
-
-              {mostrarNotificacoes && (
-                <div className="topbar-dropdown notifications-box">
-                  <h4>Notificações</h4>
-
-                  {notificacoesSistema().map((notificacao, index) => (
-                    <button
-                      key={`${notificacao.titulo}-${index}`}
-                      type="button"
-                      className="dropdown-item"
-                      onClick={() => {
-                        setTelaAtiva(notificacao.tela)
-                        setMostrarNotificacoes(false)
-                      }}
-                    >
-                      <strong>{notificacao.titulo}</strong>
-                      <span>{notificacao.detalhe}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <label className="date-picker date-picker-functional">
-              <input
-                type="date"
-                value={dataSistema}
-                onChange={(e) => {
-                  setDataSistema(e.target.value)
-                  setMostrarResultadosBusca(false)
-                  setMostrarNotificacoes(false)
-                }}
-              />
-              <span>{dataBrasil(dataSistema)}</span>
-            </label>
+            <div className="search-field"><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar reserva, hóspede, quarto..." /><span>⌕</span></div>
+            <button className="bell-button">🔔<small>{reservations.filter(r => r.status === 'pendente').length}</small></button>
+            <input className="date-input-top" type="date" value={todayISO()} readOnly />
           </div>
         </header>
 
-        {reservaCentralSelecionada && (
-          <div className="central-modal-overlay">
-            <div className="central-modal">
-              <div className="central-modal-header">
-                <div>
-                  <h2>Central da Reserva - Quarto {reservaCentralSelecionada.quartos?.numero || '-'}</h2>
-                  <p>{reservaCentralSelecionada.nome_hospede || 'Hóspede'} • {statusOperacionalReserva(reservaCentralSelecionada)}</p>
-                </div>
-                <button onClick={() => setCentralReservaId('')}>Fechar ×</button>
-              </div>
+        {toast && <div className="toast">{toast}</div>}
+        {tab === 'dashboard' && <Dashboard rooms={rooms} reservations={reservations} payments={payments} clients={clients} revenueToday={revenueToday} occupiedRoomIds={occupiedRoomIds} setTab={setTab} clientOf={clientOf} />}
+        {tab === 'painel' && <Painel dates={dates} periodStart={periodStart} setPeriodStart={setPeriodStart} periodDays={periodDays} setPeriodDays={setPeriodDays} groupByType={groupByType} setGroupByType={setGroupByType} roomTypes={roomTypes} rooms={rooms} reservations={reservations} blocks={blocks} expandedTypes={expandedTypes} setExpandedTypes={setExpandedTypes} setSelectedReserva={setSelectedReserva} setBlockModal={setBlockModal} clientOf={clientOf} moveReservation={moveReservation} dragSelection={dragSelection} setDragSelection={setDragSelection} createReservationByDrag={createReservationByDrag} />}
+        {tab === 'reservas' && <Reservas newReservation={newReservation} setNewReservation={setNewReservation} roomTypes={roomTypes} availableRooms={availableRooms} saveReservation={saveReservation} clients={clients} reservations={reservations} clientOf={clientOf} roomOf={roomOf} balance={balance} setSelectedReserva={setSelectedReserva} setReceiveReserva={setReceiveReserva} doCheckin={doCheckin} />}
+        {tab === 'recepcao' && <Recepcao rooms={rooms} roomTypes={roomTypes} reservations={reservations} roomStatus={roomStatus} clientOf={clientOf} roomOf={roomOf} setSelectedReserva={setSelectedReserva} setSelectedRoom={openRoom} setBlockModal={setBlockModal} moveReservation={moveReservation} />}
+        {tab === 'clientes' && <Clientes clients={clients} setClients={setClients} newClient={newClient} setNewClient={setNewClient} saveClient={saveClient} reservations={reservations} />}
+        {tab === 'hospedes' && <Hospedes reservations={reservations} clients={clients} guests={guests} setGuests={setGuests} clientOf={clientOf} roomOf={roomOf} logAction={logAction} notify={notify} />}
+        {tab === 'usuarios' && <Usuarios usuarios={usuarios} setUsuarios={setUsuarios} usuarioForm={usuarioForm} setUsuarioForm={setUsuarioForm} notify={notify} logAction={logAction} />}
+      {tab === 'precheckin' && <PreCheckin preBusca={preBusca} setPreBusca={setPreBusca} reservations={reservations} precheckins={precheckins} setPrecheckins={setPrecheckins} clientOf={clientOf} createPrecheckin={createPrecheckin} />}
+        {tab === 'quartos' && <Quartos roomTypes={roomTypes} rooms={rooms} reservations={reservations} clients={clients} consumos={consumos} payments={payments} setConsumos={setConsumos} setPayments={setPayments} setSelectedRoom={openRoom} notify={notify} logAction={logAction} />}
+        {tab === 'tarifas' && <Tarifas roomTypes={roomTypes} rateForm={rateForm} setRateForm={setRateForm} saveRate={saveRate} rates={rates} />}
+        {tab === 'servicos' && <Servicos products={products} productForm={productForm} setProductForm={setProductForm} saveProduct={saveProduct} consumos={consumos} reservations={reservations} clients={clients} rooms={rooms} />}
+        {tab === 'financeiro' && <Financeiro reservations={reservations} payments={payments} clients={clients} clientOf={clientOf} roomOf={roomOf} setReceiveReserva={setReceiveReserva} setCancelReserva={setCancelReserva} balance={balance} paidTotal={paidTotal} reservationTotal={reservationTotal} />}
+        {tab === 'caixa' && <CaixaDiario payments={payments} consumos={consumos} reservations={reservations} clients={clients} clientOf={clientOf} roomOf={roomOf} />}
+        {tab === 'relatorios' && <Relatorios reservations={reservations} payments={payments} clients={clients} rooms={rooms} clientOf={clientOf} roomOf={roomOf} printReceipt={printReceipt} />}
+        {tab === 'auditoria' && <Auditoria auditLogs={auditLogs} />}
+        {tab === 'config' && <Config roomTypes={roomTypes} rooms={rooms} clients={clients} reservations={reservations} payments={payments} exportSystemData={exportSystemData} clearOperationalData={clearOperationalData} restoreRoomDefaults={restoreRoomDefaults} paymentMethods={paymentMethods} methodForm={methodForm} setMethodForm={setMethodForm} savePaymentMethod={savePaymentMethod} togglePaymentMethod={togglePaymentMethod} />}
+      </main>
 
-              <div className="central-modal-body">
-                <div>
-                  <div className="central-card">
-                    <h3>Dados da reserva</h3>
-                    <div className="central-grid">
-                      <div className="central-info"><span>Entrada</span><strong>{reservaCentralSelecionada.data_entrada || '-'}</strong></div>
-                      <div className="central-info"><span>Saída</span><strong>{reservaCentralSelecionada.data_saida || '-'}</strong></div>
-                      <div className="central-info"><span>Noites</span><strong>{calcularNoitesReserva(reservaCentralSelecionada)}</strong></div>
-                      <div className="central-info"><span>Canal</span><strong>{reservaCentralSelecionada.canal_venda || 'Direto'}</strong></div>
-                      <div className="central-info"><span>Telefone</span><strong>{reservaCentralSelecionada.telefone || '-'}</strong></div>
-                      <div className="central-info"><span>Status</span><strong>{statusOperacionalReserva(reservaCentralSelecionada)}</strong></div>
-                    </div>
-                  </div>
+      {selectedRoom && <RoomModal room={selectedRoom} status={roomStatus(selectedRoom)} reservations={reservations.filter(r => r.quartoId === selectedRoom.id).sort((a,b)=>a.entrada.localeCompare(b.entrada))} blocks={blocks.filter(b => b.quartoId === selectedRoom.id)} clientOf={clientOf} setSelectedReserva={setSelectedReserva} setBlockModal={setBlockModal} setRooms={setRooms} rooms={rooms} onClose={() => setSelectedRoom(null)} />}
+      {selectedReserva && <ReservationModal r={selectedReserva} client={clientOf(selectedReserva)} room={roomOf(selectedReserva.quartoId)} diariaTotal={diariaTotal(selectedReserva)} servicesTotal={servicesTotal(selectedReserva.id)} total={reservationTotal(selectedReserva)} paid={paidTotal(selectedReserva.id)} balance={balance(selectedReserva)} payments={payments.filter(p => p.reservaId === selectedReserva.id)} consumos={consumos.filter(c => c.reservaId === selectedReserva.id)} guests={guests.filter(g => g.reservaId === selectedReserva.id)} onClose={() => setSelectedReserva(null)} onReceive={() => setReceiveReserva(selectedReserva)} onCancel={() => setCancelReserva(selectedReserva)} onCheckin={() => doCheckin(selectedReserva)} onCheckout={() => doCheckout(selectedReserva)} onPre={() => createPrecheckin(selectedReserva)} onService={() => setServiceReserva(selectedReserva)} onTransfer={() => setTransferReserva(selectedReserva)} onReschedule={() => setRescheduleReserva(selectedReserva)} onWhatsapp={() => sendReservationWhatsapp(selectedReserva)} onPrint={() => printReceipt(selectedReserva)} />}
+      {receiveReserva && <ReceiveModal reserva={receiveReserva} client={clientOf(receiveReserva)} saldo={balance(receiveReserva)} paymentMethods={paymentMethods} onClose={() => setReceiveReserva(null)} onSave={receivePayment} />}
+      {cancelReserva && <CancelModal reserva={cancelReserva} received={paidTotal(cancelReserva.id)} onClose={() => setCancelReserva(null)} onSave={cancelWithCredit} />}
+      {rescheduleReserva && <RescheduleModal reserva={rescheduleReserva} rooms={rooms} roomTypes={roomTypes} roomOf={roomOf} availableRooms={availableRooms} onClose={() => setRescheduleReserva(null)} onSave={rescheduleReservation} />}
+      {transferReserva && <TransferModal reserva={transferReserva} rooms={rooms} roomOf={roomOf} availableRooms={availableRooms} onClose={() => setTransferReserva(null)} onSave={transferRoom} />}
+      {serviceReserva && <ServiceModal reserva={serviceReserva} client={clientOf(serviceReserva)} room={roomOf(serviceReserva.quartoId)} onClose={() => setServiceReserva(null)} onSave={saveConsumo} />}
+      {blockModal && <BlockModal rooms={rooms} roomTypes={roomTypes} data={blockModal} onClose={() => setBlockModal(null)} onSave={saveBlock} />}
+      {dragReservationRequest && <DragReservationModal data={dragReservationRequest} setData={setDragReservationRequest} onClose={() => setDragReservationRequest(null)} onSave={confirmDragReservation} />}
+    </div>
+  )
+}
 
-                  <div className="central-card">
-                    <h3>Hóspedes</h3>
-                    <div className="central-grid">
-                      <div className="central-info"><span>Titular</span><strong>{reservaCentralSelecionada.nome_hospede || 'Hóspede'}</strong></div>
-                      <div className="central-info"><span>Quantidade</span><strong>{reservaCentralSelecionada.qtd_hospedes || 1}</strong></div>
-                      <div className="central-info"><span>Tipo</span><strong>{reservaCentralSelecionada.tipo_hospede || 'homem'}</strong></div>
-                    </div>
-                    <div style={{ marginTop: 12 }}>
-                      {Array.from({ length: Math.max(0, Number(reservaCentralSelecionada.qtd_hospedes || 1) - 1) }).map((_, index) => (
-                        <div className="central-info" key={`acompanhante-${index}`} style={{ marginTop: 8 }}>
-                          <span>Acompanhante {index + 1}</span>
-                          <strong>Acompanhante não identificado</strong>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
 
-                  <div className="central-card">
-                    <h3>Conta da reserva integrada</h3>
-                    <div className="fasthotel-table-wrap">
-                      <table className="fasthotel-table">
-                        <thead>
-                          <tr>
-                            <th>Tipo</th>
-                            <th>Data</th>
-                            <th>Descrição</th>
-                            <th>Qtd.</th>
-                            <th>Valor</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {gerarLinhasContaReserva(reservaCentralSelecionada).map((linha, indice) => (
-                            <tr key={`central-linha-${indice}`} className={linha.tipo === 'pagamento' ? 'payment-line' : ''}>
-                              <td>{linha.tipo === 'pagamento' ? 'Pagamento' : 'Despesa'}</td>
-                              <td>{formatarDataCurta(linha.data)}</td>
-                              <td>{linha.produto}</td>
-                              <td>{linha.quantidade}</td>
-                              <td>{formatarMoeda(linha.valor)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+function DragReservationModal({ data, setData, onClose, onSave }) {
+  const noites = diffDays(data.entrada, data.saida)
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-card clean-reservation-modal">
+        <div className="modal-head">
+          <div>
+            <h3>Criar reserva</h3>
+            <p>Quarto {data.roomNumber} · {data.tipo} · {data.entrada} até {data.saida} · {noites} diária{noites > 1 ? 's' : ''}</p>
+          </div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="form-grid">
+          <label className="full">Nome do cliente
+            <input autoFocus value={data.nome} onChange={e => setData({ ...data, nome: e.target.value })} placeholder="Digite o nome completo" />
+          </label>
+          <label>Telefone/WhatsApp
+            <input value={data.telefone} onChange={e => setData({ ...data, telefone: e.target.value })} placeholder="(91) 99999-9999" />
+          </label>
+          <label>CPF/CNPJ
+            <input value={data.cpf} onChange={e => setData({ ...data, cpf: e.target.value })} placeholder="000.000.000-00" />
+          </label>
+        </div>
+        <div className="actions modal-actions">
+          <button className="ghost" onClick={onClose}>Cancelar</button>
+          <button className="primary" onClick={() => onSave(data)}>Criar reserva</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-                    <div className="central-mini-form">
-                      <input placeholder="Produto/serviço/consumo" value={descricaoConsumo} onChange={(e) => setDescricaoConsumo(e.target.value)} />
-                      <input placeholder="Valor" type="number" value={valorConsumo} onChange={(e) => setValorConsumo(e.target.value)} />
-                      <button onClick={() => { setReservaContaId(reservaCentralSelecionada.id); setTimeout(() => lancarConsumo(), 0) }}>Adicionar</button>
-                    </div>
 
-                    <div className="central-mini-form">
-                      <select value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)}>
-                        <option>Dinheiro</option>
-                        <option>PIX</option>
-                        <option>Cartão de crédito</option>
-                        <option>Cartão de débito</option>
-                        <option>Transferência</option>
-                      </select>
-                      <input placeholder="Valor recebido" type="number" value={valorPagamento} onChange={(e) => setValorPagamento(e.target.value)} />
-                      <button onClick={() => { setReservaContaId(reservaCentralSelecionada.id); setTimeout(() => registrarPagamento(), 0) }}>Receber</button>
-                    </div>
-                  </div>
 
-                  <div className="central-card">
-                    <h3>Observações</h3>
-                    <p>{reservaCentralSelecionada.observacao || reservaCentralSelecionada.observacoes || 'Nenhuma observação cadastrada.'}</p>
-                  </div>
-                </div>
+function RoomAccountModal({ data, setData, rooms, reservations, clients, consumos, payments, onClose, onAdd, onReceive }) {
+  const room = rooms.find(r => r.id === data.roomId) || {}
+  const activeReservations = reservations.filter(r => r.quartoId === data.roomId && ['hospedado','confirmada','pendente'].includes(r.status))
+  const reserva = reservations.find(r => r.id === data.reservaId) || activeReservations[0]
+  const cliente = clients.find(c => c.id === reserva?.clienteId) || {}
+  const itens = reserva ? consumos.filter(c => c.reservaId === reserva.id) : []
+  const totalConsumo = itens.reduce((s, c) => s + Number(c.qtd || 1) * Number(c.valor || 0), 0)
+  const pagoConsumo = reserva ? payments
+    .filter(p => p.reservaId === reserva.id && p.tipo === 'recebimento' && String(p.observacao || '').toLowerCase().includes('consumo'))
+    .reduce((s, p) => s + Number(p.valor || 0), 0) : 0
+  const saldo = Math.max(0, totalConsumo - pagoConsumo)
 
-                <aside className="central-resumo-lateral">
-                  <div className="central-total-box">
-                    <span>Saldo da reserva</span>
-                    <strong>{formatarMoeda(saldoCentralSelecionada)}</strong>
-                    <div className="central-total-row"><b>Diárias</b><b>{formatarMoeda(totalDiariasCentral)}</b></div>
-                    <div className="central-total-row"><b>Consumos</b><b>{formatarMoeda(totalConsumosCentral)}</b></div>
-                    <div className="central-total-row"><b>Recebido</b><b>{formatarMoeda(totalPagamentosCentral)}</b></div>
-                  </div>
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-card quarto-conta-modal">
+        <div className="modal-head">
+          <div>
+            <h3>Quarto {room.numero}</h3>
+            <p>{room.tipo} · {reserva ? `Reserva ${reserva.codigo} — ${cliente.nome || 'Cliente'}` : 'Sem reserva ativa'}</p>
+          </div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
 
-                  <div className="central-card">
-                    <h3>Fluxo operacional</h3>
-                    <div className="central-grid">
-                      <div className="central-info"><span>1</span><strong>Reservado</strong></div>
-                      <div className="central-info"><span>2</span><strong>Check-in</strong></div>
-                      <div className="central-info"><span>3</span><strong>Hospedado</strong></div>
-                      <div className="central-info"><span>4</span><strong>Pagamento</strong></div>
-                      <div className="central-info"><span>5</span><strong>Check-out</strong></div>
-                      <div className="central-info"><span>6</span><strong>Limpeza/Livre</strong></div>
-                    </div>
-                  </div>
-
-                  <div className="central-acoes-rapidas">
-                    {!reservaCentralSelecionada.checkin && !reservaCentralSelecionada.checkout && (
-                      <button className="primary" onClick={() => fazerCheckin(reservaCentralSelecionada)}>Fazer check-in</button>
-                    )}
-                    {reservaCentralSelecionada.checkin && !reservaCentralSelecionada.checkout && (
-                      <button className="danger" onClick={() => fazerCheckout(reservaCentralSelecionada)}>Fazer check-out</button>
-                    )}
-                    <button className="blue" onClick={() => { setReservaContaId(reservaCentralSelecionada.id); setTelaAtiva('financeiro'); setCentralReservaId('') }}>Abrir no financeiro</button>
-                    <button onClick={() => gerarRelatorioReservaPDF(reservaCentralSelecionada)}>Gerar resumo da reserva</button>
-                  </div>
-                </aside>
-              </div>
-            </div>
+        {!reserva && (
+          <div className="empty-room-account">
+            <b>Quarto sem hospedagem ativa.</b>
+            <span>Para lançar consumo, primeiro crie ou vincule uma reserva ao quarto.</span>
           </div>
         )}
 
-
-        {telaAtiva === 'dashboard' && (
+        {reserva && (
           <>
-            <section className="stats-grid">
-              <div className="stat-card blue">
-                <div className="stat-icon">▤</div>
-                <div className="stat-info">
-                  <span>Quartos ocupados</span>
-                  <strong>{ocupados}</strong>
-                  <small>de {totalQuartosReal} quartos</small>
-                  <div className="progress">
-                    <div style={{ width: `${percentualOcupacao}%` }} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="stat-card green">
-                <div className="stat-icon">♙</div>
-                <div className="stat-info">
-                  <span>Hóspedes</span>
-                  <strong>
-                    {reservas.reduce((total, reserva) => total + Number(reserva.qtd_hospedes || 0), 0)}
-                  </strong>
-                  <small>hóspedes no total</small>
-                  <div className="progress">
-                    <div style={{ width: `${percentualHospedes}%` }} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="stat-card orange">
-                <div className="stat-icon">▣</div>
-                <div className="stat-info">
-                  <span>Check-ins hoje</span>
-                  <strong>{reservasHoje()}</strong>
-                  <small>reservas</small>
-                  <div className="progress">
-                    <div style={{ width: `${percentualReservasHoje}%` }} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="stat-card purple">
-                <div className="stat-icon">▢</div>
-                <div className="stat-info">
-                  <span>Check-outs hoje</span>
-                  <strong>
-                    {reservas.filter((reserva) => reserva.checkout).length}
-                  </strong>
-                  <small>reservas</small>
-                  <div className="progress">
-                    <div style={{ width: `${percentualCheckouts}%` }} />
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="dashboard-grid">
-              <div className="white-panel reservations-panel">
-                <div className="panel-header">
-                  <h3>Reservas dos próximos 7 dias</h3>
-                  <button onClick={() => setTelaAtiva('reservas')}>Abrir reservas</button>
-                </div>
-
-                <table className="clean-table">
-                  <thead>
-                    <tr>
-                      <th>Hóspede</th>
-                      <th>Check-in</th>
-                      <th>Check-out</th>
-                      <th>Quarto</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {proximasReservas.length === 0 && (
-                      <tr>
-                        <td colSpan="5">Nenhuma reserva cadastrada</td>
-                      </tr>
-                    )}
-
-                    {proximasReservas.map((reserva) => (
-                      <tr key={reserva.id} className="linha-clicavel" onClick={() => abrirCentralReserva(reserva)}>
-                        <td>
-                          <div className="guest-cell">
-                            <img
-                              className="guest-avatar-img"
-                              src={avatarHospede(reserva.tipo_hospede)}
-                              alt={reserva.tipo_hospede || 'hóspede'}
-                            />
-                            {reserva.nome_hospede}
-                          </div>
-                        </td>
-                        <td>{reserva.data_entrada}</td>
-                        <td>{reserva.data_saida}</td>
-                        <td>{reserva.quartos?.numero}</td>
-                        <td>
-                          <span className={reserva.status === 'reservada' ? 'status confirmed' : 'status pending'}>
-                            {reserva.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="white-panel occupancy-panel">
-                <h3>Ocupação de quartos</h3>
-
-                <div className="donut-wrap">
-                  <div
-                    className="donut"
-                    style={{
-                      background: `conic-gradient(#3b82f6 ${percentualOcupacao * 3.6}deg, #eef0f5 0deg)`
-                    }}
-                  >
-                    <div>
-                      <strong>{percentualOcupacao}%</strong>
-                      <span>Ocupação atual</span>
-                    </div>
-                  </div>
-
-                  <div className="legend">
-                    <p><b className="dot blue-dot" /> Ocupados {ocupados}</p>
-                    <p><b className="dot gray-dot" /> Reservados {reservados}</p>
-                    <p><b className="dot gray-dot" /> Disponíveis {disponiveis}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="white-panel actions-panel">
-                <h3>Ações rápidas</h3>
-
-                <div className="quick-actions">
-                  <button onClick={() => setTelaAtiva('reservas')}>
-                    <span className="qa blue">+</span>
-                    Nova reserva
-                  </button>
-
-                  <button onClick={() => setTelaAtiva('reservas')}>
-                    <span className="qa green">↪</span>
-                    Operação
-                  </button>
-
-                  <button onClick={() => setTelaAtiva('reservas')}>
-                    <span className="qa orange">↩</span>
-                    Saídas hoje
-                  </button>
-
-                  <button onClick={() => setTelaAtiva('reservas')}>
-                    <span className="qa purple">♙</span>
-                    Novo hóspede
-                  </button>
-
-                  <button onClick={() => setTelaAtiva('financeiro')}>
-                    <span className="qa blue">◒</span>
-                    Caixa
-                  </button>
-                </div>
-              </div>
-
-              <div className="white-panel revenue-panel">
-                <h3>Receita do dia</h3>
-
-                <div className="revenue-value">
-                  {formatarMoeda(receitaHoje)}
-                  <small className={receitaSubiu ? 'positive' : 'negative'}>
-                    {receitaSubiu ? '↑' : '↓'} {Math.abs(percentualReceitaHoje)}%
-                  </small>
-                </div>
-
-                <p>em relação a ontem</p>
-
-                <div className="fake-chart">
-                  <svg viewBox="0 0 400 160" preserveAspectRatio="none">
-                    <path
-                      d="M0,130 C35,60 65,120 95,80 C130,35 170,70 200,90 C230,110 250,40 285,72 C320,100 345,120 400,40"
-                      fill="none"
-                      stroke="#3b82f6"
-                      strokeWidth="4"
-                    />
-                    <path
-                      d="M0,130 C35,60 65,120 95,80 C130,35 170,70 200,90 C230,110 250,40 285,72 C320,100 345,120 400,40 L400,160 L0,160 Z"
-                      fill="rgba(59,130,246,0.10)"
-                    />
-                  </svg>
-
-                  <div className="chart-hours">
-                    <span>00h</span>
-                    <span>06h</span>
-                    <span>12h</span>
-                    <span>18h</span>
-                    <span>23h</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </>
-        )}
-        {telaAtiva === 'reservas' && (
-          <div className="reservas-page">
-            {podeFazerReserva() && (
-              <div className="white-panel">
-                <div className="panel-header">
-                  <h2>Criar Reserva</h2>
-                </div>
-
-                <div className="form-grid operacao-form-reserva">
-                  <select value={quartoId} onChange={(e) => setQuartoId(e.target.value)}>
-                    <option value="">Selecione o quarto</option>
-
-                    {(Array.isArray(quartos) ? quartos : []).map((q) => (
-                      <option key={q.id} value={q.id}>
-                        Quarto {q.numero || '-'} - {q.andar || 'Sem andar'} - {q.tipo || 'A definir'} - R$ {q.valor_diaria || 0} - {q.status || 'livre'}
-                      </option>
-                    ))}
-                  </select>
-
-                  <input
-                    placeholder="Nome do hóspede"
-                    value={nomeHospede}
-                    onChange={(e) => setNomeHospede(e.target.value)}
-                  />
-
-                  <input
-                    placeholder="Telefone"
-                    value={telefone}
-                    onChange={(e) => setTelefone(e.target.value)}
-                  />
-
-                  <input
-                    type="date"
-                    value={entrada}
-                    onChange={(e) => setEntrada(e.target.value)}
-                  />
-
-                  <input
-                    type="date"
-                    value={saida}
-                    onChange={(e) => setSaida(e.target.value)}
-                  />
-
-                  <input
-                    type="number"
-                    placeholder="Qtd hóspedes"
-                    value={qtdHospedes}
-                    onChange={(e) => setQtdHospedes(e.target.value)}
-                  />
-
-                  <select value={tipoHospede} onChange={(e) => setTipoHospede(e.target.value)}>
-                    <option value="homem">Homem</option>
-                    <option value="mulher">Mulher</option>
-                    <option value="menino">Menino</option>
-                    <option value="menina">Menina</option>
-                  </select>
-
-                  <select value={canalVenda} onChange={(e) => setCanalVenda(e.target.value)}>
-                    <option>Direto</option>
-                    <option>WhatsApp</option>
-                    <option>Booking</option>
-                    <option>Recepção</option>
-                    <option>Telefone</option>
-                  </select>
-
-                  <input
-                    placeholder="Valor da diária"
-                    value={valorReservaManual}
-                    onChange={(e) => setValorReservaManual(e.target.value)}
-                  />
-
-                  <input
-                    placeholder="Observação"
-                    value={observacao}
-                    onChange={(e) => setObservacao(e.target.value)}
-                  />
-
-                  <div className="form-wide despesas-reserva-box">
-                    <div className="despesas-reserva-header">
-                      <strong>Outras despesas da reserva</strong>
-                      <span>Total extra: {formatarMoeda(totalDespesasReservaTemporarias())}</span>
-                    </div>
-
-                    <div className="despesas-reserva-form">
-                      <input
-                        placeholder="Descrição. Ex: Café, passeio, taxa"
-                        value={despesaReservaDescricao}
-                        onChange={(e) => setDespesaReservaDescricao(e.target.value)}
-                      />
-                      <input
-                        type="number"
-                        min="1"
-                        placeholder="Qtd."
-                        value={despesaReservaQuantidade}
-                        onChange={(e) => setDespesaReservaQuantidade(e.target.value)}
-                      />
-                      <input
-                        placeholder="Valor unitário"
-                        value={despesaReservaValor}
-                        onChange={(e) => setDespesaReservaValor(e.target.value)}
-                      />
-                      <button type="button" onClick={adicionarDespesaReserva}>
-                        Adicionar despesa
-                      </button>
-                    </div>
-
-                    {despesasReserva.length > 0 && (
-                      <div className="despesas-reserva-lista">
-                        {despesasReserva.map((item) => (
-                          <div key={item.id} className="despesa-reserva-item">
-                            <span>{item.descricao}</span>
-                            <small>Qtd. {item.quantidade} × {formatarMoeda(item.valor_unitario)}</small>
-                            <strong>{formatarMoeda(item.valor_total)}</strong>
-                            <button type="button" onClick={() => removerDespesaReserva(item.id)}>
-                              Remover
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="form-wide resumo-reserva-criacao">
-                    <span>
-                      Diária: {formatarMoeda(valorDiariaReservaDigitado())}
-                    </span>
-                    <span>
-                      Outras despesas: {formatarMoeda(totalDespesasReservaTemporarias())}
-                    </span>
-                    <strong>
-                      Total da reserva: {formatarMoeda(totalReservaTemporariarelatório())}
-                    </strong>
-                  </div>
-
-                  <button className="primary-button btn-criar-reserva-pdf" onClick={criarReserva}>
-                    Finalizar reserva
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="reservas-status-grid">
-              <div className="reserva-status-card livre"><span>Livres</span><strong>{disponiveis}</strong></div>
-              <div className="reserva-status-card ocupado"><span>Ocupados</span><strong>{ocupados}</strong></div>
-              <div className="reserva-status-card reservado"><span>Reservados</span><strong>{reservados}</strong></div>
-              <div className="reserva-status-card limpeza"><span>Limpeza</span><strong>{totalQuartosStatus('limpeza')}</strong></div>
+            <div className="room-account-summary">
+              <div><small>Total consumido</small><b>{BRL.format(totalConsumo)}</b></div>
+              <div><small>Pago em consumo</small><b>{BRL.format(pagoConsumo)}</b></div>
+              <div className={saldo > 0 ? 'saldo-devedor' : 'saldo-ok'}><small>Saldo consumo</small><b>{BRL.format(saldo)}</b></div>
             </div>
 
-            <div className="white-panel">
-              <div className="panel-header">
-                <h2>Mapa de Reservas</h2>
-              </div>
-
-              <div className="table-scroll reservas-table-scroll">
-                <table className="clean-table">
-                  <thead>
-                    <tr>
-                      <th>Quarto</th>
-                      {(Array.isArray(datasMapa) ? datasMapa : []).map((data) => (
-                        <th key={data}>{data}</th>
-                      ))}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {(Array.isArray(quartos) ? quartos : []).length === 0 && (
-                      <tr>
-                        <td colSpan={(Array.isArray(datasMapa) ? datasMapa.length : 0) + 1}>
-                          Nenhum quarto cadastrado
-                        </td>
-                      </tr>
-                    )}
-
-                    {(Array.isArray(quartos) ? quartos : []).map((quarto) => (
-                      <tr key={quarto.id}>
-                        <td>
-                          <strong>{quarto.numero || '-'}</strong>
-                        </td>
-
-                        {(Array.isArray(datasMapa) ? datasMapa : []).map((data) => {
-                          const reservaEncontrada = (Array.isArray(reservas) ? reservas : []).find((item) => {
-                            const entradaReserva = item?.data_entrada || ''
-                            const saidaReserva = item?.data_saida || ''
-
-                            return (
-                              item?.quarto_id === quarto.id &&
-                              data >= entradaReserva &&
-                              data <= saidaReserva
-                            )
-                          })
-
-                          return (
-                            <td key={`${quarto.id}-${data}`}>
-                              <span className={reservaEncontrada ? 'map-busy' : 'map-free'}>
-                                {reservaEncontrada ? reservaEncontrada.nome_hospede : 'Livre'}
-                              </span>
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="white-panel">
-              <div className="panel-header">
-                <h2>Reservas</h2>
-              </div>
-
-              <div className="reservation-cards">
-                {(Array.isArray(reservas) ? reservas : []).length === 0 && (
-                  <div className="empty-state">
-                    Nenhuma reserva cadastrada
-                  </div>
-                )}
-
-                {(Array.isArray(reservas) ? reservas : []).map((reserva) => {
-                  const valorReserva = Number(reserva?.valor_total || 0)
-                  const consumoReserva = totalConsumosReserva(reserva.id)
-                  const pagamentoReserva = totalPagamentosReserva(reserva.id)
-                  const saldoReserva = calcularSaldoReserva(reserva)
-
-                  return (
-                    <div key={reserva.id} className="reservation-card">
-                      <div className="guest-cell">
-                        <img
-                          className="guest-avatar-img"
-                          src={avatarHospede(reserva.tipo_hospede)}
-                          alt={reserva.tipo_hospede || 'hóspede'}
-                        />
-
-                        <div>
-                          <h3>{reserva.nome_hospede || 'Hóspede'}</h3>
-                          <small>{reserva.tipo_hospede || 'homem'}</small>
-                        </div>
-                      </div>
-
-                      <p>Quarto: {reserva.quartos?.numero || '-'} - {reserva.quartos?.tipo || 'A definir'}</p>
-                      <p>Entrada: {reserva.data_entrada || '-'}</p>
-                      <p>Saída: {reserva.data_saida || '-'}</p>
-                      <p>Hóspedes: {reserva.qtd_hospedes || 1}</p>
-                      <p>Canal: {reserva.canal_venda || '-'}</p>
-                      <p>Diárias: {formatarMoeda(valorReserva)}</p>
-                      <p>Consumos: {formatarMoeda(consumoReserva)}</p>
-                      <p>Pago: {formatarMoeda(pagamentoReserva)}</p>
-                      <p>Saldo: {formatarMoeda(saldoReserva)}</p>
-                      <p>Status: <strong>{reserva.status || 'reservado'}</strong></p>
-
-                      <div className="button-row">
-                        <button onClick={() => abrirCentralReserva(reserva)}>Abrir Central da Reserva</button>
-                        <button onClick={() => gerarRelatorioReservaPDF(reserva)}>Gerar resumo da reserva</button>
-
-                        {!reserva.checkin && !reserva.checkout && (
-                          <button onClick={() => fazerCheckin(reserva)}>
-                            Check-in
-                          </button>
-                        )}
-
-                        {reserva.checkin && !reserva.checkout && (
-                          <>
-                            <input
-                              placeholder="Observação do checkout"
-                              value={observacaoCheckout}
-                              onChange={(e) => setObservacaoCheckout(e.target.value)}
-                            />
-
-                            <button onClick={() => fazerCheckout(reserva)}>
-                              Check-out
-                            </button>
-
-                            <button onClick={() => window.print()}>
-                              Imprimir
-                            </button>
-                          </>
-                        )}
-
-                        {reserva.checkout && (
-                          <strong className="finished">
-                            Reserva finalizada
-                          </strong>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-
-        {telaAtiva === 'financeiro' && podeAcessarFinanceiro() && (
-          <>
-            <div className="fasthotel-window">
-              <div className="fasthotel-titlebar">
-                <strong>Conta da reserva {reservaContaSelecionada ? `#${String(reservaContaSelecionada.id).slice(0, 8)}` : ''}</strong>
-                <div className="fasthotel-window-actions">
-                  <button title="Bloquear">🔒</button>
-                  <button title="Ajuda">?</button>
-                  <button title="Fechar">×</button>
-                </div>
-              </div>
-
-              <div className="fasthotel-toolbar">
-                <button className="fasthotel-link" onClick={() => setTelaAtiva('reservas')}>Abrir reservas</button>
-                <label><input type="checkbox" /> Agrupar por produto</label>
-                <label><input type="checkbox" /> Ordenar por data</label>
-                <label><input type="checkbox" defaultChecked /> Ocultar estornados, transferidos ou zerados</label>
-              </div>
-
-              <div className="fasthotel-reserva-select">
-                <span>Reserva / quarto</span>
-                <select
-                  value={reservaContaId}
-                  onChange={(e) => setReservaContaId(e.target.value)}
-                >
-                  <option value="">Selecione a reserva</option>
-                  {reservas
-                    .filter((reserva) => !reserva.checkout)
-                    .map((reserva) => (
-                      <option key={reserva.id} value={reserva.id}>
-                        Quarto {reserva.quartos?.numero || '-'} - {reserva.nome_hospede || 'Hóspede'} - {formatarMoeda(calcularSaldoReserva(reserva))}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              {reservaContaSelecionada ? (
-                <div className="fasthotel-account-box">
-                  <div className="fasthotel-account-header">
-                    <div>
-                      <h2>⌄ Quarto {reservaContaSelecionada.quartos?.numero || '-'} <span>👤 {reservaContaSelecionada.nome_hospede || 'Hóspede'}</span></h2>
-                      <div className="fasthotel-meta">
-                        <b>Data:</b> {formatarDataCurta(reservaContaSelecionada.data_entrada)} 12:00:00 - {formatarDataCurta(reservaContaSelecionada.data_saida)} 11:59:00 ({calcularNoitesReserva(reservaContaSelecionada)} diárias)
-                        <b> Hóspedes:</b> {reservaContaSelecionada.qtd_hospedes || 1} / 0
-                        <b> Tipo de quarto contratado:</b> {reservaContaSelecionada.quartos?.tipo || 'A definir'}
-                        <b> Tipo de tarifa:</b> Tarifa Padrão
-                      </div>
-                    </div>
-                    <span className="checkedin-pill">{reservaContaSelecionada.checkin ? 'Checked-in' : 'Reservado'}</span>
-                  </div>
-
-                  <div className="fasthotel-table-wrap">
-                    <table className="fasthotel-table">
-                      <thead>
-                        <tr>
-                          <th></th>
-                          <th>Item</th>
-                          <th>Data</th>
-                          <th>Produto</th>
-                          <th>Qtd.</th>
-                          <th>Preço Total (R$)</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {gerarLinhasContaReserva(reservaContaSelecionada).map((linha, indice) => (
-                          <tr key={`${linha.produto}-${indice}`} className={linha.tipo === 'pagamento' ? 'payment-line' : ''}>
-                            <td><input type="checkbox" /></td>
-                            <td>{indice + 1}</td>
-                            <td>{formatarDataCurta(linha.data)}</td>
-                            <td>{linha.produto}</td>
-                            <td>{linha.quantidade}</td>
-                            <td>{formatarMoeda(linha.valor).replace('R$', '').trim()}</td>
-                            <td className="delete-line">×</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr>
-                          <td colSpan="5">Total</td>
-                          <td>{formatarMoeda(saldoContaSelecionada).replace('R$', '').trim()}</td>
-                          <td></td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-
-                  <div className="fasthotel-summary-row">
-                    <strong>Despesas: {formatarMoeda(totalDiariasConta + totalConsumosConta)}</strong>
-                    <strong>Recebido: {formatarMoeda(totalPagamentosConta)}</strong>
-                    <strong>Saldo: {formatarMoeda(saldoContaSelecionada)}</strong>
-                    <button className="dark-action">＋ Adicionar item</button>
-                    <button className="light-action">▣ Receber</button>
-                    <button className="light-action">⇄ Transferir</button>
-                    <button className="light-action" onClick={() => window.print()}>🖨 Imprimir</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="fasthotel-empty">Selecione uma reserva para visualizar a conta igual ao modelo FastHotel.</div>
+            <div className="form-grid">
+              <label>Item / Produto
+                <input value={data.item || ''} onChange={e => setData({ ...data, item: e.target.value })} placeholder="Ex: Água, refrigerante, almoço..." />
+              </label>
+              <label>Quantidade
+                <input type="number" min="1" value={data.qtd || 1} onChange={e => setData({ ...data, qtd: e.target.value })} />
+              </label>
+              <label>Valor unitário
+                <input value={data.valor || ''} onChange={e => setData({ ...data, valor: e.target.value })} placeholder="R$" />
+              </label>
+              {activeReservations.length > 1 && (
+                <label>Reserva vinculada
+                  <select value={data.reservaId || reserva.id} onChange={e => setData({ ...data, reservaId: e.target.value })}>
+                    {activeReservations.map(r => <option key={r.id} value={r.id}>{r.codigo}</option>)}
+                  </select>
+                </label>
               )}
             </div>
 
-            <div className="fasthotel-dual-grid">
-              <div className="white-panel fasthotel-operation-panel">
-                <h2>Receber pagamento</h2>
-                <p className="panel-subtitle">Selecione a conta acima, informe o valor e a forma de pagamento.</p>
-                <div className="fasthotel-mini-form">
-                  <input
-                    placeholder="Valor do pagamento"
-                    type="number"
-                    value={valorPagamento}
-                    onChange={(e) => setValorPagamento(e.target.value)}
-                  />
-                  <select value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)}>
-                    <option>Dinheiro</option>
-                    <option>PIX</option>
-                    <option>Cartão de crédito</option>
-                    <option>Cartão de débito</option>
-                    <option>Transferência</option>
-                  </select>
-                  <button onClick={registrarPagamento} disabled={!reservaContaId}>Receber</button>
-                </div>
-              </div>
-
-              <div className="white-panel fasthotel-operation-panel">
-                <h2>Adicionar item</h2>
-                <p className="panel-subtitle">Lance itens extras diretamente na conta.</p>
-                <div className="fasthotel-mini-form">
-                  <input placeholder="Produto / descrição" value={descricaoConsumo} onChange={(e) => setDescricaoConsumo(e.target.value)} />
-                  <input placeholder="Valor" type="number" value={valorConsumo} onChange={(e) => setValorConsumo(e.target.value)} />
-                  <button onClick={lancarConsumo} disabled={!reservaContaId}>Adicionar item</button>
-                </div>
-              </div>
+            <div className="actions">
+              <button onClick={() => onAdd({ ...data, reservaId: data.reservaId || reserva.id })}>Adicionar item</button>
+              {saldo > 0 && <button className="primary" onClick={() => onReceive(reserva.id, saldo)}>Receber consumo</button>}
             </div>
 
-            {podeAcessarCaixa() && (
-              <div className="white-panel">
-                <div className="panel-header">
-                  <h2>Caixa</h2>
-                  <strong>Saldo: {formatarMoeda(saldoCaixa())}</strong>
-                </div>
-
-                <div className="form-grid">
-                  <select value={caixaTipo} onChange={(e) => setCaixaTipo(e.target.value)}>
-                    <option value="entrada">Entrada</option>
-                    <option value="saida">Saída</option>
-                  </select>
-                  <input placeholder="Descrição" value={caixaDescricao} onChange={(e) => setCaixaDescricao(e.target.value)} />
-                  <input placeholder="Valor" type="number" value={caixaValor} onChange={(e) => setCaixaValor(e.target.value)} />
-                  <select value={caixaFormaPagamento} onChange={(e) => setCaixaFormaPagamento(e.target.value)}>
-                    <option>Dinheiro</option>
-                    <option>PIX</option>
-                    <option>Cartão de crédito</option>
-                    <option>Cartão de débito</option>
-                    <option>Transferência</option>
-                  </select>
-                  <button onClick={lancarCaixa}>Lançar caixa</button>
-                </div>
-
-                <table className="clean-table tabela-caixa">
-                  <thead><tr><th>Tipo</th><th>Descrição</th><th>Valor</th><th>Forma</th></tr></thead>
-                  <tbody>
-                    {caixa.length === 0 && <tr><td colSpan="4">Nenhum lançamento no caixa</td></tr>}
-                    {caixa.slice(0, 8).map((item) => (
-                      <tr key={item.id}>
-                        <td><span className={item.tipo === 'entrada' ? 'status confirmed' : 'status pending'}>{item.tipo}</span></td>
-                        <td>{item.descricao}</td>
-                        <td>{formatarMoeda(item.valor)}</td>
-                        <td>{item.forma_pagamento || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
-        )}
-        {telaAtiva === 'quartos' && (
-          <div className="quartos-operacao-page">
-            <section className="stats-grid">
-              <div className="stat-card green"><div className="stat-info"><span>Livres</span><strong>{totalQuartosStatus('livre')}</strong><small>Prontos para receber</small></div></div>
-              <div className="stat-card orange"><div className="stat-info"><span>Reservados</span><strong>{totalQuartosStatus('reservado')}</strong><small>Aguardando chegada</small></div></div>
-              <div className="stat-card blue"><div className="stat-info"><span>Ocupados</span><strong>{totalQuartosStatus('ocupado')}</strong><small>Com hóspede ativo</small></div></div>
-              <div className="stat-card purple"><div className="stat-info"><span>Em limpeza</span><strong>{totalQuartosStatus('limpeza')}</strong><small>Aguardando liberação</small></div></div>
-            </section>
-
-            <div className="white-panel quartos-config-panel">
-              <div className="panel-header">
-                <h2>Organização dos quartos</h2>
-              </div>
-
-              <div className="quartos-config-layout">
-                <div className="quartos-lista-config">
-                  {(Array.isArray(quartos) ? quartos : []).map((quarto) => {
-                    const reservaAtual = reservaAbertaDoQuarto(quarto.id)
-                    const itensQuarto = produtosDoQuarto(quarto.id)
-                    return (
-                      <button
-                        key={quarto.id}
-                        type="button"
-                        className={`quarto-config-item ${String(quartoGestaoId) === String(quarto.id) ? 'active' : ''}`}
-                        onClick={() => {
-                          setQuartoGestaoId(quarto.id)
-                          setNovoNomeQuarto(quarto.numero || '')
-                        }}
-                      >
-                        <strong>{quarto.numero || 'Sem nome'}</strong>
-                        <span>{quarto.tipo || 'A definir'} • {quarto.status || 'livre'}</span>
-                        <small>{reservaAtual ? reservaAtual.nome_hospede || 'Hóspede ativo' : 'Sem hóspede'} • {itensQuarto.length} item(ns)</small>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                <div className="quarto-config-detalhe">
-                  {!quartoGestaoId && (
-                    <div className="empty-state">Selecione um quarto para renomear e organizar os produtos do frigobar.</div>
-                  )}
-
-                  {quartoGestaoId && (() => {
-                    const quartoSelecionado = quartos.find((item) => String(item.id) === String(quartoGestaoId))
-                    const reservaAtual = reservaAbertaDoQuarto(quartoGestaoId)
-                    const itensQuarto = produtosDoQuarto(quartoGestaoId)
-                    return (
-                      <>
-                        <div className="quarto-config-header">
-                          <div>
-                            <span>Quarto selecionado</span>
-                            <h3>{quartoSelecionado?.numero || '-'}</h3>
-                            <p>{quartoSelecionado?.tipo || 'A definir'} • {quartoSelecionado?.status || 'livre'}</p>
-                          </div>
-                          <div>
-                            <span>Hóspede atual</span>
-                            <h3>{reservaAtual?.nome_hospede || 'Sem hóspede'}</h3>
-                            <p>{reservaAtual ? `${reservaAtual.data_entrada || '-'} até ${reservaAtual.data_saida || '-'}` : 'Quarto sem reserva aberta'}</p>
-                          </div>
-                        </div>
-
-                        <div className="form-grid quarto-config-form">
-                          <input
-                            placeholder="Novo nome/número do quarto"
-                            value={novoNomeQuarto}
-                            onChange={(e) => setNovoNomeQuarto(e.target.value)}
-                          />
-                          <button onClick={renomearQuarto}>Salvar nome</button>
-                        </div>
-
-                        <div className="quarto-frigobar-box">
-                          <div className="panel-header compact">
-                            <h3>Frigobar / produtos preparados</h3>
-                            <button onClick={() => setTelaAtiva('estoque')}>Cadastrar produto</button>
-                          </div>
-
-                          <div className="form-grid quarto-produto-form">
-                            <select value={produtoQuartoId} onChange={(e) => setProdutoQuartoId(e.target.value)}>
-                              <option value="">Selecione o produto</option>
-                              {produtosDisponiveisParaQuarto().map((produto) => (
-                                <option key={produto.id} value={produto.id}>
-                                  {produto.nome} • estoque {produto.estoque_atual || 0} • {formatarMoeda(produto.valor_venda || 0)}
-                                </option>
-                              ))}
-                            </select>
-                            <input
-                              type="number"
-                              min="0"
-                              placeholder="Quantidade preparada"
-                              value={quantidadeProdutoQuarto}
-                              onChange={(e) => setQuantidadeProdutoQuarto(e.target.value)}
-                            />
-                            <input
-                              placeholder="Observação"
-                              value={observacaoProdutoQuarto}
-                              onChange={(e) => setObservacaoProdutoQuarto(e.target.value)}
-                            />
-                            <button onClick={adicionarProdutoAoQuarto}>Adicionar ao quarto</button>
-                          </div>
-
-                          <table className="clean-table quarto-produtos-table">
-                            <thead><tr><th>Produto</th><th>Quantidade</th><th>Valor</th><th>Local</th><th></th></tr></thead>
-                            <tbody>
-                              {itensQuarto.length === 0 && (
-                                <tr><td colSpan="5">Nenhum produto preparado neste quarto.</td></tr>
-                              )}
-                              {itensQuarto.map((produto) => (
-                                <tr key={produto.id}>
-                                  <td>{produto.nome}</td>
-                                  <td>{produto.estoque_atual || 0}</td>
-                                  <td>{formatarMoeda(produto.valor_venda || 0)}</td>
-                                  <td>{produto.local_uso || '-'}</td>
-                                  <td><button className="secondary-button" onClick={() => removerProdutoDoQuarto(produto)}>Remover</button></td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        {reservaAtual && (
-                          <div className="quarto-consumo-rapido">
-                            <h3>Consumo rápido deste quarto</h3>
-                            <div className="form-grid">
-                              <select value={consumoProdutoId} onChange={(e) => setConsumoProdutoId(e.target.value)}>
-                                <option value="">Produto consumido</option>
-                                {itensQuarto.map((produto) => (
-                                  <option key={produto.id} value={produto.id}>{produto.nome} • {formatarMoeda(produto.valor_venda || 0)}</option>
-                                ))}
-                              </select>
-                              <input type="number" min="1" placeholder="Quantidade" value={consumoQuantidade} onChange={(e) => setConsumoQuantidade(e.target.value)} />
-                              <input placeholder="Observação" value={consumoObservacao} onChange={(e) => setConsumoObservacao(e.target.value)} />
-                              <button onClick={() => { setConsumoReservaId(reservaAtual.id); window.setTimeout(() => lancarConsumoQuarto(), 0) }}>Lançar consumo</button>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )
-                  })()}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {telaAtiva === 'restaurante' && (
-          <div className="recepcao-restaurante-page">
-            <div className="white-panel">
-              <div className="panel-header">
-                <h2>Lançar consumo manual</h2>
-                <button onClick={() => setTelaAtiva('estoque')}>Cadastrar produtos</button>
-              </div>
-
-              <div className="form-grid consumo-manual-form">
-                <select value={consumoReservaId} onChange={(e) => setConsumoReservaId(e.target.value)}>
-                  <option value="">Selecione a reserva/quarto</option>
-                  {(Array.isArray(reservas) ? reservas : [])
-                    .filter((reserva) => !reserva.checkout)
-                    .map((reserva) => (
-                      <option key={reserva.id} value={reserva.id}>
-                        {reserva.quartos?.numero || '-'} - {reserva.nome_hospede || 'Hóspede'}
-                      </option>
-                    ))}
-                </select>
-
-                <select value={consumoProdutoId} onChange={(e) => setConsumoProdutoId(e.target.value)}>
-                  <option value="">Produto/serviço</option>
-                  {(Array.isArray(produtos) ? produtos : [])
-                    .filter((produto) => produto.ativo !== false)
-                    .map((produto) => (
-                      <option key={produto.id} value={produto.id}>
-                        {produto.nome} - {formatarMoeda(produto.valor_venda || 0)}
-                      </option>
-                    ))}
-                </select>
-
-                <input type="number" placeholder="Quantidade" value={consumoQuantidade} onChange={(e) => setConsumoQuantidade(e.target.value)} />
-                <input placeholder="Descrição/observação" value={consumoObservacao} onChange={(e) => setConsumoObservacao(e.target.value)} />
-                <button onClick={lancarConsumoQuarto}>Lançar consumo</button>
-              </div>
-            </div>
-
-            <div className="white-panel">
-              <div className="panel-header">
-                <h2>Quartos com consumo</h2>
-              </div>
-
-              <div className="consumo-quartos-grid">
-                {reservasAtivasComConsumo().length === 0 && (
-                  <div className="empty-state">Nenhum quarto com consumo em aberto.</div>
-                )}
-
-                {reservasAtivasComConsumo().map((reserva) => {
-                  const itens = consumosAtivosDaReserva(reserva.id)
-                  const totalItens = itens.reduce((total, consumo) => total + Number(consumo.valor || 0), 0)
-
-                  return (
-                    <div key={reserva.id} className="consumo-quarto-card">
-                      <div className="consumo-quarto-topo">
-                        <div><span>Quarto</span><strong>{reserva.quartos?.numero || '-'}</strong></div>
-                        <div><span>Hóspede</span><strong>{reserva.nome_hospede || 'Hóspede'}</strong></div>
-                        <div><span>Total</span><strong>{formatarMoeda(totalItens)}</strong></div>
-                      </div>
-
-                      <table className="clean-table consumo-itens-table">
-                        <thead><tr><th>Descrição</th><th>Data</th><th>Valor</th></tr></thead>
-                        <tbody>
-                          {itens.map((consumo) => (
-                            <tr key={consumo.id}>
-                              <td>{consumo.descricao || 'Consumo'}</td>
-                              <td>{formatarDataCurta(String(consumo.criado_em || consumo.created_at || '').slice(0, 10))}</td>
-                              <td>{formatarMoeda(consumo.valor || 0)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-
-        {telaAtiva === 'servicos' && (
-          <div className="servicos-hospede-page">
-            <section className="white-panel servicos-hospede-hero">
-              <div>
-                <h2>Serviços para o hóspede</h2>
-                <p>Cardápio e serviços para envio pelo WhatsApp.</p>
-              </div>
-            </section>
-
-            <section className="white-panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Enviar link de serviços</h2>
-                  
-                </div>
-              </div>
-
-              <div className="form-grid servicos-hospede-form">
-                <select
-                  value={consumoReservaId}
-                  onChange={(e) => setConsumoReservaId(e.target.value)}
-                >
-                  <option value="">Selecione a reserva/quarto</option>
-                  {(Array.isArray(reservas) ? reservas : [])
-                    .filter((reserva) => !reserva.checkout)
-                    .map((reserva) => (
-                      <option key={reserva.id} value={reserva.id}>
-                        Quarto {reserva.quartos?.numero || '-'} - {reserva.nome_hospede || 'Hóspede'}
-                      </option>
-                    ))}
-                </select>
-
-                <button
-                  className="primary-button"
-                  type="button"
-                  onClick={() => {
-                    const reservaSelecionada = (Array.isArray(reservas) ? reservas : []).find((reserva) => String(reserva.id) === String(consumoReservaId))
-
-                    if (!reservaSelecionada) {
-                      mostrarAviso('Selecione uma reserva ativa para enviar o link.', 'erro')
-                      return
-                    }
-
-                    if (!reservaSelecionada.telefone) {
-                      mostrarAviso('A reserva selecionada não tem telefone salvo.', 'erro')
-                      return
-                    }
-
-                    const linkServicos = `${window.location.origin}/servicos-hospede?reserva=${reservaSelecionada.id}`
-                    const mensagem = [
-                      `Olá, ${reservaSelecionada.nome_hospede || 'hóspede'}!`,
-                      '',
-                      `Segue o link de serviços do ${empresaFantasia || empresaConfig?.nome_fantasia || 'hotel'}:`,
-                      linkServicos,
-                      '',
-                      'Por ele você pode escolher cardápio, bebidas, frigobar e outros serviços.'
-                    ].join('\n')
-
-                    window.open(`https://wa.me/${telefoneWhatsApp(reservaSelecionada.telefone)}?text=${encodeURIComponent(mensagem)}`, '_blank')
-                  }}
-                >
-                  Enviar link pelo WhatsApp
-                </button>
-              </div>
-            </section>
-
-            <section className="white-panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Cardápio e serviços disponíveis</h2>
-                  <p className="panel-subtitle">Produtos ativos que aparecem como opções para o hóspede.</p>
-                </div>
-                <button onClick={() => setTelaAtiva('estoque')}>Cadastrar produtos</button>
-              </div>
-
-              <div className="servicos-cardapio-grid">
-                {(Array.isArray(produtos) ? produtos : [])
-                  .filter((produto) => produto.ativo !== false)
-                  .slice(0, 18)
-                  .map((produto) => (
-                    <div className="servico-cardapio-card" key={produto.id}>
-                      <strong>{produto.nome}</strong>
-                      <span>{produto.local_uso || produto.tipo || 'Serviço'}</span>
-                      <b>{formatarMoeda(produto.valor_venda || 0)}</b>
-                    </div>
-                  ))}
-
-                {(Array.isArray(produtos) ? produtos : []).filter((produto) => produto.ativo !== false).length === 0 && (
-                  <p className="config-info">Nenhum produto ou serviço ativo cadastrado ainda.</p>
-                )}
-              </div>
-            </section>
-          </div>
-        )}
-
-        {telaAtiva === 'estoque' && podeAcessarEstoque() && (
-          <>
-            <section className="stats-grid">
-              <div className="stat-card blue">
-                <div className="stat-info">
-                  <span>Produtos ativos</span>
-                  <strong>{produtos.filter((produto) => produto.ativo).length}</strong>
-                  <small>Produtos e serviços cadastrados</small>
-                </div>
-              </div>
-
-              <div className="stat-card green">
-                <div className="stat-info">
-                  <span>Categorias</span>
-                  <strong>{categoriasProdutos.length}</strong>
-                  <small>Categorias cadastradas</small>
-                </div>
-              </div>
-
-              <div className="stat-card orange">
-                <div className="stat-info">
-                  <span>Baixo estoque</span>
-                  <strong>{totalEstoqueBaixo()}</strong>
-                  <small>Itens em alerta</small>
-                </div>
-              </div>
-
-              <div className="stat-card purple">
-                <div className="stat-info">
-                  <span>Movimentações</span>
-                  <strong>{movimentacoesEstoque.length}</strong>
-                  <small>Entradas e saídas</small>
-                </div>
-              </div>
-            </section>
-
-            <div className="white-panel">
-              <div className="panel-header">
-                <h2>Cadastro de Produtos</h2>
-              </div>
-
-              <div className="form-grid">
-                <input
-                  placeholder="Nova categoria"
-                  value={nomeCategoria}
-                  onChange={(e) => setNomeCategoria(e.target.value)}
-                />
-
-                <button onClick={salvarCategoriaProduto}>
-                  Salvar categoria
-                </button>
-              </div>
-
-              <div className="form-grid">
-                <input
-                  placeholder="Nome do produto"
-                  value={produtoNome}
-                  onChange={(e) => setProdutoNome(e.target.value)}
-                />
-
-                <select
-                  value={produtoCategoriaId}
-                  onChange={(e) => setProdutoCategoriaId(e.target.value)}
-                >
-                  <option value="">Categoria</option>
-                  {categoriasProdutos.map((categoria) => (
-                    <option key={categoria.id} value={categoria.id}>
-                      {categoria.nome}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={produtoTipo}
-                  onChange={(e) => setProdutoTipo(e.target.value)}
-                >
-                  <option>Produto</option>
-                  <option>Serviço</option>
-                </select>
-
-                <input
-                  placeholder="Valor de venda"
-                  type="number"
-                  value={produtoValor}
-                  onChange={(e) => setProdutoValor(e.target.value)}
-                />
-
-                <input
-                  placeholder="Estoque atual"
-                  type="number"
-                  value={produtoEstoque}
-                  onChange={(e) => setProdutoEstoque(e.target.value)}
-                />
-
-                <input
-                  placeholder="Estoque mínimo"
-                  type="number"
-                  value={produtoEstoqueMinimo}
-                  onChange={(e) => setProdutoEstoqueMinimo(e.target.value)}
-                />
-
-                <select
-                  value={produtoLocalUso}
-                  onChange={(e) => setProdutoLocalUso(e.target.value)}
-                >
-                  <option>Geral</option>
-                  <option>Frigobar do quarto</option>
-                  <option>Recepção / Restaurante</option>
-                  <option>Bar</option>
-                  <option>Limpeza</option>
-                </select>
-
-                <label className="checkbox-line">
-                  <input
-                    type="checkbox"
-                    checked={produtoFrigobar}
-                    onChange={(e) => setProdutoFrigobar(e.target.checked)}
-                  />
-                  Controlar estoque desse item
-                </label>
-
-                <button onClick={salvarProduto}>
-                  Salvar produto
-                </button>
-              </div>
-            </div>
-
-            <div className="white-panel">
-              <div className="panel-header">
-                <h2>Movimentação de Estoque</h2>
-              </div>
-
-              <div className="form-grid">
-                <select
-                  value={produtoMovimentoId}
-                  onChange={(e) => setProdutoMovimentoId(e.target.value)}
-                >
-                  <option value="">Selecione o produto</option>
-                  {produtos.map((produto) => (
-                    <option key={produto.id} value={produto.id}>
-                      {produto.nome} - Estoque: {produto.estoque_atual}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={tipoMovimentoEstoque}
-                  onChange={(e) => setTipoMovimentoEstoque(e.target.value)}
-                >
-                  <option value="entrada">Entrada</option>
-                  <option value="saida">Saída</option>
-                </select>
-
-                <input
-                  placeholder="Quantidade"
-                  type="number"
-                  value={quantidadeMovimento}
-                  onChange={(e) => setQuantidadeMovimento(e.target.value)}
-                />
-
-                <input
-                  placeholder="Observação"
-                  value={observacaoMovimento}
-                  onChange={(e) => setObservacaoMovimento(e.target.value)}
-                />
-
-                <button onClick={movimentarEstoque}>
-                  Atualizar estoque
-                </button>
-              </div>
-            </div>
-
-            <div className="white-panel">
-              <div className="panel-header">
-                <h2>Produtos cadastrados</h2>
-              </div>
-
-              <table className="clean-table">
-                <thead>
-                  <tr>
-                    <th>Nome</th>
-                    <th>Categoria</th>
-                    <th>Tipo</th>
-                    <th>Valor</th>
-                    <th>Estoque</th>
-                    <th>Local</th>
-                    <th>Frigobar</th>
-                    <th>Status</th>
+            <h4>Itens consumidos no quarto</h4>
+            <table className="data-table">
+              <thead><tr><th>Data</th><th>Item</th><th>Qtd.</th><th>Valor</th><th>Total</th></tr></thead>
+              <tbody>
+                {itens.length === 0 && <tr><td colSpan="5">Nenhum consumo lançado.</td></tr>}
+                {itens.map(c => (
+                  <tr key={c.id}>
+                    <td>{c.data}</td>
+                    <td>{c.item}</td>
+                    <td>{c.qtd}</td>
+                    <td>{BRL.format(Number(c.valor || 0))}</td>
+                    <td>{BRL.format(Number(c.qtd || 1) * Number(c.valor || 0))}</td>
                   </tr>
-                </thead>
+                ))}
+              </tbody>
+            </table>
 
-                <tbody>
-                  {produtos.length === 0 && (
-                    <tr>
-                      <td colSpan="8">Nenhum produto cadastrado</td>
-                    </tr>
-                  )}
-
-                  {produtos.map((produto) => (
-                    <tr key={produto.id}>
-                      <td>{produto.nome}</td>
-                      <td>{produto.categorias_produtos?.nome || '-'}</td>
-                      <td>{produto.tipo}</td>
-                      <td>{formatarMoeda(produto.valor_venda)}</td>
-                      <td>{produto.estoque_atual}</td>
-                      <td>{produto.local_uso || 'Geral'}</td>
-                      <td>{produto.usado_em_frigobar ? 'Sim' : 'Não'}</td>
-                      <td>
-                        <span className={
-                          Number(produto.estoque_atual || 0) <= Number(produto.estoque_minimo || 0)
-                            ? 'status pending'
-                            : 'status confirmed'
-                        }>
-                          {Number(produto.estoque_atual || 0) <= Number(produto.estoque_minimo || 0)
-                            ? 'Baixo estoque'
-                            : 'OK'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {saldo > 0 && <div className="checkout-warning">Checkout bloqueado enquanto houver consumo em aberto neste quarto.</div>}
           </>
         )}
-        {telaAtiva === 'relatorios' && (
-          <>
-            <div className="white-panel print-report-panel">
-              <div className="print-company-header">
-                <h1>{empresaConfig?.nome_fantasia || 'CRONOS'}</h1>
-                <p>{empresaConfig?.nome_empresa || 'Sistema Hotel'}</p>
-                <p>
-                  {empresaConfig?.cnpj && `CNPJ: ${empresaConfig.cnpj} | `}
-                  {empresaConfig?.telefone && `Telefone: ${empresaConfig.telefone} | `}
-                  {empresaConfig?.email && `E-mail: ${empresaConfig.email}`}
-                </p>
-                <p>
-                  {empresaConfig?.endereco}
-                  {empresaConfig?.cidade && ` - ${empresaConfig.cidade}`}
-                  {empresaConfig?.estado && `/${empresaConfig.estado}`}
-                </p>
-              </div>
-
-              <div className="panel-header">
-                <h2>Relatórios por Período</h2>
-                <button onClick={() => window.print()}>Imprimir</button>
-              </div>
-
-              <div className="report-filter no-print">
-                <div>
-                  <label>Data inicial</label>
-                  <input
-                    type="date"
-                    value={relatorioDataInicio}
-                    onChange={(e) => setRelatorioDataInicio(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label>Data final</label>
-                  <input
-                    type="date"
-                    value={relatorioDataFim}
-                    onChange={(e) => setRelatorioDataFim(e.target.value)}
-                  />
-                </div>
-
-                <button onClick={() => window.print()}>
-                  Imprimir relatório
-                </button>
-              </div>
-
-              <div className="period-title">
-                <strong>Período:</strong> {dataBrasil(relatorioDataInicio)} até {dataBrasil(relatorioDataFim)}
-              </div>
-
-              <section className="stats-grid report-stats">
-                <div className="stat-card blue">
-                  <div className="stat-info">
-                    <span>Reservas no período</span>
-                    <strong>{reservasPorPeriodo().length}</strong>
-                    <small>{formatarMoeda(totalReservasPeriodo())}</small>
-                  </div>
-                </div>
-
-                <div className="stat-card green">
-                  <div className="stat-info">
-                    <span>Pagamentos recebidos</span>
-                    <strong>{formatarMoeda(totalPagamentosPeriodo())}</strong>
-                    <small>Total recebido no período</small>
-                  </div>
-                </div>
-
-                <div className="stat-card orange">
-                  <div className="stat-info">
-                    <span>Consumos</span>
-                    <strong>{formatarMoeda(totalConsumosPeriodo())}</strong>
-                    <small>Itens e serviços consumidos</small>
-                  </div>
-                </div>
-
-                <div className="stat-card purple">
-                  <div className="stat-info">
-                    <span>Saldo estimado</span>
-                    <strong>{formatarMoeda(reservasPorPeriodo().reduce((total, reserva) => total + calcularSaldoReserva(reserva), 0))}</strong>
-                    <small>Somente contas abertas</small>
-                  </div>
-                </div>
-              </section>
-
-              <div className="report-section">
-                <h3>Reservas do período</h3>
-
-                <table className="clean-table">
-                  <thead>
-                    <tr>
-                      <th>Hóspede</th>
-                      <th>Quarto</th>
-                      <th>Entrada</th>
-                      <th>Saída</th>
-                      <th>Status</th>
-                      <th>Valor</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {reservasPorPeriodo().length === 0 && (
-                      <tr>
-                        <td colSpan="6">Nenhuma reserva no período selecionado</td>
-                      </tr>
-                    )}
-
-                    {reservasPorPeriodo().map((reserva) => (
-                      <tr key={reserva.id} className="linha-clicavel" onClick={() => abrirCentralReserva(reserva)}>
-                        <td>{reserva.nome_hospede || '-'}</td>
-                        <td>{reserva.quartos?.numero || '-'}</td>
-                        <td>{reserva.data_entrada || '-'}</td>
-                        <td>{reserva.data_saida || '-'}</td>
-                        <td>{reserva.status || '-'}</td>
-                        <td>{formatarMoeda(reserva.valor_total || 0)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="report-section">
-                <h3>Consumos do período</h3>
-
-                <table className="clean-table">
-                  <thead>
-                    <tr>
-                      <th>Descrição</th>
-                      <th>Reserva</th>
-                      <th>Data</th>
-                      <th>Valor</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {consumosPorPeriodo().length === 0 && (
-                      <tr>
-                        <td colSpan="4">Nenhum consumo no período selecionado</td>
-                      </tr>
-                    )}
-
-                    {consumosPorPeriodo().map((consumo) => (
-                      <tr key={consumo.id}>
-                        <td>{consumo.descricao || '-'}</td>
-                        <td>{consumo.reserva_id || '-'}</td>
-                        <td>{String(consumo.criado_em || '').slice(0, 10)}</td>
-                        <td>{formatarMoeda(consumo.valor || 0)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="report-section">
-                <h3>Pagamentos do período</h3>
-
-                <table className="clean-table">
-                  <thead>
-                    <tr>
-                      <th>Forma</th>
-                      <th>Reserva</th>
-                      <th>Data</th>
-                      <th>Valor</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {pagamentosPorPeriodo().length === 0 && (
-                      <tr>
-                        <td colSpan="4">Nenhum pagamento no período selecionado</td>
-                      </tr>
-                    )}
-
-                    {pagamentosPorPeriodo().map((pagamento) => (
-                      <tr key={pagamento.id}>
-                        <td>{pagamento.forma_pagamento || '-'}</td>
-                        <td>{pagamento.reserva_id || '-'}</td>
-                        <td>{String(pagamento.criado_em || '').slice(0, 10)}</td>
-                        <td>{formatarMoeda(pagamento.valor || 0)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
-        )}
-
-
-        {telaAtiva === 'configuracoes' && (
-          <>
-            <div className="white-panel">
-              <div className="panel-header">
-                <h2>Dados da Empresa</h2>
-                <button onClick={salvarEmpresaConfig}>Salvar empresa</button>
-              </div>
-
-              <div className="logo-config-box">
-                <div className="logo-preview">
-                  {empresaLogo ? <img src={empresaLogo} alt="Logo do hotel" /> : 'LOGO'}
-                </div>
-                <div>
-                  <strong>Logo do hotel para o sistema e relatórios</strong>
-                  <p>Envie uma imagem PNG/JPG para aparecer no sistema e no topo dos relatórios.</p>
-                  <div className="logo-actions">
-                    <label className="logo-upload-label">
-                      Escolher logo
-                      <input type="file" accept="image/*" onChange={(e) => carregarLogoHotel(e.target.files?.[0])} />
-                    </label>
-                    {empresaLogo && <button type="button" onClick={removerLogoHotel}>Remover logo</button>}
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-grid">
-                <input
-                  placeholder="Nome fantasia que aparece no topo"
-                  value={empresaFantasia}
-                  onChange={(e) => setEmpresaFantasia(e.target.value)}
-                />
-
-                <input
-                  placeholder="Razão social / Nome da empresa"
-                  value={empresaNome}
-                  onChange={(e) => setEmpresaNome(e.target.value)}
-                />
-
-                <input
-                  placeholder="CNPJ"
-                  value={empresaCnpj}
-                  onChange={(e) => setEmpresaCnpj(e.target.value)}
-                />
-
-                <input
-                  placeholder="Telefone"
-                  value={empresaTelefone}
-                  onChange={(e) => setEmpresaTelefone(e.target.value)}
-                />
-
-                <input
-                  placeholder="E-mail"
-                  value={empresaEmail}
-                  onChange={(e) => setEmpresaEmail(e.target.value)}
-                />
-
-                <input
-                  placeholder="Endereço"
-                  value={empresaEndereco}
-                  onChange={(e) => setEmpresaEndereco(e.target.value)}
-                />
-
-                <input
-                  placeholder="Cidade"
-                  value={empresaCidade}
-                  onChange={(e) => setEmpresaCidade(e.target.value)}
-                />
-
-                <input
-                  placeholder="Estado"
-                  value={empresaEstado}
-                  onChange={(e) => setEmpresaEstado(e.target.value)}
-                />
-
-                <input
-                  placeholder="Observação para relatórios"
-                  value={empresaObservacao}
-                  onChange={(e) => setEmpresaObservacao(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {usuarioLogado?.perfil === 'Administrador' && (
-              <div className="white-panel">
-                <div className="panel-header"><h2>Usuários do Sistema</h2></div>
-
-                <div className="form-grid">
-                  <input placeholder="Nome" value={novoNome} onChange={(e) => setNovoNome(e.target.value)} />
-                  <input placeholder="Telefone" value={novoTelefone} onChange={(e) => setNovoTelefone(e.target.value)} />
-                  <input placeholder="Login" value={novoLogin} onChange={(e) => setNovoLogin(e.target.value)} />
-                  <input placeholder="Senha" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
-                  <select value={novoPerfil} onChange={(e) => setNovoPerfil(e.target.value)}>
-                    <option>Administrador</option><option>Recepção</option><option>Financeiro</option><option>Limpeza</option>
-                  </select>
-                  <button onClick={criarUsuario}>Criar usuário</button>
-                </div>
-
-                <div className="user-list">
-                  {usuarios.map((usuario) => (
-                    <div key={usuario.id} className="user-card">
-                      <strong>{usuario.nome}</strong>
-                      <p>Login: {usuario.login}</p><p>Perfil: {usuario.perfil}</p><p>Telefone: {usuario.telefone || 'Não informado'}</p><p>Status: {usuario.ativo ? 'Ativo' : 'Inativo'}</p>
-                      <div className="button-row"><button onClick={() => setEditandoUsuario(usuario)}>Editar</button><button onClick={() => alterarStatusUsuario(usuario)}>{usuario.ativo ? 'Desativar' : 'Ativar'}</button></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {editandoUsuario && usuarioLogado?.perfil === 'Administrador' && (
-              <div className="white-panel">
-                <h2>Editar Usuário</h2>
-                <div className="form-grid">
-                  <input placeholder="Nome" value={editandoUsuario.nome} onChange={(e) => setEditandoUsuario({ ...editandoUsuario, nome: e.target.value })} />
-                  <input placeholder="Telefone" value={editandoUsuario.telefone || ''} onChange={(e) => setEditandoUsuario({ ...editandoUsuario, telefone: e.target.value })} />
-                  <input placeholder="Login" value={editandoUsuario.login} onChange={(e) => setEditandoUsuario({ ...editandoUsuario, login: e.target.value })} />
-                  <input placeholder="Senha" value={editandoUsuario.senha} onChange={(e) => setEditandoUsuario({ ...editandoUsuario, senha: e.target.value })} />
-                  <select value={editandoUsuario.perfil} onChange={(e) => setEditandoUsuario({ ...editandoUsuario, perfil: e.target.value })}>
-                    <option>Administrador</option><option>Recepção</option><option>Financeiro</option><option>Limpeza</option>
-                  </select>
-                </div>
-                <div className="button-row"><button onClick={salvarEdicaoUsuario}>Salvar alterações</button><button onClick={() => setEditandoUsuario(null)}>Cancelar</button></div>
-              </div>
-            )}
-
-          </>
-        )}
-
-
-
-
-        <div className="footer">
-          DEVELOPED BY DINHO OLIVEIRA
-        </div>
-      </main>
+      </div>
     </div>
   )
+}
+
+
+function Card({ label, value, sub, icon, color }) {
+  return <div className="stat-card"><div className={`stat-icon ${color}`}>{icon}</div><div><p>{label}</p><h3>{value}</h3><small>{sub}</small></div></div>
+}
+
+
+function Usuarios({ usuarios, setUsuarios, usuarioForm, setUsuarioForm, notify, logAction }) {
+  function saveUsuario() {
+    if (!usuarioForm.nome?.trim() || !usuarioForm.email?.trim() || !usuarioForm.perfil?.trim()) {
+      notify('Informe nome, e-mail e perfil do usuário.')
+      return
+    }
+    const novo = {
+      id: id(),
+      nome: usuarioForm.nome.trim(),
+      email: usuarioForm.email.trim(),
+      perfil: usuarioForm.perfil,
+      ativo: usuarioForm.ativo !== false
+    }
+    setUsuarios([novo, ...usuarios])
+    setUsuarioForm({ nome: '', email: '', perfil: 'Recepção', senha: '', ativo: true })
+    logAction('Usuário cadastrado', `${novo.nome} - ${novo.perfil}`)
+    notify('Usuário cadastrado.')
+  }
+
+  function toggleUsuario(uid) {
+    setUsuarios(usuarios.map(u => u.id === uid ? { ...u, ativo: !u.ativo } : u))
+  }
+
+  return (
+    <section className="usuarios-page grid-two">
+      <div className="panel-card">
+        <h3>Cadastrar usuário do sistema</h3>
+        <p className="hint">Crie usuários para operar o sistema com perfil de acesso.</p>
+
+        <div className="form-grid">
+          <label>Nome*
+            <input value={usuarioForm.nome} onChange={e => setUsuarioForm({ ...usuarioForm, nome: e.target.value })} placeholder="Nome do usuário" />
+          </label>
+          <label>E-mail*
+            <input value={usuarioForm.email} onChange={e => setUsuarioForm({ ...usuarioForm, email: e.target.value })} placeholder="usuario@email.com" />
+          </label>
+          <label>Perfil*
+            <select value={usuarioForm.perfil} onChange={e => setUsuarioForm({ ...usuarioForm, perfil: e.target.value })}>
+              <option>Administrador</option>
+              <option>Recepção</option>
+              <option>Financeiro</option>
+              <option>Serviços</option>
+              <option>Consulta</option>
+            </select>
+          </label>
+          <label>Senha inicial
+            <input type="password" value={usuarioForm.senha} onChange={e => setUsuarioForm({ ...usuarioForm, senha: e.target.value })} placeholder="Opcional nesta versão" />
+          </label>
+        </div>
+
+        <div className="actions">
+          <button className="ghost" onClick={() => setUsuarioForm({ nome: '', email: '', perfil: 'Recepção', senha: '', ativo: true })}>Limpar</button>
+          <button className="primary" onClick={saveUsuario}>Cadastrar usuário</button>
+        </div>
+      </div>
+
+      <div className="panel-card">
+        <h3>Usuários cadastrados</h3>
+        <table className="data-table">
+          <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody>
+            {usuarios.map(u => (
+              <tr key={u.id}>
+                <td><b>{u.nome}</b></td>
+                <td>{u.email || '-'}</td>
+                <td>{u.perfil}</td>
+                <td><span className={`pill ${u.ativo ? 'confirmada' : 'cancelada'}`}>{u.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                <td><button onClick={() => toggleUsuario(u.id)}>{u.ativo ? 'Desativar' : 'Ativar'}</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+
+function Dashboard({ rooms, clients, reservations, payments, setTab }) {
+  const today = todayISO()
+  const ocupados = rooms.filter(q => reservations.some(r => r.quartoId === q.id && r.status === 'hospedado')).length
+  const checkinsHoje = reservations.filter(r => r.entrada === today && r.status !== 'cancelada').length
+  const checkoutsHoje = reservations.filter(r => r.saida === today && r.status !== 'cancelada').length
+  const receitaDia = payments
+    .filter(p => p.tipo === 'recebimento' && p.data === today)
+    .reduce((s, p) => s + Number(p.valor || 0), 0)
+
+  const recentes = [
+    ...reservations.slice(0, 3).map(r => ({
+      icon: '✓',
+      color: 'blue',
+      title: r.status === 'hospedado' ? 'Check-in realizado' : 'Nova reserva criada',
+      desc: `${clients.find(c => c.id === r.clienteId)?.nome || 'Cliente'} · Quarto ${rooms.find(q => q.id === r.quartoId)?.numero || '-'}`,
+      time: 'Hoje'
+    })),
+    ...payments.slice(0, 2).map(p => ({
+      icon: '$',
+      color: 'green',
+      title: 'Pagamento recebido',
+      desc: BRL.format(Number(p.valor || 0)),
+      time: p.data === today ? 'Hoje' : p.data
+    }))
+  ].slice(0, 5)
+
+  const metricCards = [
+    {
+      label: 'Quartos ocupados',
+      value: ocupados,
+      sub: `de ${rooms.length} quartos`,
+      icon: '▭',
+      color: 'blue',
+      action: () => setTab('quartos')
+    },
+    {
+      label: 'Check-ins hoje',
+      value: checkinsHoje,
+      sub: `${reservations.filter(r => r.entrada === today && r.status === 'pendente').length} pendentes`,
+      icon: '↪',
+      color: 'green',
+      action: () => setTab('recepcao')
+    },
+    {
+      label: 'Check-outs hoje',
+      value: checkoutsHoje,
+      sub: 'previstos para hoje',
+      icon: '↩',
+      color: 'orange',
+      action: () => setTab('recepcao')
+    },
+    {
+      label: 'Receita do dia',
+      value: BRL.format(receitaDia),
+      sub: `${payments.filter(p => p.tipo === 'recebimento' && p.data === today).length} pagamentos`,
+      icon: '$',
+      color: 'purple',
+      action: () => setTab('financeiro')
+    }
+  ]
+
+  const quickActions = [
+    ['▣', 'Nova reserva', 'reservas'],
+    ['↪', 'Check-in', 'recepcao'],
+    ['↩', 'Check-out', 'recepcao'],
+    ['☑', 'Pré check-in', 'precheckin'],
+    ['▭', 'Ver quartos', 'quartos'],
+    ['$', 'Caixa diário', 'caixa']
+  ]
+
+  return (
+    <section className="dashboard-clean">
+      <div className="dashboard-welcome">
+        <div>
+          <h2>Olá, Administrador</h2>
+          <p>Resumo operacional do Hotel Brisas</p>
+        </div>
+        <div className="dashboard-date-pill">
+          <span>▣</span>
+          <b>{today.split('-').reverse().join('/')}</b>
+        </div>
+      </div>
+
+      <div className="clean-metrics-grid">
+        {metricCards.map(card => (
+          <button key={card.label} className={`clean-metric-card ${card.color}`} onClick={card.action}>
+            <div className="clean-metric-icon">{card.icon}</div>
+            <div>
+              <small>{card.label}</small>
+              <strong>{card.value}</strong>
+              <span>{card.sub}</span>
+            </div>
+            <em>›</em>
+          </button>
+        ))}
+      </div>
+
+      <div className="dashboard-clean-grid">
+        <div className="clean-panel clean-activities">
+          <div className="clean-panel-head">
+            <div>
+              <h3>Atividades recentes</h3>
+              <p>Últimas movimentações importantes do hotel</p>
+            </div>
+            <span>☰</span>
+          </div>
+
+          <div className="activity-list">
+            {recentes.length === 0 && (
+              <div className="empty-state-clean">
+                <b>Nenhuma atividade registrada ainda.</b>
+                <span>As reservas, check-ins e pagamentos aparecerão aqui.</span>
+              </div>
+            )}
+
+            {recentes.map((item, index) => (
+              <div className="activity-row" key={`${item.title}-${index}`}>
+                <div className={`activity-icon ${item.color}`}>{item.icon}</div>
+                <div>
+                  <b>{item.title}</b>
+                  <span>{item.desc}</span>
+                </div>
+                <time>{item.time}</time>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="clean-panel clean-actions">
+          <div className="clean-panel-head">
+            <div>
+              <h3>Ações rápidas</h3>
+              <p>Acesse as operações mais usadas</p>
+            </div>
+            <span>⚡</span>
+          </div>
+
+          <div className="quick-clean-grid">
+            {quickActions.map(([icon, label, tab]) => (
+              <button key={label} onClick={() => setTab(tab)}>
+                <i>{icon}</i>
+                <b>{label}</b>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+
+function Painel({ dates, periodStart, setPeriodStart, periodDays, setPeriodDays, groupByType, setGroupByType, roomTypes, rooms, reservations, blocks, expandedTypes, setExpandedTypes, setSelectedReserva, setBlockModal, clientOf, moveReservation, dragSelection, setDragSelection, createReservationByDrag }) {
+  const [zoom, setZoom] = useState('normal')
+  const [onlyProblems, setOnlyProblems] = useState(false)
+  const activeReservations = reservations.filter(r => !['cancelada', 'checkout'].includes(r.status))
+  const groups = groupByType ? roomTypes.map(t => ({ id: t.id, nome: t.nome, rooms: rooms.filter(q => q.tipoId === t.id) })).filter(g => g.rooms.length) : [{ id: 'todos', nome: 'Todos os quartos', rooms }]
+  const isOccupied = (q, d) => activeReservations.some(r => r.quartoId === q.id && d >= r.entrada && d < r.saida)
+  const dayOcc = (d) => rooms.length ? Math.round((rooms.filter(q => isOccupied(q, d)).length / rooms.length) * 100) : 0
+  const problems = activeReservations.filter(r => !r.quartoId || r.entrada >= r.saida)
+
+  function reservationOn(q, d) {
+    return activeReservations.find(r => r.quartoId === q.id && d >= r.entrada && d < r.saida)
+  }
+  function blockOn(q, d) {
+    return blocks.find(b => b.quartoId === q.id && d >= b.inicio && d < b.fim)
+  }
+
+  function isSelectedCell(q, d) {
+    if (!dragSelection || dragSelection.roomId !== q.id) return false
+    const a = dragSelection.startDate < dragSelection.endDate ? dragSelection.startDate : dragSelection.endDate
+    const b = dragSelection.startDate < dragSelection.endDate ? dragSelection.endDate : dragSelection.startDate
+    return d >= a && d <= b
+  }
+
+  function startCellSelection(q, d, hasReservation, hasBlock) {
+    if (hasReservation || hasBlock) return
+    setDragSelection({ roomId: q.id, startDate: d, endDate: d })
+  }
+
+  function moveCellSelection(q, d) {
+    if (!dragSelection || dragSelection.roomId !== q.id) return
+    setDragSelection({ ...dragSelection, endDate: d })
+  }
+
+  function finishCellSelection(q, d, hasReservation, hasBlock) {
+    if (!dragSelection || dragSelection.roomId !== q.id) return
+    const current = { ...dragSelection, endDate: d }
+    setDragSelection(null)
+    if (hasReservation || hasBlock) return
+    createReservationByDrag(q.id, current.startDate, current.endDate)
+  }
+
+  return <section className="panel-card painel-profissional">
+    <div className="card-head sticky-head"><div><h3>Painel de reservas profissional</h3><p className="hint">Visual por período, agrupado por categoria. Arraste uma reserva para outro quarto livre no mesmo período.</p></div><div className="actions"><button onClick={()=>setOnlyProblems(!onlyProblems)}>{onlyProblems?'Ver todos':'Ver conflitos'}</button><button className="primary" onClick={() => setBlockModal({quartoId: rooms[0]?.id || '', inicio: periodStart, fim: addDays(periodStart,1), motivo: ''})}>Bloquear dia</button></div></div>
+    <div className="timeline-tools"><label>Início<input type="date" value={periodStart} onChange={e=>setPeriodStart(e.target.value)}/></label><label>Dias<select value={periodDays} onChange={e=>setPeriodDays(e.target.value)}><option>7</option><option>14</option><option>21</option><option>30</option><option>45</option></select></label><label>Visual<select value={zoom} onChange={e=>setZoom(e.target.value)}><option value="compacto">Compacto</option><option value="normal">Normal</option><option value="grande">Grande</option></select></label><label className="switch"><input type="checkbox" checked={groupByType} onChange={e=>setGroupByType(e.target.checked)}/> Agrupar por tipo</label></div>
+    <div className="occupancy-ruler">{dates.map(d=><div key={d} className="occ-day"><b>{dayOcc(d)}%</b><span>{d.slice(5).split('-').reverse().join('/')}</span><i style={{height:`${Math.max(8, dayOcc(d))}%`}}></i></div>)}</div>
+    {onlyProblems && <div className="info-box"><b>Conflitos encontrados:</b> {problems.length || 'nenhum'}. Reservas sem quarto, datas invertidas ou sobrepostas aparecem aqui quando existirem.</div>}
+    <div className={`reservation-board ${zoom}`}>
+      <div className="board-header"><div className="room-col">Quarto / tipo</div>{dates.map(d=><div className="date-col" key={d}><b>{new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','')}</b><span>{d.slice(8)}/{d.slice(5,7)}</span></div>)}</div>
+      {groups.map(g => <div className="type-group" key={g.id}>
+        <button className="type-row" onClick={()=>setExpandedTypes({...expandedTypes, [g.id]: !expandedTypes[g.id]})}><b>{g.nome}</b><span>{g.rooms.length} quartos · {activeReservations.filter(r=>g.rooms.some(q=>q.id===r.quartoId)).length} reservas</span></button>
+        {(expandedTypes[g.id] !== false) && g.rooms.map(q => <div className="board-row" key={q.id} onDragOver={e=>e.preventDefault()} onDrop={e=>moveReservation(e.dataTransfer.getData('text/reserva'), q.id)}>
+          <div className="room-col"><b>{q.numero}</b><span>{q.andar}</span></div>
+          {dates.map(d => { const r = reservationOn(q,d); const b = blockOn(q,d); const isStart = r && r.entrada === d; const selected = isSelectedCell(q,d); return <div className={`date-col cell ${selected ? 'cell-selected' : ''}`} key={d} onMouseDown={()=>startCellSelection(q,d,!!r,!!b)} onMouseEnter={()=>moveCellSelection(q,d)} onMouseUp={()=>finishCellSelection(q,d,!!r,!!b)} onDoubleClick={()=>setBlockModal({quartoId:q.id,inicio:d,fim:addDays(d,1),motivo:'Bloqueio manual'})}>{r ? <button draggable onDragStart={e=>e.dataTransfer.setData('text/reserva', r.id)} onClick={()=>setSelectedReserva(r)} className={`booking-chip ${r.status} ${isStart?'start':''}`}>{isStart ? <><b>{r.codigo}</b><span>{clientOf(r).nome.split(' ')[0]}</span></> : '→'}</button> : b ? <span className="block-chip">Bloq.</span> : <span className="free-dot">·</span>}</div>})}
+        </div>)}
+      </div>)}
+    </div>
+  </section>
+}
+
+function Reservas({ newReservation, setNewReservation, roomTypes, availableRooms, saveReservation, clients, reservations, clientOf, roomOf, balance, setSelectedReserva, setReceiveReserva, doCheckin }) {
+  const tipo = roomTypes.find(t => t.id === newReservation.tipoId)
+  const quartosDisponiveis = availableRooms()
+  return <section className="grid-two">
+    <div className="panel-card"><h3>Criar reserva</h3><div className="form-grid">
+      <label>Canal de venda<select value={newReservation.canal} onChange={e=>setNewReservation({...newReservation, canal:e.target.value})}><option>Direto</option><option>WhatsApp</option><option>Telefone</option><option>Booking</option></select></label>
+      <label>Agência/origem<input value={newReservation.origem} onChange={e=>setNewReservation({...newReservation, origem:e.target.value})}/></label>
+      <label>Tipo de quarto<select value={newReservation.tipoId} onChange={e=>{const t=roomTypes.find(x=>x.id===e.target.value);setNewReservation({...newReservation,tipoId:e.target.value, diaria:t?.diaria||0, quartoId:''})}}>{roomTypes.map(t=><option key={t.id} value={t.id}>{t.nome}</option>)}</select></label>
+      <label>Quarto disponível<select value={newReservation.quartoId} onChange={e=>setNewReservation({...newReservation, quartoId:e.target.value})}><option value="">Selecione</option>{quartosDisponiveis.map(q=><option key={q.id} value={q.id}>Quarto {q.numero} - {q.andar}</option>)}</select></label>
+      <label>Entrada<input type="date" value={newReservation.entrada} onChange={e=>setNewReservation({...newReservation, entrada:e.target.value, quartoId:''})}/></label>
+      <label>Saída<input type="date" value={newReservation.saida} onChange={e=>setNewReservation({...newReservation, saida:e.target.value, quartoId:''})}/></label>
+      <label>Adultos<input type="number" value={newReservation.adultos} onChange={e=>setNewReservation({...newReservation, adultos:e.target.value})}/></label>
+      <label>Crianças<input type="number" value={newReservation.criancas} onChange={e=>setNewReservation({...newReservation, criancas:e.target.value})}/></label>
+      <label>Total de diárias<input value={BRL.format(diffDays(newReservation.entrada,newReservation.saida)*Number(newReservation.diaria||tipo?.diaria||0))} readOnly /></label>
+      <label>Valor diária<input value={newReservation.diaria} onChange={e=>setNewReservation({...newReservation, diaria:e.target.value})}/></label>
+      <label>Cliente cadastrado<select value={newReservation.clienteId} onChange={e=>setNewReservation({...newReservation, clienteId:e.target.value})}><option value="">Novo cliente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.nome} {c.credito>0?`- crédito ${BRL.format(c.credito)}`:''}</option>)}</select></label>
+      {!newReservation.clienteId && <><label>Nome do contratante<input value={newReservation.nome} onChange={e=>setNewReservation({...newReservation, nome:e.target.value})}/></label><label>CPF/CNPJ<input value={newReservation.cpf} onChange={e=>setNewReservation({...newReservation, cpf:e.target.value})}/></label><label>Telefone/WhatsApp<input value={newReservation.telefone} onChange={e=>setNewReservation({...newReservation, telefone:e.target.value})}/></label><label>E-mail<input value={newReservation.email} onChange={e=>setNewReservation({...newReservation, email:e.target.value})}/></label></>}
+      <label className="full">Observação<textarea value={newReservation.observacao} onChange={e=>setNewReservation({...newReservation, observacao:e.target.value})}></textarea></label>
+    </div><div className="actions"><button className="ghost" onClick={() => setNewReservation({
+        tipoId: 'triplo', quartoId: '', clienteId: '', nome: '', cpf: '', telefone: '', email: '',
+        entrada: todayISO(), saida: addDays(todayISO(), 1), adultos: 2, criancas: 0, diaria: 300, canal: 'Direto', origem: 'Direto - recepção', observacao: ''
+      })}>Descartar</button><button className="primary" onClick={saveReservation}>Reservar</button></div><p className="hint">Regra: o check-in só libera quando o saldo da reserva estiver pago.</p></div>
+    <div className="panel-card"><h3>Lista de reservas</h3><table className="data-table"><thead><tr><th>Código</th><th>Cliente</th><th>Quarto</th><th>Saldo</th><th>Status</th><th>Ações</th></tr></thead><tbody>{reservations.map(r=><tr key={r.id}><td>{r.codigo}</td><td>{clientOf(r).nome}</td><td>{roomOf(r.quartoId).numero}</td><td>{BRL.format(balance(r))}</td><td><span className={`pill ${r.status}`}>{r.status}</span></td><td><button onClick={()=>setSelectedReserva(r)}>Abrir</button><button onClick={()=>setReceiveReserva(r)}>Receber</button><button onClick={()=>doCheckin(r)}>Check-in</button></td></tr>)}</tbody></table></div>
+  </section>
+}
+
+function Recepcao({ rooms, roomTypes, reservations, roomStatus, clientOf, setSelectedReserva, setSelectedRoom, setBlockModal, moveReservation }) {
+  const [filtroTipo, setFiltroTipo] = useState('todos')
+  const [filtroAndar, setFiltroAndar] = useState('todos')
+  const andares = [...new Set(rooms.map(q => q.andar))]
+  const filtrados = rooms.filter(q => (filtroTipo === 'todos' || q.tipoId === filtroTipo) && (filtroAndar === 'todos' || q.andar === filtroAndar))
+  const grupos = andares.map(andar => ({ andar, quartos: filtrados.filter(q => q.andar === andar) })).filter(g => g.quartos.length)
+  const ocupados = rooms.filter(q => roomStatus(q)[0] === 'status-blue').length
+  const futuras = rooms.filter(q => roomStatus(q)[0] === 'status-green').length
+  const verificar = rooms.filter(q => roomStatus(q)[0] === 'status-orange').length
+
+  return <section className="panel-card recepcao-fast">
+    <div className="card-head"><div><h3>Mapa visual de quartos</h3><p className="hint">Clique no quarto ocupado/reservado para abrir a reserva. Arraste uma reserva do painel para trocar de quarto. Dois cliques bloqueia.</p></div><button className="primary" onClick={() => setBlockModal({quartoId: rooms[0]?.id || '', inicio: todayISO(), fim: addDays(todayISO(),1), motivo: ''})}>Bloquear quarto</button></div>
+    <div className="fast-status-strip"><div><b>{rooms.length}</b><span>Total</span></div><div><b>{ocupados}</b><span>Alugados</span></div><div><b>{futuras}</b><span>Reservas futuras</span></div><div><b>{verificar}</b><span>Verificar saída</span></div><div><b>{rooms.length - ocupados - futuras - verificar}</b><span>Disponíveis</span></div></div>
+    <div className="filters-line"><label>Tipo de quarto<select value={filtroTipo} onChange={e=>setFiltroTipo(e.target.value)}><option value="todos">Todos</option>{roomTypes.map(t=><option key={t.id} value={t.id}>{t.nome}</option>)}</select></label><label>Andar<select value={filtroAndar} onChange={e=>setFiltroAndar(e.target.value)}><option value="todos">Todos</option>{andares.map(a=><option key={a}>{a}</option>)}</select></label></div>
+    <div className="legend"><span className="box status-free"></span> Disponível <span className="box status-green"></span> Reserva futura <span className="box status-blue"></span> Alugado/Check-in <span className="box status-orange"></span> Verificar saída <span className="box status-red"></span> Bloqueado</div>
+    {grupos.map(g => <div className="floor-section" key={g.andar}><h4>{g.andar}</h4><div className="rooms-grid fast-map">
+      {g.quartos.map(q => { const [cls, label] = roomStatus(q); const r = reservations.find(x => x.quartoId === q.id && !['cancelada','checkout'].includes(x.status)); return <button key={q.id} className={`room-card ${cls}`} onDragOver={e=>e.preventDefault()} onDrop={e=>moveReservation(e.dataTransfer.getData('reservaId'), q.id)} onClick={()=> r ? setSelectedReserva(r) : setSelectedRoom(q)} onDoubleClick={()=>setBlockModal({quartoId:q.id,inicio:todayISO(),fim:addDays(todayISO(),1),motivo:''})}><strong>{q.numero}</strong><small>{q.tipo}</small><span>{label}</span>{r && <em>{r.codigo} · {clientOf(r).nome.split(' ')[0]}</em>}</button>})}
+    </div></div>)}
+  </section>
+}
+
+function Clientes({ clients, setClients, newClient, setNewClient, saveClient, reservations }) {
+  return <section className="grid-two"><div className="panel-card"><h3>Cadastrar cliente</h3><div className="form-grid">{['nome','cpf','telefone','email','nascimento','endereco'].map(k=><label key={k}>{k.toUpperCase()}<input type={k==='nascimento'?'date':'text'} value={newClient[k]} onChange={e=>setNewClient({...newClient,[k]:e.target.value})}/></label>)}<label className="full">Observação<textarea value={newClient.observacao} onChange={e=>setNewClient({...newClient,observacao:e.target.value})}></textarea></label></div><button className="primary" onClick={saveClient}>Salvar cliente</button></div><div className="panel-card"><h3>Clientes / crédito</h3><table className="data-table"><thead><tr><th>Cliente</th><th>Documento</th><th>Telefone</th><th>Crédito</th><th>Reservas</th></tr></thead><tbody>{clients.map(c=><tr key={c.id}><td><b>{c.nome}</b>{c.vip&&<span className="vip">VIP</span>}</td><td>{c.cpf}</td><td>{c.telefone}</td><td>{BRL.format(Number(c.credito||0))}</td><td>{reservations.filter(r=>r.clienteId===c.id).length}</td></tr>)}</tbody></table></div></section>
+}
+
+
+function Hospedes({ reservations, clients, guests, setGuests, clientOf, roomOf, logAction, notify }) {
+  const reservasAtivas = reservations.filter(r => !['cancelada', 'checkout'].includes(r.status))
+  const [form, setForm] = useState({ reservaId: '', nome: '', documento: '', nascimento: '', telefone: '', endereco: '', tipo: 'Acompanhante', observacao: '' })
+  const reserva = reservasAtivas.find(r => r.id === form.reservaId)
+  function saveGuest() {
+    if (!form.reservaId) return notify('Selecione a reserva para vincular o hóspede.')
+    if (!form.nome.trim()) return notify('Informe o nome completo do hóspede.')
+    if (!form.documento.trim()) return notify('Informe o documento com foto do hóspede.')
+    if (!form.nascimento) return notify('Informe a data de nascimento do hóspede.')
+    const novo = { id: id(), ...form, criadoEm: todayISO() }
+    setGuests([novo, ...guests])
+    setForm({ reservaId: form.reservaId, nome: '', documento: '', nascimento: '', telefone: '', endereco: '', tipo: 'Acompanhante', observacao: '' })
+    logAction('Hóspede vinculado', `${novo.nome} vinculado à reserva ${reserva?.codigo || novo.reservaId}.`)
+    notify('Hóspede vinculado à reserva.')
+  }
+  return <section className="grid-two">
+    <div className="panel-card"><h3>Cadastro de hóspedes por reserva</h3><p className="hint">Use para registrar contratante, acompanhantes e documentos obrigatórios. O pré check-in também pode trazer esses dados.</p><div className="form-grid">
+      <label>Reserva<select value={form.reservaId} onChange={e=>setForm({...form,reservaId:e.target.value})}><option value="">Selecione</option>{reservasAtivas.map(r=><option key={r.id} value={r.id}>{r.codigo} - {clientOf(r).nome} - quarto {roomOf(r.quartoId).numero}</option>)}</select></label>
+      <label>Tipo<select value={form.tipo} onChange={e=>setForm({...form,tipo:e.target.value})}><option>Contratante</option><option>Acompanhante</option><option>Criança</option><option>Visitante</option></select></label>
+      <label>Nome completo<input value={form.nome} onChange={e=>setForm({...form,nome:e.target.value})}/></label>
+      <label>Documento com foto<input value={form.documento} onChange={e=>setForm({...form,documento:e.target.value})} placeholder="RG, CPF, CNH ou passaporte"/></label>
+      <label>Data de nascimento<input type="date" value={form.nascimento} onChange={e=>setForm({...form,nascimento:e.target.value})}/></label>
+      <label>Telefone<input value={form.telefone} onChange={e=>setForm({...form,telefone:e.target.value})}/></label>
+      <label className="full">Endereço<input value={form.endereco} onChange={e=>setForm({...form,endereco:e.target.value})}/></label>
+      <label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label>
+    </div><button className="primary" onClick={saveGuest}>Vincular hóspede</button></div>
+    <div className="panel-card"><h3>Hóspedes cadastrados</h3><table className="data-table"><thead><tr><th>Reserva</th><th>Quarto</th><th>Nome</th><th>Documento</th><th>Tipo</th></tr></thead><tbody>{guests.length ? guests.map(g=>{const r=reservations.find(x=>x.id===g.reservaId);return <tr key={g.id}><td>{r?.codigo || '-'}</td><td>{r ? roomOf(r.quartoId).numero : '-'}</td><td><b>{g.nome}</b></td><td>{g.documento}</td><td>{g.tipo}</td></tr>}) : <tr><td colSpan="5">Nenhum hóspede cadastrado ainda.</td></tr>}</tbody></table></div>
+  </section>
+}
+
+function PreCheckin({ preBusca, setPreBusca, reservations, precheckins, setPrecheckins, clientOf, createPrecheckin }) {
+  const reserva = reservations.find(r => r.codigo === preBusca)
+  return <section className="grid-two"><div className="panel-card"><h3>Pré check-in por número da reserva</h3><div className="search-reserva"><input value={preBusca} onChange={e=>setPreBusca(e.target.value)} placeholder="Digite o número da reserva" /></div>{reserva ? <div className="pre-box"><h3>Reserva {reserva.codigo}</h3><p>{clientOf(reserva).nome}</p><p>Obrigatório para o cliente: nome completo, selfie, documento com foto, endereço, data de nascimento e observação.</p><button className="primary" onClick={()=>createPrecheckin(reserva)}>Enviar link pelo WhatsApp</button></div> : <p className="hint">Digite o código para localizar a reserva.</p>}</div><div className="panel-card"><h3>Links enviados</h3><table className="data-table"><thead><tr><th>Reserva</th><th>Status</th><th>Link</th><th>Data</th></tr></thead><tbody>{precheckins.map(p=><tr key={p.id}><td>{p.codigo}</td><td><span className="pill confirmada">{p.status}</span></td><td><input value={p.link} readOnly /></td><td>{p.data}</td></tr>)}</tbody></table></div></section>
+}
+
+function Quartos({ roomTypes = [], rooms = [], reservations = [], clients = [], consumos = [], payments = [], setConsumos = () => {}, setPayments = () => {}, setSelectedRoom = () => {}, notify = () => {}, logAction = () => {} }) {
+  const [roomAccount, setRoomAccount] = useState(null)
+
+  function tipoNome(room) {
+    return room.tipo || roomTypes.find(t => t.id === room.tipoId)?.nome || 'Quarto'
+  }
+
+  function activeReservation(roomId) {
+    return reservations.find(r => r.quartoId === roomId && ['hospedado','confirmada','pendente'].includes(r.status))
+  }
+
+  function clienteDaReserva(r) {
+    return clients.find(c => c.id === r?.clienteId) || { nome: 'Cliente' }
+  }
+
+  function statusRoom(room) {
+    const r = activeReservation(room.id)
+    if (room.status === 'manutencao') return 'manutencao'
+    if (room.status === 'limpeza') return 'limpeza'
+    if (r?.status === 'hospedado') return 'ocupado'
+    if (r) return 'reservado'
+    return 'livre'
+  }
+
+  function consumosReserva(reservaId) {
+    return consumos.filter(c => c.reservaId === reservaId)
+  }
+
+  function totalConsumo(reservaId) {
+    return consumosReserva(reservaId).reduce((s, c) => s + Number(c.qtd || 1) * Number(c.valor || 0), 0)
+  }
+
+  function pagoConsumo(reservaId) {
+    return payments
+      .filter(p => p.reservaId === reservaId && p.tipo === 'recebimento' && String(p.observacao || '').toLowerCase().includes('consumo'))
+      .reduce((s, p) => s + Number(p.valor || 0), 0)
+  }
+
+  function abrirConta(room) {
+    const r = activeReservation(room.id)
+    setRoomAccount({
+      roomId: room.id,
+      reservaId: r?.id || '',
+      item: '',
+      qtd: 1,
+      valor: ''
+    })
+  }
+
+  function adicionarConsumo() {
+    const room = rooms.find(q => q.id === roomAccount.roomId)
+    const reserva = reservations.find(r => r.id === roomAccount.reservaId) || activeReservation(roomAccount.roomId)
+    if (!reserva) return notify('Esse quarto não possui reserva ativa para lançar consumo.')
+    if (!roomAccount.item || !roomAccount.item.trim()) return notify('Informe o item consumido.')
+    const valor = moneyNumber(roomAccount.valor)
+    if (valor <= 0) return notify('Informe o valor do item.')
+    const novo = {
+      id: id(),
+      reservaId: reserva.id,
+      data: todayISO(),
+      item: roomAccount.item.trim(),
+      qtd: Number(roomAccount.qtd || 1),
+      valor
+    }
+    setConsumos([novo, ...consumos])
+    setRoomAccount({ ...roomAccount, item: '', qtd: 1, valor: '' })
+    logAction?.('Consumo lançado no quarto', `${room?.numero}: ${novo.item} x${novo.qtd} - ${BRL.format(valor)}`)
+    notify('Consumo lançado no quarto.')
+  }
+
+  function receberConsumo(reservaId) {
+    const saldo = Math.max(0, totalConsumo(reservaId) - pagoConsumo(reservaId))
+    if (saldo <= 0) return notify('Não há consumo em aberto.')
+    setPayments([{
+      id: id(),
+      reservaId,
+      tipo: 'recebimento',
+      forma: 'PIX',
+      valor: saldo,
+      data: todayISO(),
+      observacao: 'Recebimento de consumo do quarto'
+    }, ...payments])
+    notify('Consumo recebido.')
+  }
+
+  const room = roomAccount ? rooms.find(q => q.id === roomAccount.roomId) : null
+  const reserva = room ? (reservations.find(r => r.id === roomAccount.reservaId) || activeReservation(room.id)) : null
+  const cliente = clienteDaReserva(reserva)
+  const itens = reserva ? consumosReserva(reserva.id) : []
+  const total = reserva ? totalConsumo(reserva.id) : 0
+  const pago = reserva ? pagoConsumo(reserva.id) : 0
+  const saldo = Math.max(0, total - pago)
+
+  const statusText = {
+    livre: 'Livre',
+    reservado: 'Reservado',
+    ocupado: 'Ocupado',
+    limpeza: 'Limpeza',
+    manutencao: 'Manutenção'
+  }
+
+  return (
+    <section className="panel-card quartos-situacao-page">
+      <div className="quartos-title-line">
+        <div>
+          <h3>Painel de situação atual</h3>
+          <p className="hint">Clique no quarto para abrir conta, ver consumos e lançar itens manualmente.</p>
+        </div>
+        <div className="quartos-legend">
+          <span><i className="q-livre"></i>Livre</span>
+          <span><i className="q-reservado"></i>Reservado</span>
+          <span><i className="q-ocupado"></i>Ocupado</span>
+          <span><i className="q-limpeza"></i>Limpeza</span>
+          <span><i className="q-manutencao"></i>Manutenção</span>
+        </div>
+      </div>
+
+      <div className="quartos-situacao-grid">
+        {rooms.map(room => {
+          const st = statusRoom(room)
+          const r = activeReservation(room.id)
+          const debt = r ? Math.max(0, totalConsumo(r.id) - pagoConsumo(r.id)) : 0
+          return (
+            <button
+              key={room.id}
+              className={`situacao-room-card ${st}`}
+              onClick={() => abrirConta(room)}
+              onDoubleClick={() => setSelectedRoom?.(room)}
+            >
+              <strong>{room.numero}</strong>
+              <span>{tipoNome(room)}</span>
+              <em>{statusText[st]}</em>
+              {r && <small>{r.codigo}</small>}
+              {debt > 0 && <b className="debt-badge">{BRL.format(debt)}</b>}
+            </button>
+          )
+        })}
+      </div>
+
+      {roomAccount && room && (
+        <div className="modal-backdrop">
+          <div className="modal-card quarto-conta-modal">
+            <div className="modal-head">
+              <div>
+                <h3>Quarto {room.numero}</h3>
+                <p>{tipoNome(room)} · {reserva ? `Reserva ${reserva.codigo} — ${cliente.nome}` : 'Sem reserva ativa'}</p>
+              </div>
+              <button className="modal-close" onClick={() => setRoomAccount(null)}>×</button>
+            </div>
+
+            {!reserva && (
+              <div className="empty-room-account">
+                <b>Quarto sem reserva ativa.</b>
+                <span>Para lançar consumo, primeiro crie ou vincule uma reserva ao quarto.</span>
+              </div>
+            )}
+
+            {reserva && (
+              <>
+                <div className="room-account-summary">
+                  <div><small>Total consumido</small><b>{BRL.format(total)}</b></div>
+                  <div><small>Pago</small><b>{BRL.format(pago)}</b></div>
+                  <div className={saldo > 0 ? 'saldo-devedor' : 'saldo-ok'}><small>Saldo</small><b>{BRL.format(saldo)}</b></div>
+                </div>
+
+                <div className="form-grid room-consumo-form">
+                  <label>Item / Produto
+                    <input value={roomAccount.item} onChange={e => setRoomAccount({ ...roomAccount, item: e.target.value })} placeholder="Ex: Água, refrigerante, almoço..." />
+                  </label>
+                  <label>Qtd.
+                    <input type="number" min="1" value={roomAccount.qtd} onChange={e => setRoomAccount({ ...roomAccount, qtd: e.target.value })} />
+                  </label>
+                  <label>Valor unitário
+                    <input value={roomAccount.valor} onChange={e => setRoomAccount({ ...roomAccount, valor: e.target.value })} placeholder="R$" />
+                  </label>
+                </div>
+
+                <div className="actions room-account-actions">
+                  <button onClick={adicionarConsumo}>Adicionar item</button>
+                  {saldo > 0 && <button className="primary" onClick={() => receberConsumo(reserva.id)}>Receber consumo</button>}
+                </div>
+
+                <h4>Itens consumidos no quarto</h4>
+                <table className="data-table">
+                  <thead><tr><th>Data</th><th>Item</th><th>Qtd.</th><th>Valor</th><th>Total</th></tr></thead>
+                  <tbody>
+                    {itens.length === 0 && <tr><td colSpan="5">Nenhum consumo lançado.</td></tr>}
+                    {itens.map(c => (
+                      <tr key={c.id}>
+                        <td>{c.data}</td>
+                        <td>{c.item}</td>
+                        <td>{c.qtd}</td>
+                        <td>{BRL.format(Number(c.valor || 0))}</td>
+                        <td>{BRL.format(Number(c.qtd || 1) * Number(c.valor || 0))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {saldo > 0 && <div className="checkout-warning">Checkout bloqueado enquanto houver consumo em aberto neste quarto.</div>}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+
+function Tarifas({ roomTypes, rateForm, setRateForm, saveRate, rates }) {
+  const tipoLabel = rateForm.tipoId === 'todos'
+    ? 'Todos os quartos'
+    : roomTypes.find(t => t.id === rateForm.tipoId)?.nome || 'Tipo selecionado'
+
+  return (
+    <section className="grid-two tarifas-page">
+      <div className="panel-card">
+        <h3>Criar e modificar tarifas massivamente</h3>
+        <p className="hint">Aplique uma tarifa para um tipo específico ou para todos os quartos do hotel.</p>
+
+        <div className="tarifa-alert">
+          <b>Aplicação atual:</b>
+          <span>{tipoLabel}</span>
+        </div>
+
+        <div className="form-grid">
+          <label>Ação
+            <select value={rateForm.acao} onChange={e => setRateForm({ ...rateForm, acao: e.target.value })}>
+              <option value="criar">Criar ou modificar</option>
+              <option value="remover">Remover tarifa</option>
+            </select>
+          </label>
+
+          <label>Aplicar tarifa em*
+            <select value={rateForm.tipoId} onChange={e => setRateForm({ ...rateForm, tipoId: e.target.value })}>
+              <option value="todos">Todos os quartos</option>
+              {roomTypes.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+            </select>
+          </label>
+
+          <label>Data inicial
+            <input type="date" value={rateForm.inicio} onChange={e => setRateForm({ ...rateForm, inicio: e.target.value })} />
+          </label>
+
+          <label>Data final
+            <input type="date" value={rateForm.fim} onChange={e => setRateForm({ ...rateForm, fim: e.target.value })} />
+          </label>
+
+          <label>Valor da tarifa
+            <input value={rateForm.valor} onChange={e => setRateForm({ ...rateForm, valor: e.target.value })} placeholder="R$" />
+          </label>
+
+          <label>Qtd. adultos
+            <input value="Indiferente" readOnly />
+          </label>
+        </div>
+
+        <div className="week-days">
+          {['D','S','T','Q','Q','S','S'].map((d, i) => (
+            <label key={i}>
+              <input
+                type="checkbox"
+                checked={rateForm.diasSemana.includes(String(i))}
+                onChange={e => {
+                  const v = String(i)
+                  setRateForm({
+                    ...rateForm,
+                    diasSemana: e.target.checked
+                      ? [...rateForm.diasSemana, v]
+                      : rateForm.diasSemana.filter(x => x !== v)
+                  })
+                }}
+              />
+              {d}
+            </label>
+          ))}
+        </div>
+
+        <div className="actions">
+          <button className="ghost" onClick={() => setRateForm({ ...rateForm, valor: '' })}>Limpar</button>
+          <button className="primary" onClick={saveRate}>Salvar tarifa</button>
+        </div>
+      </div>
+
+      <div className="panel-card">
+        <h3>Tarifas cadastradas</h3>
+        <table className="data-table">
+          <thead>
+            <tr><th>Aplicação</th><th>Período</th><th>Valor</th></tr>
+          </thead>
+          <tbody>
+            {rates.map(r => (
+              <tr key={r.id}>
+                <td>{r.todos ? 'Todos os quartos' : (r.tipoNome || roomTypes.find(t => t.id === r.tipoId)?.nome)}</td>
+                <td>{r.inicio} até {r.fim}</td>
+                <td>{BRL.format(r.valor)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+
+function Servicos({ products = [], productForm, setProductForm, saveProduct, consumos = [], reservations = [], clients = [], rooms = [] }) {
+  return (
+    <section className="servicos-produtos-page">
+      <div className="panel-card">
+        <h3>Cadastro de produtos e estoque</h3>
+        <p className="hint">Cadastre produtos simples para lançar consumo nos quartos, frigobar, restaurante ou serviços extras.</p>
+
+        <div className="form-grid">
+          <label>Produto*
+            <input value={productForm.nome} onChange={e => setProductForm({ ...productForm, nome: e.target.value })} placeholder="Ex: Água mineral, refrigerante, almoço..." />
+          </label>
+          <label>Categoria
+            <select value={productForm.categoria} onChange={e => setProductForm({ ...productForm, categoria: e.target.value })}>
+              <option>Frigobar</option>
+              <option>Restaurante</option>
+              <option>Lavanderia</option>
+              <option>Serviço</option>
+              <option>Outro</option>
+            </select>
+          </label>
+          <label>Estoque*
+            <input type="number" min="0" value={productForm.estoque} onChange={e => setProductForm({ ...productForm, estoque: e.target.value })} placeholder="0" />
+          </label>
+          <label>Valor de venda*
+            <input value={productForm.valor} onChange={e => setProductForm({ ...productForm, valor: e.target.value })} placeholder="R$ 0,00" />
+          </label>
+        </div>
+
+        <div className="actions">
+          <button className="ghost" onClick={() => setProductForm({ nome: '', categoria: 'Frigobar', estoque: '', valor: '' })}>Limpar</button>
+          <button className="primary" onClick={saveProduct}>Cadastrar produto</button>
+        </div>
+      </div>
+
+      <div className="panel-card">
+        <h3>Produtos cadastrados</h3>
+        <table className="data-table">
+          <thead><tr><th>Produto</th><th>Categoria</th><th>Estoque</th><th>Valor</th></tr></thead>
+          <tbody>
+            {products.length === 0 && <tr><td colSpan="4">Nenhum produto cadastrado.</td></tr>}
+            {products.map(p => (
+              <tr key={p.id}>
+                <td><b>{p.nome}</b></td>
+                <td>{p.categoria}</td>
+                <td>{p.estoque}</td>
+                <td>{BRL.format(Number(p.valor || 0))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="panel-card full-span">
+        <h3>Últimos consumos lançados nos quartos</h3>
+        <table className="data-table">
+          <thead><tr><th>Data</th><th>Quarto</th><th>Cliente</th><th>Item</th><th>Qtd.</th><th>Total</th></tr></thead>
+          <tbody>
+            {consumos.length === 0 && <tr><td colSpan="6">Nenhum consumo lançado.</td></tr>}
+            {consumos.slice(0, 12).map(c => {
+              const r = reservations.find(x => x.id === c.reservaId) || {}
+              const cliente = clients.find(x => x.id === r.clienteId) || {}
+              const quarto = rooms.find(x => x.id === r.quartoId) || {}
+              return (
+                <tr key={c.id}>
+                  <td>{c.data}</td>
+                  <td>{quarto.numero || '-'}</td>
+                  <td>{cliente.nome || '-'}</td>
+                  <td>{c.item}</td>
+                  <td>{c.qtd}</td>
+                  <td>{BRL.format(Number(c.qtd || 1) * Number(c.valor || 0))}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+
+function Financeiro({ reservations, payments, clients, clientOf, roomOf, setReceiveReserva, setCancelReserva, balance, paidTotal, reservationTotal }) {
+  const totalRecebido = payments.filter(p=>p.tipo==='recebimento').reduce((s,p)=>s+Number(p.valor||0),0)
+  const totalCredito = clients.reduce((s,c)=>s+Number(c.credito||0),0)
+  return <section className="panel-card"><div className="finance-summary"><div><small>Recebido</small><b>{BRL.format(totalRecebido)}</b></div><div><small>Crédito clientes</small><b>{BRL.format(totalCredito)}</b></div><div><small>Reservas abertas</small><b>{reservations.filter(r=>!['cancelada','checkout'].includes(r.status)).length}</b></div><div><small>Pendências</small><b>{reservations.filter(r=>balance(r)>0&&!['cancelada','checkout'].includes(r.status)).length}</b></div></div><h3>Contas de reserva</h3><table className="data-table"><thead><tr><th>Reserva</th><th>Cliente</th><th>Quarto</th><th>Despesas</th><th>Recebido</th><th>Saldo</th><th>Ações</th></tr></thead><tbody>{reservations.map(r=><tr key={r.id}><td>{r.codigo}</td><td>{clientOf(r).nome}</td><td>{roomOf(r.quartoId).numero}</td><td>{BRL.format(reservationTotal(r))}</td><td>{BRL.format(paidTotal(r.id))}</td><td>{BRL.format(balance(r))}</td><td><button onClick={()=>setReceiveReserva(r)}>Receber</button><button onClick={()=>setCancelReserva(r)}>Cancelar/estornar</button></td></tr>)}</tbody></table><h3>Crédito de clientes</h3><div className="credit-list">{clients.filter(c=>Number(c.credito||0)>0).map(c=><div key={c.id}><b>{c.nome}</b><span>{BRL.format(c.credito)}</span></div>)}</div></section>
+}
+
+
+function CaixaDiario({ payments, consumos, reservations, clientOf, roomOf }) {
+  const [data, setData] = useState(todayISO())
+  const recebimentos = payments.filter(p => p.data === data && p.tipo === 'recebimento')
+  const estornos = payments.filter(p => p.data === data && p.tipo === 'estorno')
+  const multas = payments.filter(p => p.data === data && p.tipo === 'multa')
+  const totalRecebido = recebimentos.reduce((s,p)=>s+Number(p.valor||0),0)
+  const totalEstornado = estornos.reduce((s,p)=>s+Number(p.valor||0),0)
+  const totalMulta = multas.reduce((s,p)=>s+Number(p.valor||0),0)
+  const porForma = [...new Set(payments.filter(p=>p.data===data).map(p=>p.forma))].map(forma => ({ forma, valor: payments.filter(p=>p.data===data && p.forma===forma).reduce((s,p)=>s+(p.tipo==='estorno'?-Number(p.valor||0):Number(p.valor||0)),0) }))
+  const movimentos = payments.filter(p=>p.data===data).map(p => {
+    const r = reservations.find(x=>x.id===p.reservaId) || {}
+    return { ...p, cliente: r.id ? clientOf(r).nome : p.pagante, quarto: r.quartoId ? roomOf(r.quartoId).numero : '-' }
+  })
+  const consumosDia = consumos.filter(c => c.data === data)
+  return <section className="grid-two">
+    <div className="panel-card"><div className="card-head"><div><h3>Caixa diário</h3><p className="hint">Conferência rápida da recepção: recebimentos, estornos, multas e consumo lançado.</p></div><label>Data<input type="date" value={data} onChange={e=>setData(e.target.value)}/></label></div>
+      <div className="cash-summary"><div><span>Recebido</span><b>{BRL.format(totalRecebido)}</b></div><div><span>Estornado/crédito</span><b>{BRL.format(totalEstornado)}</b></div><div><span>Multas</span><b>{BRL.format(totalMulta)}</b></div><div><span>Saldo caixa</span><b>{BRL.format(totalRecebido + totalMulta - totalEstornado)}</b></div></div>
+      <h4>Por forma de pagamento</h4><div className="payment-bars">{porForma.map(f=><div key={f.forma}><span>{f.forma}</span><b>{BRL.format(f.valor)}</b><i style={{width:`${Math.min(100, Math.abs(f.valor)/(Math.max(1,totalRecebido))*100)}%`}}></i></div>)}</div>
+    </div>
+    <div className="panel-card"><h3>Movimentos do dia</h3><table className="data-table"><thead><tr><th>Tipo</th><th>Cliente</th><th>Quarto</th><th>Forma</th><th>Valor</th></tr></thead><tbody>{movimentos.map(m=><tr key={m.id}><td><span className={`pill ${m.tipo}`}>{m.tipo}</span></td><td>{m.cliente}</td><td>{m.quarto}</td><td>{m.forma}</td><td>{BRL.format(m.valor)}</td></tr>)}</tbody></table></div>
+    <div className="panel-card wide"><h3>Consumos lançados</h3><table className="data-table"><thead><tr><th>Reserva</th><th>Item</th><th>Qtd</th><th>Valor unit.</th><th>Total</th></tr></thead><tbody>{consumosDia.map(c=><tr key={c.id}><td>{c.reservaId}</td><td>{c.item}</td><td>{c.qtd}</td><td>{BRL.format(c.valor)}</td><td>{BRL.format(Number(c.qtd||1)*Number(c.valor||0))}</td></tr>)}</tbody></table></div>
+  </section>
+}
+
+function Relatorios({ reservations, payments, clients, rooms, clientOf, roomOf, printReceipt }) {
+  const ativos = reservations.filter(r=>!['cancelada','checkout'].includes(r.status)).length
+  const recebidos = payments.filter(p=>p.tipo==='recebimento').reduce((s,p)=>s+Number(p.valor||0),0)
+  const creditos = clients.reduce((s,c)=>s+Number(c.credito||0),0)
+  const ocupacao = rooms.length ? Math.round((reservations.filter(r=>r.status==='hospedado').length/rooms.length)*100) : 0
+  return <section className="panel-card"><h3>Relatórios e comprovantes</h3><div className="finance-summary"><div><small>Reservas ativas</small><b>{ativos}</b></div><div><small>Ocupação</small><b>{ocupacao}%</b></div><div><small>Recebido</small><b>{BRL.format(recebidos)}</b></div><div><small>Créditos</small><b>{BRL.format(creditos)}</b></div></div><div className="actions"><button onClick={()=>window.print()}>Imprimir tela atual</button><button onClick={()=>{ notify('Relatório operacional pronto para impressão.'); setTimeout(() => window.print(), 250) }}>Relatório operacional</button></div><table className="data-table"><thead><tr><th>Reserva</th><th>Cliente</th><th>Quarto</th><th>Entrada</th><th>Saída</th><th>Status</th><th>Imprimir</th></tr></thead><tbody>{reservations.map(r=><tr key={r.id}><td>{r.codigo}</td><td>{clientOf(r).nome}</td><td>{roomOf(r.quartoId).numero}</td><td>{r.entrada}</td><td>{r.saida}</td><td><span className={`pill ${r.status}`}>{r.status}</span></td><td><button onClick={()=>printReceipt(r)}>Relatório formato FastHotel</button></td></tr>)}</tbody></table></section>
+}
+
+function Auditoria({ auditLogs }) {
+  return <section className="panel-card"><h3>Auditoria operacional</h3><p className="hint">Registro automático das ações importantes da recepção, financeiro, governança e reservas.</p><table className="data-table"><thead><tr><th>Data/hora</th><th>Usuário</th><th>Ação</th><th>Detalhe</th></tr></thead><tbody>{auditLogs.length ? auditLogs.map(l=><tr key={l.id}><td>{l.data}</td><td>{l.usuario}</td><td><b>{l.acao}</b></td><td>{l.detalhe}</td></tr>) : <tr><td colSpan="4">Nenhuma ação registrada ainda.</td></tr>}</tbody></table></section>
+}
+
+function Config({ roomTypes, rooms = [], clients = [], reservations = [], payments = [], exportSystemData, clearOperationalData, restoreRoomDefaults, paymentMethods, methodForm, setMethodForm, savePaymentMethod, togglePaymentMethod }) {
+  return <section className="grid-two"><div className="panel-card"><div className="config-ops-panel">
+    <h3>Operação do sistema</h3>
+    <p className="hint">Área segura para preparar o sistema para cliente real, exportar backup e restaurar quartos cadastrados.</p>
+    <div className="config-metrics">
+      <div><b>{rooms.length}</b><span>quartos cadastrados</span></div>
+      <div><b>{clients.length}</b><span>clientes</span></div>
+      <div><b>{reservations.length}</b><span>reservas</span></div>
+      <div><b>{BRL.format(payments.filter(p => p.tipo === 'recebimento').reduce((s, p) => s + Number(p.valor || 0), 0))}</b><span>recebido</span></div>
+    </div>
+    <div className="actions">
+      <button className="primary" onClick={exportSystemData}>Exportar backup</button>
+      <button onClick={restoreRoomDefaults}>Restaurar quartos padrão</button>
+      <button className="danger" onClick={clearOperationalData}>Zerar movimentações</button>
+    </div>
+  </div>
+  <h3>Formas de pagamento</h3><p className="hint">Crie novas formas sem mexer no código. A forma "Crédito do cliente" é usada para abater saldos gerados por estorno/cancelamento.</p><div className="form-grid"><label>Nome da forma<input value={methodForm.nome} onChange={e=>setMethodForm({...methodForm,nome:e.target.value})} placeholder="Ex.: Transferência, Cortesia, Crédito interno" /></label><label>Tipo<select value={methodForm.tipo} onChange={e=>setMethodForm({...methodForm,tipo:e.target.value})}><option value="normal">Normal</option><option value="cartao">Cartão</option><option value="credito">Crédito/saldo</option><option value="cortesia">Cortesia</option></select></label></div><button className="primary" onClick={savePaymentMethod}>Criar forma de pagamento</button><table className="data-table"><thead><tr><th>Forma</th><th>Tipo</th><th>Status</th><th>Ação</th></tr></thead><tbody>{paymentMethods.map(f=><tr key={f.id}><td>{f.nome}</td><td>{f.tipo}</td><td>{f.ativo ? 'Ativa' : 'Inativa'}</td><td><button onClick={()=>togglePaymentMethod(f.id)}>{f.ativo ? 'Desativar' : 'Ativar'}</button></td></tr>)}</tbody></table></div><div className="panel-card"><h3>Tipos de quarto e tarifas padrão</h3>{roomTypes.map(t=><p key={t.id}>✓ {t.nome} — {BRL.format(t.diaria)}</p>)}<div className="info-box">Para alterar valores por período, use a aba <b>Tarifas</b>. Para ver os quartos por categoria, use a aba <b>Quartos</b>.</div></div></section>
+}
+
+
+function RoomModal({ room, status, reservations, blocks, clientOf, setSelectedReserva, setBlockModal, setRooms, rooms, onClose }) {
+  const futuras = reservations.filter(r => ['pendente', 'confirmada'].includes(r.status))
+  const hospedado = reservations.find(r => r.status === 'hospedado')
+  const historico = reservations.filter(r => ['checkout', 'cancelada'].includes(r.status))
+  const [cls, label] = status
+  const marcar = (statusLimpeza) => setRooms(rooms.map(q => q.id === room.id ? { ...q, statusLimpeza } : q))
+
+  return <div className="modal-backdrop"><div className="modal large room-detail-modal"><button className="modal-close" onClick={onClose}>×</button>
+    <div className="reservation-head"><div><h2>Quarto {room.numero}</h2><p>{room.tipo} · {room.andar}</p></div><span className={`pill ${cls}`}>{label}</span></div>
+    <div className="room-detail-grid">
+      <section className="room-now-card">
+        <h3>Situação atual</h3>
+        {hospedado ? <div><p><b>Hospedado:</b> {clientOf(hospedado).nome}</p><p><b>Reserva:</b> {hospedado.codigo}</p><p><b>Saída:</b> {hospedado.saida} 11:59</p><button className="primary" onClick={()=>setSelectedReserva(hospedado)}>Abrir conta da reserva</button></div> : <p className="hint">Sem hóspede no momento.</p>}
+        <div className="room-fast-actions"><button onClick={()=>marcar('limpo')}>Marcar limpo</button><button onClick={()=>marcar('verificar')}>Verificar saída</button><button onClick={()=>marcar('manutencao')}>Manutenção</button><button onClick={()=>setBlockModal({quartoId:room.id,inicio:todayISO(),fim:addDays(todayISO(),1),motivo:'Bloqueio manual'})}>Bloquear período</button></div>
+      </section>
+      <section className="room-now-card"><h3>Próximas reservas</h3>{futuras.length ? futuras.map(r=><div className="mini-reservation" key={r.id}><b>{r.codigo} · {clientOf(r).nome}</b><span>{r.entrada} até {r.saida}</span><button onClick={()=>setSelectedReserva(r)}>Abrir</button></div>) : <p className="hint">Nenhuma reserva futura.</p>}</section>
+    </div>
+    <h3>Linha do tempo do quarto</h3>
+    <div className="room-history">{reservations.map(r=><button key={r.id} className={`history-item ${r.status}`} onClick={()=>setSelectedReserva(r)}><b>{r.codigo}</b><span>{clientOf(r).nome}</span><small>{r.entrada} → {r.saida}</small></button>)}{blocks.map(b=><div key={b.id} className="history-item bloqueado"><b>Bloqueio</b><span>{b.motivo}</span><small>{b.inicio} → {b.fim}</small></div>)}{historico.length === 0 && blocks.length === 0 && futuras.length === 0 && !hospedado && <p className="hint">Ainda não existe histórico nesse quarto.</p>}</div>
+  </div></div>
+}
+
+function ReservationModal({ r, client, room, diariaTotal, servicesTotal, total, paid, balance, payments, consumos, onClose, onReceive, onCancel, onCheckin, onCheckout, onPre, onService, onTransfer, onReschedule, onWhatsapp, onPrint }) {
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-card reserva-detalhe-modal">
+        <div className="reserva-modal-header">
+          <div>
+            <span className={`pill ${r.status}`}>{r.status}</span>
+            <h3>Reserva {r.codigo}</h3>
+            <p>Quarto {room.numero} — {client.nome}</p>
+          </div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+
+        <div className="reserva-modal-body">
+          <section className="reserva-info-card">
+            <h4>Dados da hospedagem</h4>
+            <div className="reserva-info-grid">
+              <div><small>Entrada</small><b>{r.entrada} 12:00</b></div>
+              <div><small>Saída</small><b>{r.saida} 11:59</b></div>
+              <div><small>Quarto</small><b>{room.numero} — {room.tipo}</b></div>
+              <div><small>Hóspedes</small><b>PAX {r.adultos}/{r.criancas}</b></div>
+              <div><small>Tipo contratado</small><b>{room.tipo}</b></div>
+              <div><small>Confirmação</small><b>{r.status === 'pendente' ? 'Pendente de pagamento' : r.status}</b></div>
+            </div>
+            <p className="reserva-note"><b>Observação interna:</b> {r.observacao || 'Não definida'}</p>
+          </section>
+
+          <aside className="reserva-summary-card">
+            <h4>Resumo financeiro</h4>
+            <div className="summary-row"><span>Diárias</span><b>{BRL.format(diariaTotal)}</b></div>
+            <div className="summary-row"><span>Consumos</span><b>{BRL.format(servicesTotal)}</b></div>
+            <div className="summary-row total"><span>Preço total</span><b>{BRL.format(total)}</b></div>
+            <div className="summary-row"><span>Valor pago</span><b>{BRL.format(paid)}</b></div>
+            <div className="summary-row saldo"><span>Saldo</span><b>{BRL.format(balance)}</b></div>
+          </aside>
+        </div>
+
+        <div className="reserva-tabs-grid">
+          <section>
+            <h4>Conta da reserva</h4>
+            <table className="data-table">
+              <thead><tr><th>Data</th><th>Produto</th><th>Forma</th><th>Valor</th></tr></thead>
+              <tbody>
+                <tr><td>{r.entrada}</td><td>Diária</td><td>Despesa</td><td>{BRL.format(diariaTotal)}</td></tr>
+                {consumos.map(c => <tr key={c.id}><td>{c.data}</td><td>{c.item} x{c.qtd}</td><td>Consumo</td><td>{BRL.format(Number(c.qtd || 1) * Number(c.valor || 0))}</td></tr>)}
+                {payments.map(p => <tr key={p.id}><td>{p.data}</td><td>{p.observacao || p.forma}</td><td>{p.forma}</td><td>{p.tipo === 'recebimento' ? '-' : ''}{BRL.format(p.valor)}</td></tr>)}
+              </tbody>
+            </table>
+          </section>
+
+          <section>
+            <h4>Hóspedes vinculados</h4>
+            <table className="data-table">
+              <thead><tr><th>Nome</th><th>Documento</th><th>Nascimento</th><th>Tipo</th></tr></thead>
+              <tbody>
+                <tr><td>{client.nome}</td><td>{client.cpf || '-'}</td><td>{client.nascimento || '-'}</td><td>Contratante</td></tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+
+        <div className="reserva-modal-actions">
+          <button onClick={onReceive}>Receber</button>
+          <button onClick={onService}>Adicionar consumo</button>
+          <button onClick={onTransfer}>Trocar quarto</button>
+          <button onClick={onReschedule}>Remarcar</button>
+          <button onClick={onWhatsapp}>WhatsApp</button>
+          <button onClick={onPre}>Pré check-in</button>
+          <button onClick={onPrint}>Imprimir</button>
+          <button className="danger" onClick={onCancel}>Cancelar</button>
+          {r.status !== 'hospedado' && <button className="primary" onClick={onCheckin}>Check-in</button>}
+          {r.status === 'hospedado' && <button className="primary" onClick={onCheckout}>Check-out</button>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+function ReceiveModal({ reserva, client, saldo, paymentMethods, onClose, onSave }) {
+  const [form, setForm] = useState({ forma: 'PIX', valor: String(saldo > 0 ? saldo : ''), observacao: '' })
+  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}>×</button><h2>Receber</h2><p>Recebido: {BRL.format(0)}<br/>A receber: {BRL.format(saldo)}</p><div className="info-box">Caso cancele uma reserva, o valor pode voltar como saldo/crédito do cliente. Use a forma <b>Crédito do cliente</b> para abater em nova reserva.</div><div className="form-grid"><label>Ponto de venda<select><option>Recepção</option></select></label><label>Forma de recebimento<select value={form.forma} onChange={e=>setForm({...form,forma:e.target.value})}>{paymentMethods.filter(m=>m.ativo).map(m=><option key={m.id}>{m.nome}</option>)}</select></label><label>Pagante<input value={client.nome} readOnly /></label><label>Documento<input value={client.cpf || ''} readOnly /></label><label>Valor<input value={form.valor} onChange={e=>setForm({...form,valor:e.target.value})}/></label><label>Comprovante<input type="file"/></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Receber</button></div></div></div>
+}
+
+function CancelModal({ reserva, received, onClose, onSave }) {
+  const [form, setForm] = useState({ motivo: 'Lançamento errado', observacao: '', multa: '0' })
+  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}>×</button><h2>Cancelar reserva {reserva.codigo}</h2><p>Recebido: {BRL.format(received)}. O restante voltará como crédito do cliente.</p><div className="form-grid"><label>Motivo<select value={form.motivo} onChange={e=>setForm({...form,motivo:e.target.value})}><option>Lançamento errado</option><option>Desistência do cliente</option><option>Remarcação</option><option>Problema operacional</option></select></label><label>Multa de cancelamento<input value={form.multa} onChange={e=>setForm({...form,multa:e.target.value})}/></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="danger-btn" onClick={()=>onSave(form)}>Cancelar e gerar crédito</button></div></div></div>
+}
+
+
+
+function RescheduleModal({ reserva, rooms, roomTypes, roomOf, availableRooms, onClose, onSave }) {
+  const current = roomOf(reserva.quartoId)
+  const [form, setForm] = useState({ entrada: reserva.entrada, saida: reserva.saida, tipoId: reserva.tipoId, quartoId: reserva.quartoId, diaria: String(reserva.diaria || ''), observacao: '' })
+  const disponiveis = rooms.filter(q => q.tipoId === form.tipoId && (q.id === reserva.quartoId || availableRooms(form.tipoId, form.entrada, form.saida).some(a => a.id === q.id)))
+  const tipoAtual = roomTypes.find(t => t.id === form.tipoId)
+  const totalPrevisto = diffDays(form.entrada, form.saida) * (moneyNumber(form.diaria) || Number(tipoAtual?.diaria || 0))
+  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}>×</button><h2>Remarcar reserva {reserva.codigo}</h2><p>Quarto atual {current.numero} ({current.tipo}). A remarcação recalcula o período e permite trocar o quarto disponível.</p><div className="info-box">Use quando o cliente mudar datas. O pagamento já lançado fica preservado e o saldo será recalculado automaticamente.</div><div className="form-grid"><label>Entrada<input type="date" value={form.entrada} onChange={e=>setForm({...form,entrada:e.target.value,quartoId:''})}/></label><label>Saída<input type="date" value={form.saida} onChange={e=>setForm({...form,saida:e.target.value,quartoId:''})}/></label><label>Tipo de quarto<select value={form.tipoId} onChange={e=>{const t=roomTypes.find(x=>x.id===e.target.value);setForm({...form,tipoId:e.target.value,diaria:String(t?.diaria||''),quartoId:''})}}>{roomTypes.map(t=><option key={t.id} value={t.id}>{t.nome}</option>)}</select></label><label>Quarto disponível<select value={form.quartoId} onChange={e=>setForm({...form,quartoId:e.target.value})}><option value="">Selecione</option>{disponiveis.map(q=><option key={q.id} value={q.id}>{q.numero} - {q.tipo}</option>)}</select></label><label>Diária<input value={form.diaria} onChange={e=>setForm({...form,diaria:e.target.value})}/></label><label>Total previsto<input value={BRL.format(totalPrevisto)} readOnly /></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})} placeholder="Motivo da remarcação, autorização, diferença de valor..."></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Salvar remarcação</button></div></div></div>
+}
+
+function TransferModal({ reserva, rooms, roomOf, availableRooms, onClose, onSave }) {
+  const current = roomOf(reserva.quartoId)
+  const list = rooms.filter(q => q.tipoId === reserva.tipoId && (q.id === reserva.quartoId || availableRooms(reserva.tipoId, reserva.entrada, reserva.saida).some(a => a.id === q.id)))
+  const [form, setForm] = useState({ quartoId: reserva.quartoId, observacao: '' })
+  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}>×</button><h2>Alocar / trocar quarto</h2><p>Reserva {reserva.codigo} — quarto atual {current.numero} ({current.tipo})</p><div className="info-box">Ao trocar o quarto, o quarto anterior fica marcado para verificar saída. Só aparecem quartos disponíveis no mesmo período da reserva.</div><div className="form-grid"><label>Novo quarto<select value={form.quartoId} onChange={e=>setForm({...form,quartoId:e.target.value})}>{list.map(q=><option key={q.id} value={q.id}>{q.numero} - {q.tipo}</option>)}</select></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})} placeholder="Motivo da troca, pedido do cliente, manutenção..."></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Confirmar troca</button></div></div></div>
+}
+
+function ServiceModal({ reserva, client, room, onClose, onSave }) {
+  const [form, setForm] = useState({ item: 'Água mineral', qtd: '1', valor: '', observacao: '' })
+  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}>×</button><h2>Adicionar consumo no quarto {room.numero}</h2><p>Reserva {reserva.codigo} — {client.nome}</p><div className="form-grid"><label>Produto/serviço<input value={form.item} onChange={e=>setForm({...form,item:e.target.value})}/></label><label>Quantidade<input type="number" min="1" value={form.qtd} onChange={e=>setForm({...form,qtd:e.target.value})}/></label><label>Valor unitário<input value={form.valor} onChange={e=>setForm({...form,valor:e.target.value})} placeholder="R$"/></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Lançar consumo</button></div></div></div>
+}
+
+function BlockModal({ rooms, data, onClose, onSave }) {
+  const [form, setForm] = useState(data)
+  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}>×</button><h2>Bloquear período manualmente</h2><div className="form-grid"><label>Quarto<select value={form.quartoId} onChange={e=>setForm({...form,quartoId:e.target.value})}>{rooms.map(q=><option key={q.id} value={q.id}>{q.numero} - {q.tipo}</option>)}</select></label><label>Início<input type="date" value={form.inicio} onChange={e=>setForm({...form,inicio:e.target.value})}/></label><label>Fim<input type="date" value={form.fim} onChange={e=>setForm({...form,fim:e.target.value})}/></label><label className="full">Motivo<textarea value={form.motivo || ''} onChange={e=>setForm({...form,motivo:e.target.value})}></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Salvar bloqueio</button></div></div></div>
 }
 
 export default App
