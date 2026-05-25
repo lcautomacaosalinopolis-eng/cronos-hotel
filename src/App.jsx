@@ -12,6 +12,16 @@ const addDays = (date, days) => {
   return d.toISOString().slice(0, 10)
 }
 const diffDays = (a, b) => Math.max(1, Math.round((new Date(b) - new Date(a)) / 86400000))
+
+const dateSlotBase = (date) => Math.floor(new Date(date + 'T00:00:00').getTime() / 86400000) * 2
+const dateToSlot = (date, half = 0) => dateSlotBase(date) + Number(half || 0)
+const slotToDate = (slot) => new Date(Math.floor(Number(slot) / 2) * 86400000).toISOString().slice(0, 10)
+const slotLabel = (slot) => `${slotToDate(slot)} ${Number(slot) % 2 === 0 ? '00h-12h' : '12h-24h'}`
+const reservationStartSlot = (r) => Number.isFinite(Number(r.entradaSlot)) ? Number(r.entradaSlot) : dateToSlot(r.entrada, 0)
+const reservationEndSlot = (r) => Number.isFinite(Number(r.saidaSlot)) ? Number(r.saidaSlot) : dateToSlot(r.saida, 0)
+const blockStartSlot = (b) => dateToSlot(b.inicio, 0)
+const blockEndSlot = (b) => dateToSlot(b.fim, 0)
+const diffHalfDays = (r) => Math.max(1, reservationEndSlot(r) - reservationStartSlot(r)) / 2
 const moneyNumber = (v) => Number(String(v || 0).replace(/\./g, '').replace(',', '.')) || 0
 const id = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random())
 const reservationCode = () => String(Math.floor(33000 + Math.random() * 9000))
@@ -26,8 +36,11 @@ function useLocalState(key, initialValue) {
     }
   })
   const save = (value) => {
-    setState(value)
-    localStorage.setItem(key, JSON.stringify(value))
+    setState((current) => {
+      const nextValue = typeof value === 'function' ? value(current) : value
+      localStorage.setItem(key, JSON.stringify(nextValue))
+      return nextValue
+    })
   }
   return [state, save]
 }
@@ -128,6 +141,8 @@ const menu = [
 ]
 
 function App() {
+  const [products, setProducts] = useState([])
+  const [productForm, setProductForm] = useState({ nome: '', categoria: 'Frigobar', estoque: '', valor: '' })
   const [tab, setTab] = useState('dashboard')
   const [usuarios, setUsuarios] = useState([{ id: 'admin', nome: 'Administrador', email: '', perfil: 'Administrador', ativo: true }])
   const [usuarioForm, setUsuarioForm] = useState({ nome: '', email: '', perfil: 'Recepção', senha: '', ativo: true })
@@ -196,7 +211,7 @@ function App() {
   }
 
   function diariaTotal(r) {
-    return diffDays(r.entrada, r.saida) * Number(r.diaria || typeOf(r.tipoId).diaria || 0)
+    return diffHalfDays(r) * Number(r.diaria || typeOf(r.tipoId).diaria || 0)
   }
 
   function servicesTotal(reservaId) {
@@ -217,8 +232,10 @@ function App() {
   }
 
   function isRoomAvailable(roomId, start, end, ignoreId = '') {
-    const conflictReservation = reservations.some(r => r.id !== ignoreId && r.quartoId === roomId && !['cancelada', 'checkout'].includes(r.status) && start < r.saida && end > r.entrada)
-    const conflictBlock = blocks.some(b => b.quartoId === roomId && start < b.fim && end > b.inicio)
+    const startSlot = typeof start === 'number' ? start : dateToSlot(start, 0)
+    const endSlot = typeof end === 'number' ? end : dateToSlot(end, 0)
+    const conflictReservation = reservations.some(r => r.id !== ignoreId && r.quartoId === roomId && !['cancelada', 'checkout'].includes(r.status) && startSlot < reservationEndSlot(r) && endSlot > reservationStartSlot(r))
+    const conflictBlock = blocks.some(b => b.quartoId === roomId && startSlot < blockEndSlot(b) && endSlot > blockStartSlot(b))
     return !conflictReservation && !conflictBlock
   }
 
@@ -227,14 +244,15 @@ function App() {
   }
 
 
-  function createReservationByDrag(roomId, startDate, endDate) {
-    if (!roomId || !startDate || !endDate) return
-    const inicio = startDate < endDate ? startDate : endDate
-    const fimBase = startDate < endDate ? endDate : startDate
-    const fim = addDays(fimBase, 1)
+  function createReservationByDrag(roomId, startSlotRaw, endSlotRaw) {
+    if (!roomId || startSlotRaw === undefined || endSlotRaw === undefined) return
+    const startSlot = Math.min(Number(startSlotRaw), Number(endSlotRaw))
+    const endSlot = Math.max(Number(startSlotRaw), Number(endSlotRaw)) + 1
+    const inicio = slotToDate(startSlot)
+    const fim = slotToDate(endSlot + (endSlot % 2 ? 1 : 0))
     const quarto = roomOf(roomId)
     if (!quarto?.id) return notify('Quarto não encontrado.')
-    if (!isRoomAvailable(roomId, inicio, fim)) return notify('Esse período já possui reserva ou bloqueio.')
+    if (!isRoomAvailable(roomId, startSlot, endSlot)) return notify('Esse período já possui reserva ou bloqueio.')
     setDragReservationRequest({
       roomId: quarto.id,
       roomNumber: quarto.numero,
@@ -242,6 +260,9 @@ function App() {
       tipo: quarto.tipo,
       entrada: inicio,
       saida: fim,
+      entradaSlot: startSlot,
+      saidaSlot: endSlot,
+      periodoTexto: `${slotLabel(startSlot)} até ${slotLabel(endSlot)}`,
       nome: '',
       telefone: '',
       cpf: ''
@@ -252,7 +273,7 @@ function App() {
     if (!data || !data.nome || !data.nome.trim()) return notify('Informe o nome do cliente.')
     const quarto = roomOf(data.roomId)
     if (!quarto?.id) return notify('Quarto não encontrado.')
-    if (!isRoomAvailable(data.roomId, data.entrada, data.saida)) return notify('Esse período já possui reserva ou bloqueio.')
+    if (!isRoomAvailable(data.roomId, Number(data.entradaSlot ?? dateToSlot(data.entrada, 0)), Number(data.saidaSlot ?? dateToSlot(data.saida, 0)))) return notify('Esse período já possui reserva ou bloqueio.')
     const cli = {
       id: id(),
       nome: `${data.nome.trim()} ${data.sobrenome || ''}`.trim(),
@@ -274,6 +295,8 @@ function App() {
       tipoId: quarto.tipoId,
       entrada: data.entrada,
       saida: data.saida,
+      entradaSlot: Number(data.entradaSlot ?? dateToSlot(data.entrada, 0)),
+      saidaSlot: Number(data.saidaSlot ?? dateToSlot(data.saida, 0)),
       adultos: Number(data.adultos || typeOf(quarto.tipoId).capacidade || 1),
       criancas: Number(data.criancas || 0),
       diaria: moneyNumber(data.diaria) || diaria,
@@ -292,43 +315,104 @@ function App() {
   }
 
 
-  function saveReservation() {
-    if (!newReservation.clienteId) {
-      if (!newReservation.nome?.trim() || !newReservation.cpf?.trim() || !newReservation.telefone?.trim() || !newReservation.email?.trim()) {
-        notify('Dados obrigatórios para criar reserva: nome, CPF/CNPJ, telefone/WhatsApp e e-mail.')
+  function saveReservation(event) {
+    if (event && event.preventDefault) event.preventDefault()
+
+    const quartoSelecionado = newReservation.quartoId || newReservation.quarto || ''
+    if (!quartoSelecionado) {
+      notify('Selecione um quarto disponível para criar a reserva.')
+      return
+    }
+
+    if (!newReservation.entrada || !newReservation.saida) {
+      notify('Informe entrada e saída da reserva.')
+      return
+    }
+
+    if (newReservation.saida <= newReservation.entrada) {
+      notify('A data de saída precisa ser maior que a data de entrada.')
+      return
+    }
+
+    if (!isRoomAvailable(quartoSelecionado, newReservation.entrada, newReservation.saida)) {
+      notify('Esse quarto não está disponível nesse período. Escolha outro quarto.')
+      return
+    }
+
+    const clienteExistente = newReservation.clienteId
+      ? clients.find(c => c.id === newReservation.clienteId)
+      : null
+
+    if (!clienteExistente) {
+      if (!newReservation.nome?.trim()) {
+        notify('Informe o nome do contratante.')
+        return
+      }
+      if (!newReservation.cpf?.trim()) {
+        notify('Informe o CPF/CNPJ.')
+        return
+      }
+      if (!newReservation.telefone?.trim()) {
+        notify('Informe o telefone/WhatsApp.')
         return
       }
     }
 
-    let clienteId = newReservation.clienteId
-    if (!clienteId) {
-      if (!newReservation.nome.trim()) return notify('Informe o nome do cliente.')
-      const cli = { id: id(), nome: newReservation.nome, cpf: newReservation.cpf, telefone: newReservation.telefone, email: newReservation.email, nascimento: '', endereco: '', observacao: '', credito: 0, vip: false }
-      setClients([...clients, cli])
-      clienteId = cli.id
+    const cliente = clienteExistente || {
+      id: id(),
+      nome: newReservation.nome.trim(),
+      cpf: newReservation.cpf.trim(),
+      telefone: newReservation.telefone.trim(),
+      email: (newReservation.email || '').trim(),
+      nascimento: newReservation.nascimento || '',
+      endereco: newReservation.endereco || '',
+      reservaCodigo: reservationCode()
     }
-    if (!newReservation.quartoId) return notify('Selecione um quarto disponível.')
-    if (!isRoomAvailable(newReservation.quartoId, newReservation.entrada, newReservation.saida)) return notify('Quarto indisponível no período.')
+
+    const diaria = moneyNumber(newReservation.diaria || 0)
+    if (diaria <= 0) {
+      notify('Informe o valor da diária.')
+      return
+    }
+
     const reserva = {
       id: id(),
       codigo: reservationCode(),
-      clienteId,
-      quartoId: newReservation.quartoId,
-      tipoId: newReservation.tipoId,
+      clienteId: cliente.id,
+      quartoId: quartoSelecionado,
       entrada: newReservation.entrada,
       saida: newReservation.saida,
-      adultos: Number(newReservation.adultos),
-      criancas: Number(newReservation.criancas),
-      diaria: Number(newReservation.diaria || typeOf(newReservation.tipoId).diaria),
+      entradaSlot: dateToSlot(newReservation.entrada, 0),
+      saidaSlot: dateToSlot(newReservation.saida, 0),
+      adultos: Number(newReservation.adultos || 1),
+      criancas: Number(newReservation.criancas || 0),
+      diaria,
+      canal: newReservation.canal || 'Direto',
+      origem: newReservation.origem || 'Direto - recepção',
+      observacao: newReservation.observacao || '',
       status: 'pendente',
-      origem: newReservation.origem,
-      canal: newReservation.canal,
-      observacao: newReservation.observacao
+      criadoEm: todayISO()
     }
-    setReservations([reserva, ...reservations])
-    setSelectedReserva(reserva)
-    logAction('Reserva criada', `Reserva ${reserva.codigo} criada para o quarto ${reserva.quartoId}.`)
-    notify(`Reserva ${reserva.codigo} criada. Check-in só libera após pagamento.`)
+
+    if (!clienteExistente) {
+      setClients(prev => [cliente, ...prev])
+    }
+
+    setReservations(prev => [reserva, ...prev])
+
+    setNewReservation(prev => ({
+      ...prev,
+      quartoId: '',
+      clienteId: '',
+      nome: '',
+      cpf: '',
+      telefone: '',
+      email: '',
+      observacao: ''
+    }))
+
+    logAction('Reserva criada', `Reserva ${reserva.codigo} criada para ${cliente.nome}`)
+    notify(`Reserva ${reserva.codigo} criada com sucesso.`)
   }
 
   function receivePayment(form) {
@@ -349,8 +433,8 @@ function App() {
 
   function doCheckin(r) {
     if (balance(r) > 0) return notify('Check-in bloqueado: precisa pagar primeiro.')
-    setReservations(reservations.map(x => x.id === r.id ? { ...x, status: 'livre' } : x))
-    setSelectedReserva({ ...r, status: 'livre' })
+    setReservations(reservations.map(x => x.id === r.id ? { ...x, status: 'hospedado' } : x))
+    setSelectedReserva({ ...r, status: 'hospedado' })
     logAction('Check-in', `Reserva ${r.codigo} entrou no quarto ${r.quartoId}.`)
     notify('Check-in realizado.')
   }
@@ -544,13 +628,17 @@ function App() {
   }
 
   function saveClient() {
-    if (!clientForm.nome?.trim() || !clientForm.cpf?.trim() || !clientForm.telefone?.trim() || !clientForm.email?.trim() || !clientForm.nascimento?.trim()) {
-      notify('Dados obrigatórios do cliente: nome, CPF/CNPJ, telefone, e-mail e data de nascimento.')
-      return
-    }
+    const nome = newClient.nome?.trim() || ''
+    const cpf = newClient.cpf?.trim() || ''
+    const telefone = newClient.telefone?.trim() || ''
+    const email = newClient.email?.trim() || ''
 
-    if (!newClient.nome.trim()) return notify('Informe o nome do cliente.')
-    const cli = { id: id(), ...newClient, credito: 0, vip: false }
+    if (!nome) return notify('Informe o nome do cliente.')
+    if (!cpf) return notify('Informe o CPF/CNPJ do cliente.')
+    if (!telefone) return notify('Informe o telefone/WhatsApp do cliente.')
+    if (!email) return notify('Informe o e-mail do cliente.')
+
+    const cli = { id: id(), ...newClient, nome, cpf, telefone, email, reservaCodigo: reservationCode(), credito: 0, vip: false }
     setClients([cli, ...clients])
     setNewClient({ nome: '', cpf: '', telefone: '', email: '', nascimento: '', endereco: '', observacao: '' })
     logAction('Cliente cadastrado', `${cli.nome} cadastrado.`)
@@ -750,14 +838,14 @@ function App() {
 
 
 function DragReservationModal({ data, setData, onClose, onSave }) {
-  const noites = diffDays(data.entrada, data.saida)
+  const noites = Math.max(0.5, (Number(data.saidaSlot ?? dateToSlot(data.saida, 0)) - Number(data.entradaSlot ?? dateToSlot(data.entrada, 0))) / 2)
   return (
     <div className="modal-backdrop">
       <div className="modal-card clean-reservation-modal">
         <div className="modal-head">
           <div>
             <h3>Criar reserva</h3>
-            <p>Quarto {data.roomNumber} · {data.tipo} · {data.entrada} até {data.saida} · {noites} diária{noites > 1 ? 's' : ''}</p>
+            <p>Quarto {data.roomNumber} · {data.tipo} · {data.periodoTexto || `${data.entrada} até ${data.saida}`} · {noites} diária{noites > 1 ? 's' : ''}</p>
           </div>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
@@ -1111,40 +1199,66 @@ function Painel({ dates, periodStart, setPeriodStart, periodDays, setPeriodDays,
   const [onlyProblems, setOnlyProblems] = useState(false)
   const activeReservations = reservations.filter(r => !['cancelada', 'checkout'].includes(r.status))
   const groups = groupByType ? roomTypes.map(t => ({ id: t.id, nome: t.nome, rooms: rooms.filter(q => q.tipoId === t.id) })).filter(g => g.rooms.length) : [{ id: 'todos', nome: 'Todos os quartos', rooms }]
-  const isOccupied = (q, d) => activeReservations.some(r => r.quartoId === q.id && d >= r.entrada && d < r.saida)
+  const isOccupied = (q, d) => activeReservations.some(r => r.quartoId === q.id && dateToSlot(d, 0) < reservationEndSlot(r) && dateToSlot(d, 1) + 1 > reservationStartSlot(r))
   const dayOcc = (d) => rooms.length ? Math.round((rooms.filter(q => isOccupied(q, d)).length / rooms.length) * 100) : 0
   const problems = activeReservations.filter(r => !r.quartoId || r.entrada >= r.saida)
 
   function reservationOn(q, d) {
-    return activeReservations.find(r => r.quartoId === q.id && d >= r.entrada && d < r.saida)
+    return activeReservations.find(r => r.quartoId === q.id && dateToSlot(d, 0) < reservationEndSlot(r) && dateToSlot(d, 1) + 1 > reservationStartSlot(r))
   }
   function blockOn(q, d) {
-    return blocks.find(b => b.quartoId === q.id && d >= b.inicio && d < b.fim)
+    return blocks.find(b => b.quartoId === q.id && dateToSlot(d, 0) < blockEndSlot(b) && dateToSlot(d, 1) + 1 > blockStartSlot(b))
   }
 
-  function isSelectedCell(q, d) {
+  function halfFromEvent(e) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    return (e.clientX - rect.left) < rect.width / 2 ? 0 : 1
+  }
+
+  function halfHasReservation(q, d, half) {
+    const s = dateToSlot(d, half)
+    return activeReservations.some(r => r.quartoId === q.id && s < reservationEndSlot(r) && (s + 1) > reservationStartSlot(r))
+  }
+
+  function halfHasBlock(q, d, half) {
+    const s = dateToSlot(d, half)
+    return blocks.some(b => b.quartoId === q.id && s < blockEndSlot(b) && (s + 1) > blockStartSlot(b))
+  }
+
+  function isSelectedHalf(q, d, half) {
     if (!dragSelection || dragSelection.roomId !== q.id) return false
-    const a = dragSelection.startDate < dragSelection.endDate ? dragSelection.startDate : dragSelection.endDate
-    const b = dragSelection.startDate < dragSelection.endDate ? dragSelection.endDate : dragSelection.startDate
-    return d >= a && d <= b
+    const slot = dateToSlot(d, half)
+    const a = Math.min(dragSelection.startSlot, dragSelection.endSlot)
+    const b = Math.max(dragSelection.startSlot, dragSelection.endSlot)
+    return slot >= a && slot <= b
   }
 
-  function startCellSelection(q, d, hasReservation, hasBlock) {
-    if (hasReservation || hasBlock) return
-    setDragSelection({ roomId: q.id, startDate: d, endDate: d })
+  function startCellSelection(q, d, e) {
+    const half = halfFromEvent(e)
+    if (halfHasReservation(q, d, half) || halfHasBlock(q, d, half)) return
+    const slot = dateToSlot(d, half)
+    setDragSelection({ roomId: q.id, startSlot: slot, endSlot: slot })
   }
 
-  function moveCellSelection(q, d) {
+  function moveCellSelection(q, d, e) {
     if (!dragSelection || dragSelection.roomId !== q.id) return
-    setDragSelection({ ...dragSelection, endDate: d })
+    const slot = dateToSlot(d, halfFromEvent(e))
+    setDragSelection({ ...dragSelection, endSlot: slot })
   }
 
-  function finishCellSelection(q, d, hasReservation, hasBlock) {
+  function finishCellSelection(q, d, e) {
     if (!dragSelection || dragSelection.roomId !== q.id) return
-    const current = { ...dragSelection, endDate: d }
+    const slot = dateToSlot(d, halfFromEvent(e))
+    const current = { ...dragSelection, endSlot: slot }
     setDragSelection(null)
-    if (hasReservation || hasBlock) return
-    createReservationByDrag(q.id, current.startDate, current.endDate)
+    const a = Math.min(current.startSlot, current.endSlot)
+    const b = Math.max(current.startSlot, current.endSlot)
+    for (let s = a; s <= b; s += 1) {
+      const date = slotToDate(s)
+      const half = s % 2
+      if (halfHasReservation(q, date, half) || halfHasBlock(q, date, half)) return
+    }
+    createReservationByDrag(q.id, current.startSlot, current.endSlot)
   }
 
   return <section className="panel-card painel-profissional">
@@ -1158,7 +1272,9 @@ function Painel({ dates, periodStart, setPeriodStart, periodDays, setPeriodDays,
         <button className="type-row" onClick={()=>setExpandedTypes({...expandedTypes, [g.id]: !expandedTypes[g.id]})}><b>{g.nome}</b><span>{g.rooms.length} quartos · {activeReservations.filter(r=>g.rooms.some(q=>q.id===r.quartoId)).length} reservas</span></button>
         {(expandedTypes[g.id] !== false) && g.rooms.map(q => <div className="board-row" key={q.id} onDragOver={e=>e.preventDefault()} onDrop={e=>moveReservation(e.dataTransfer.getData('text/reserva'), q.id)}>
           <div className="room-col"><b>{q.numero}</b><span>{q.andar}</span></div>
-          {dates.map(d => { const r = reservationOn(q,d); const b = blockOn(q,d); const isStart = r && r.entrada === d; const selected = isSelectedCell(q,d); return <div className={`date-col cell ${selected ? 'cell-selected' : ''}`} key={d} onMouseDown={()=>startCellSelection(q,d,!!r,!!b)} onMouseEnter={()=>moveCellSelection(q,d)} onMouseUp={()=>finishCellSelection(q,d,!!r,!!b)} onDoubleClick={()=>setBlockModal({quartoId:q.id,inicio:d,fim:addDays(d,1),motivo:'Bloqueio manual'})}>{r ? <button draggable onDragStart={e=>e.dataTransfer.setData('text/reserva', r.id)} onClick={()=>setSelectedReserva(r)} className={`booking-chip ${r.status} ${isStart?'start':''}`}>{isStart ? <><b>{r.codigo}</b><span>{clientOf(r).nome.split(' ')[0]}</span></> : '→'}</button> : b ? <span className="block-chip">Bloq.</span> : <span className="free-dot">·</span>}</div>})}
+          {dates.map(d => { const r = reservationOn(q,d); const b = blockOn(q,d); const isStart = r && slotToDate(reservationStartSlot(r)) === d; const selectedFirst = isSelectedHalf(q,d,0); const selectedSecond = isSelectedHalf(q,d,1); const halfReservation = (half) => r && dateToSlot(d, half) < reservationEndSlot(r) && (dateToSlot(d, half) + 1) > reservationStartSlot(r); const firstBusy = halfReservation(0); const secondBusy = halfReservation(1); return <div className={`date-col cell half-cell ${(selectedFirst || selectedSecond) ? 'cell-selected' : ''}`} key={d} onMouseDown={(e)=>startCellSelection(q,d,e)} onMouseEnter={(e)=>moveCellSelection(q,d,e)} onMouseUp={(e)=>finishCellSelection(q,d,e)} onDoubleClick={()=>setBlockModal({quartoId:q.id,inicio:d,fim:addDays(d,1),motivo:'Bloqueio manual'})}>
+            <div className={`half-zone left ${selectedFirst ? 'half-selected' : ''}`}></div><div className={`half-zone right ${selectedSecond ? 'half-selected' : ''}`}></div>
+            {r ? <button draggable onDragStart={e=>e.dataTransfer.setData('text/reserva', r.id)} onClick={()=>setSelectedReserva(r)} className={`booking-chip ${r.status} ${isStart?'start':''} ${firstBusy && !secondBusy ? 'half-left' : !firstBusy && secondBusy ? 'half-right' : ''}`}>{isStart ? <><b>{r.codigo}</b><span>{clientOf(r).nome.split(' ')[0]}</span></> : '→'}</button> : b ? <span className="block-chip">Bloq.</span> : <span className="free-dot">·</span>}</div>})}
         </div>)}
       </div>)}
     </div>
@@ -1186,7 +1302,7 @@ function Reservas({ newReservation, setNewReservation, roomTypes, availableRooms
     </div><div className="actions"><button className="ghost" onClick={() => setNewReservation({
         tipoId: 'triplo', quartoId: '', clienteId: '', nome: '', cpf: '', telefone: '', email: '',
         entrada: todayISO(), saida: addDays(todayISO(), 1), adultos: 2, criancas: 0, diaria: 300, canal: 'Direto', origem: 'Direto - recepção', observacao: ''
-      })}>Descartar</button><button className="primary" onClick={saveReservation}>Reservar</button></div><p className="hint">Regra: o check-in só libera quando o saldo da reserva estiver pago.</p></div>
+      })}>Descartar</button><button type="button" className="primary" onClick={(e) => saveReservation(e)}>Reservar</button></div><p className="hint">Regra: o check-in só libera quando o saldo da reserva estiver pago.</p></div>
     <div className="panel-card"><h3>Lista de reservas</h3><table className="data-table"><thead><tr><th>Código</th><th>Cliente</th><th>Quarto</th><th>Saldo</th><th>Status</th><th>Ações</th></tr></thead><tbody>{reservations.map(r=><tr key={r.id}><td>{r.codigo}</td><td>{clientOf(r).nome}</td><td>{roomOf(r.quartoId).numero}</td><td>{BRL.format(balance(r))}</td><td><span className={`pill ${r.status}`}>{r.status}</span></td><td><button onClick={()=>setSelectedReserva(r)}>Abrir</button><button onClick={()=>setReceiveReserva(r)}>Receber</button><button onClick={()=>doCheckin(r)}>Check-in</button></td></tr>)}</tbody></table></div>
   </section>
 }
@@ -1559,7 +1675,13 @@ function Tarifas({ roomTypes, rateForm, setRateForm, saveRate, rates }) {
 }
 
 
-function Servicos({ products = [], productForm, setProductForm, saveProduct, consumos = [], reservations = [], clients = [], rooms = [] }) {
+function Servicos({ products = [], productForm = { nome: '', categoria: 'Frigobar', estoque: '', valor: '' }, setProductForm = () => {}, saveProduct = () => {}, consumos = [], reservations = [], clients = [], rooms = [] }) {
+  const listaProdutos = Array.isArray(products) ? products : []
+  const listaConsumos = Array.isArray(consumos) ? consumos : []
+  const listaReservas = Array.isArray(reservations) ? reservations : []
+  const listaClientes = Array.isArray(clients) ? clients : []
+  const listaQuartos = Array.isArray(rooms) ? rooms : []
+
   return (
     <section className="servicos-produtos-page">
       <div className="panel-card">
@@ -1568,10 +1690,10 @@ function Servicos({ products = [], productForm, setProductForm, saveProduct, con
 
         <div className="form-grid">
           <label>Produto*
-            <input value={productForm.nome} onChange={e => setProductForm({ ...productForm, nome: e.target.value })} placeholder="Ex: Água mineral, refrigerante, almoço..." />
+            <input value={productForm.nome || ''} onChange={e => setProductForm({ ...productForm, nome: e.target.value })} placeholder="Ex: Água mineral, refrigerante, almoço..." />
           </label>
           <label>Categoria
-            <select value={productForm.categoria} onChange={e => setProductForm({ ...productForm, categoria: e.target.value })}>
+            <select value={productForm.categoria || 'Frigobar'} onChange={e => setProductForm({ ...productForm, categoria: e.target.value })}>
               <option>Frigobar</option>
               <option>Restaurante</option>
               <option>Lavanderia</option>
@@ -1580,26 +1702,28 @@ function Servicos({ products = [], productForm, setProductForm, saveProduct, con
             </select>
           </label>
           <label>Estoque*
-            <input type="number" min="0" value={productForm.estoque} onChange={e => setProductForm({ ...productForm, estoque: e.target.value })} placeholder="0" />
+            <input type="number" min="0" value={productForm.estoque || ''} onChange={e => setProductForm({ ...productForm, estoque: e.target.value })} placeholder="0" />
           </label>
           <label>Valor de venda*
-            <input value={productForm.valor} onChange={e => setProductForm({ ...productForm, valor: e.target.value })} placeholder="R$ 0,00" />
+            <input value={productForm.valor || ''} onChange={e => setProductForm({ ...productForm, valor: e.target.value })} placeholder="R$ 0,00" />
           </label>
         </div>
 
         <div className="actions">
-          <button className="ghost" onClick={() => setProductForm({ nome: '', categoria: 'Frigobar', estoque: '', valor: '' })}>Limpar</button>
-          <button className="primary" onClick={saveProduct}>Cadastrar produto</button>
+          <button className="ghost" type="button" onClick={() => setProductForm({ nome: '', categoria: 'Frigobar', estoque: '', valor: '' })}>Limpar</button>
+          <button className="primary" type="button" onClick={saveProduct}>Cadastrar produto</button>
         </div>
       </div>
 
       <div className="panel-card">
         <h3>Produtos cadastrados</h3>
         <table className="data-table">
-          <thead><tr><th>Produto</th><th>Categoria</th><th>Estoque</th><th>Valor</th></tr></thead>
+          <thead>
+            <tr><th>Produto</th><th>Categoria</th><th>Estoque</th><th>Valor</th></tr>
+          </thead>
           <tbody>
-            {products.length === 0 && <tr><td colSpan="4">Nenhum produto cadastrado.</td></tr>}
-            {products.map(p => (
+            {listaProdutos.length === 0 && <tr><td colSpan="4">Nenhum produto cadastrado.</td></tr>}
+            {listaProdutos.map(p => (
               <tr key={p.id}>
                 <td><b>{p.nome}</b></td>
                 <td>{p.categoria}</td>
@@ -1614,13 +1738,15 @@ function Servicos({ products = [], productForm, setProductForm, saveProduct, con
       <div className="panel-card full-span">
         <h3>Últimos consumos lançados nos quartos</h3>
         <table className="data-table">
-          <thead><tr><th>Data</th><th>Quarto</th><th>Cliente</th><th>Item</th><th>Qtd.</th><th>Total</th></tr></thead>
+          <thead>
+            <tr><th>Data</th><th>Quarto</th><th>Cliente</th><th>Item</th><th>Qtd.</th><th>Total</th></tr>
+          </thead>
           <tbody>
-            {consumos.length === 0 && <tr><td colSpan="6">Nenhum consumo lançado.</td></tr>}
-            {consumos.slice(0, 12).map(c => {
-              const r = reservations.find(x => x.id === c.reservaId) || {}
-              const cliente = clients.find(x => x.id === r.clienteId) || {}
-              const quarto = rooms.find(x => x.id === r.quartoId) || {}
+            {listaConsumos.length === 0 && <tr><td colSpan="6">Nenhum consumo lançado.</td></tr>}
+            {listaConsumos.slice(0, 12).map(c => {
+              const r = listaReservas.find(x => x.id === c.reservaId) || {}
+              const cliente = listaClientes.find(x => x.id === r.clienteId) || {}
+              const quarto = listaQuartos.find(x => x.id === r.quartoId) || {}
               return (
                 <tr key={c.id}>
                   <td>{c.data}</td>

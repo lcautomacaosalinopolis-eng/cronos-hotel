@@ -6031,8 +6031,8 @@ button.ghost:hover {
 
 
 /* =========================================================
-   ATUALIZAÇÃO 51 — PRODUÇÃO, USUÁRIOS E PRODUTOS
-   CSS completo preservado. Apenas ajustes finais adicionados.
+   ATUALIZAÇÃO 52 — CORREÇÃO PRODUÇÃO/USUÁRIOS/SERVIÇOS
+   CSS completo preservado.
    ========================================================= */
 
 .usuarios-page .panel-card,
@@ -6131,4 +6131,167 @@ button.ghost:hover {
     grid-template-columns: minmax(360px, .9fr) minmax(480px, 1.1fr);
     gap: 14px;
   }
+}
+
+
+/* =========================================================
+   ATUALIZAÇÃO 53 — SERVIÇOS CORRIGIDO
+   ========================================================= */
+
+.servicos-produtos-page {
+  display: grid !important;
+  grid-template-columns: minmax(380px, .85fr) minmax(520px, 1.15fr) !important;
+  gap: 18px !important;
+  align-items: start !important;
+}
+
+.servicos-produtos-page .full-span {
+  grid-column: 1 / -1 !important;
+}
+
+.servicos-produtos-page .panel-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, .055) !important;
+}
+
+.servicos-produtos-page h3 {
+  color: #0f172a !important;
+  font-size: 21px !important;
+  font-weight: 850 !important;
+  letter-spacing: -0.035em !important;
+  margin-bottom: 14px !important;
+}
+
+.servicos-produtos-page .hint {
+  color: #64748b !important;
+  margin-top: -6px !important;
+  margin-bottom: 16px !important;
+}
+
+.servicos-produtos-page .form-grid input,
+.servicos-produtos-page .form-grid select {
+  min-height: 44px !important;
+  border-radius: 12px !important;
+  border: 1px solid #dbe3ee !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.servicos-produtos-page .form-grid label {
+  color: #334155 !important;
+  font-size: 12px !important;
+  font-weight: 750 !important;
+}
+
+@media (max-width: 1366px) {
+  .servicos-produtos-page {
+    grid-template-columns: minmax(360px, .9fr) minmax(480px, 1.1fr) !important;
+    gap: 14px !important;
+  }
+}
+
+
+/* =========================================================
+   ATUALIZAÇÃO 54 — CORREÇÃO CRIAR RESERVA
+   Visual preservado; ajuste operacional no App.jsx.
+   ========================================================= */
+
+.reserva-form-actions .primary,
+.grid-two .panel-card .actions .primary {
+  cursor: pointer !important;
+}
+
+
+/* =========================================================
+   ATUALIZAÇÃO 55 — CORREÇÃO BOTÃO SALVAR RESERVA
+   ========================================================= */
+button[onclick],
+button.primary {
+  cursor: pointer !important;
+}
+
+/* AJUSTE: linha vermelha para identificar seleção de meia diária (12h) no painel */
+.painel-profissional .date-col.cell.half-cell {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.painel-profissional .date-col.cell.half-cell .half-zone {
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 50% !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+.painel-profissional .date-col.cell.half-cell .half-zone.left {
+  left: 0 !important;
+}
+
+.painel-profissional .date-col.cell.half-cell .half-zone.right {
+  right: 0 !important;
+}
+
+.painel-profissional .date-col.cell.half-cell .half-zone.half-selected {
+  background: rgba(239, 68, 68, .10) !important;
+}
+
+.painel-profissional .date-col.cell.half-cell .half-zone.half-selected::after {
+  content: '' !important;
+  position: absolute !important;
+  left: 4px !important;
+  right: 4px !important;
+  top: 50% !important;
+  height: 4px !important;
+  border-radius: 999px !important;
+  background: #ef233c !important;
+  box-shadow: 0 0 0 2px rgba(239, 35, 60, .16) !important;
+  transform: translateY(-50%) !important;
+}
+
+.painel-profissional .date-col.cell.half-cell .booking-chip,
+.painel-profissional .date-col.cell.half-cell .block-chip,
+.painel-profissional .date-col.cell.half-cell .free-dot {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.painel-profissional .date-col.cell.half-cell.cell-selected {
+  background: #fff5f5 !important;
+  box-shadow: inset 0 0 0 1px rgba(239, 35, 60, .45) !important;
+}
+
+/* AJUSTE: mantém a linha vermelha visível depois de criar meia diária */
+.painel-profissional .date-col.cell.half-cell .booking-chip.half-left,
+.painel-profissional .date-col.cell.half-cell .booking-chip.half-right {
+  position: relative !important;
+  overflow: visible !important;
+  box-shadow: 0 0 0 2px rgba(239, 35, 60, .16) !important;
+}
+
+.painel-profissional .date-col.cell.half-cell .booking-chip.half-left::after,
+.painel-profissional .date-col.cell.half-cell .booking-chip.half-right::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 50% !important;
+  height: 4px !important;
+  border-radius: 999px !important;
+  background: #ef233c !important;
+  box-shadow: 0 0 0 2px rgba(239, 35, 60, .18) !important;
+  transform: translateY(-50%) !important;
+  pointer-events: none !important;
+  z-index: 5 !important;
+}
+
+.painel-profissional .date-col.cell.half-cell .booking-chip.half-left::after {
+  left: 4px !important;
+  right: 50% !important;
+}
+
+.painel-profissional .date-col.cell.half-cell .booking-chip.half-right::after {
+  left: 50% !important;
+  right: 4px !important;
 }
