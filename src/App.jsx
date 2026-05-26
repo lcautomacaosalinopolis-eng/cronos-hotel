@@ -50,15 +50,8 @@ const generateReservationCode = (existing = []) => {
 
 
 function useLocalState(key, initialValue) {
-  const [state, setState] = useState(() => {
-    try {
-      const stored = localStorage.getItem(key)
-      return stored ? JSON.parse(stored) : initialValue
-    } catch (error) {
-      console.warn(`Falha ao carregar ${key}. Usando valor inicial.`, error)
-      return initialValue
-    }
-  })
+  const [state, setState] = useState(initialValue)
+  const [synced, setSynced] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -73,31 +66,48 @@ function useLocalState(key, initialValue) {
 
         if (error) {
           console.warn(`Falha ao carregar ${key} do Supabase.`, error)
+          if (mounted) {
+            setState(initialValue)
+            setSynced(true)
+          }
           return
         }
 
         if (mounted && data && data.value !== undefined && data.value !== null) {
           setState(data.value)
-          localStorage.setItem(key, JSON.stringify(data.value))
+          try {
+            localStorage.setItem(key, JSON.stringify(data.value))
+          } catch {}
+          setSynced(true)
           return
         }
 
-        // Se não existir no Supabase, cria com o valor inicial/local atual.
-        const currentLocal = localStorage.getItem(key)
-        const valueToSeed = currentLocal ? JSON.parse(currentLocal) : initialValue
+        // Supabase vazio = sistema limpo.
+        // NÃO puxar testes antigos do localStorage.
+        if (mounted) {
+          setState(initialValue)
+          try {
+            localStorage.setItem(key, JSON.stringify(initialValue))
+          } catch {}
+          setSynced(true)
+        }
 
         await supabase
           .from('app_state')
           .upsert(
             {
               key,
-              value: valueToSeed,
+              value: initialValue,
               updated_at: new Date().toISOString()
             },
             { onConflict: 'key' }
           )
       } catch (error) {
         console.warn(`Falha ao sincronizar ${key} com Supabase.`, error)
+        if (mounted) {
+          setState(initialValue)
+          setSynced(true)
+        }
       }
     }
 
@@ -118,19 +128,21 @@ function useLocalState(key, initialValue) {
         console.warn(`Falha ao salvar ${key} no localStorage.`, error)
       }
 
-      supabase
-        .from('app_state')
-        .upsert(
-          {
-            key,
-            value: nextValue,
-            updated_at: new Date().toISOString()
-          },
-          { onConflict: 'key' }
-        )
-        .then(({ error }) => {
-          if (error) console.warn(`Falha ao salvar ${key} no Supabase.`, error)
-        })
+      if (synced) {
+        supabase
+          .from('app_state')
+          .upsert(
+            {
+              key,
+              value: nextValue,
+              updated_at: new Date().toISOString()
+            },
+            { onConflict: 'key' }
+          )
+          .then(({ error }) => {
+            if (error) console.warn(`Falha ao salvar ${key} no Supabase.`, error)
+          })
+      }
 
       return nextValue
     })
