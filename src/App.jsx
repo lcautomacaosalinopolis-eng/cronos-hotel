@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import hotelBrisasLogo from './assets/hotel-brisas-logo.jpeg'
+import { supabase } from './supabase'
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -58,17 +59,83 @@ function useLocalState(key, initialValue) {
       return initialValue
     }
   })
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadFromSupabase() {
+      try {
+        const { data, error } = await supabase
+          .from('app_state')
+          .select('value')
+          .eq('key', key)
+          .maybeSingle()
+
+        if (error) {
+          console.warn(`Falha ao carregar ${key} do Supabase.`, error)
+          return
+        }
+
+        if (mounted && data && data.value !== undefined && data.value !== null) {
+          setState(data.value)
+          localStorage.setItem(key, JSON.stringify(data.value))
+          return
+        }
+
+        // Se não existir no Supabase, cria com o valor inicial/local atual.
+        const currentLocal = localStorage.getItem(key)
+        const valueToSeed = currentLocal ? JSON.parse(currentLocal) : initialValue
+
+        await supabase
+          .from('app_state')
+          .upsert(
+            {
+              key,
+              value: valueToSeed,
+              updated_at: new Date().toISOString()
+            },
+            { onConflict: 'key' }
+          )
+      } catch (error) {
+        console.warn(`Falha ao sincronizar ${key} com Supabase.`, error)
+      }
+    }
+
+    loadFromSupabase()
+
+    return () => {
+      mounted = false
+    }
+  }, [key])
+
   const save = (value) => {
     setState((current) => {
       const nextValue = typeof value === 'function' ? value(current) : value
+
       try {
         localStorage.setItem(key, JSON.stringify(nextValue))
       } catch (error) {
-        console.warn(`Falha ao salvar ${key}.`, error)
+        console.warn(`Falha ao salvar ${key} no localStorage.`, error)
       }
+
+      supabase
+        .from('app_state')
+        .upsert(
+          {
+            key,
+            value: nextValue,
+            updated_at: new Date().toISOString()
+          },
+          { onConflict: 'key' }
+        )
+        .then(({ error }) => {
+          if (error) console.warn(`Falha ao salvar ${key} no Supabase.`, error)
+        })
+
       return nextValue
     })
   }
+
   return [state, save]
 }
 
@@ -156,39 +223,6 @@ const menu = [
 ]
 
 function App() {
-  useEffect(() => {
-    const versaoLimpaCliente = 'fh_sistema_cliente_zerado_v2'
-    const limpezaExecutada = localStorage.getItem(versaoLimpaCliente)
-
-    if (!limpezaExecutada) {
-      const chavesDoSistema = [
-        'fh_products_v1',
-        'fh_usuarios_v1',
-        'fh_current_user_v1',
-        'fh_room_types_v3',
-        'fh_rooms_v3',
-        'fh_clients_v2',
-        'fh_reservations_v2',
-        'fh_payments_v2',
-        'fh_consumos_v1',
-        'fh_guests_v1',
-        'fh_blocks_v2',
-        'fh_rates_v2',
-        'fh_precheckins_v2',
-        'fh_payment_methods_v1',
-        'fh_audit_logs_v1'
-      ]
-
-      chavesDoSistema.forEach(chave => localStorage.removeItem(chave))
-
-      Object.keys(localStorage)
-        .filter(chave => chave.startsWith('fh_') && chave !== versaoLimpaCliente)
-        .forEach(chave => localStorage.removeItem(chave))
-
-      localStorage.setItem(versaoLimpaCliente, 'ok')
-      window.location.reload()
-    }
-  }, [])
 
 
   const [products, setProducts] = useLocalState('fh_products_v1', [])
