@@ -1,5 +1,5 @@
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import hotelBrisasLogo from './assets/hotel-brisas-logo.jpeg'
 
@@ -112,7 +112,7 @@ const roomsSeed = roomTypesSeed.flatMap((type, typeIndex) =>
     tipoId: type.id,
     tipo: type.nome,
     andar: Number(numero) < 200 ? 'Térreo' : Number(numero) < 300 ? '1º andar' : '2º andar',
-    statusLimpeza: (typeIndex + roomIndex) % 9 === 0 ? 'verificar' : 'limpo',
+    statusLimpeza: 'limpo',
   }))
 )
 
@@ -156,6 +156,41 @@ const menu = [
 ]
 
 function App() {
+  useEffect(() => {
+    const versaoLimpaCliente = 'fh_sistema_cliente_zerado_v2'
+    const limpezaExecutada = localStorage.getItem(versaoLimpaCliente)
+
+    if (!limpezaExecutada) {
+      const chavesDoSistema = [
+        'fh_products_v1',
+        'fh_usuarios_v1',
+        'fh_current_user_v1',
+        'fh_room_types_v3',
+        'fh_rooms_v3',
+        'fh_clients_v2',
+        'fh_reservations_v2',
+        'fh_payments_v2',
+        'fh_consumos_v1',
+        'fh_guests_v1',
+        'fh_blocks_v2',
+        'fh_rates_v2',
+        'fh_precheckins_v2',
+        'fh_payment_methods_v1',
+        'fh_audit_logs_v1'
+      ]
+
+      chavesDoSistema.forEach(chave => localStorage.removeItem(chave))
+
+      Object.keys(localStorage)
+        .filter(chave => chave.startsWith('fh_') && chave !== versaoLimpaCliente)
+        .forEach(chave => localStorage.removeItem(chave))
+
+      localStorage.setItem(versaoLimpaCliente, 'ok')
+      window.location.reload()
+    }
+  }, [])
+
+
   const [products, setProducts] = useLocalState('fh_products_v1', [])
   const [productForm, setProductForm] = useState({ nome: '', categoria: 'Frigobar', estoque: '', valor: '' })
   const [tab, setTab] = useState('dashboard')
@@ -1424,10 +1459,15 @@ function Quartos({ roomTypes = [], rooms = [], reservations = [], clients = [], 
 
   function statusRoom(room) {
     const r = activeReservation(room.id)
-    if (room.status === 'manutencao') return 'manutencao'
-    if (room.status === 'limpeza') return 'limpeza'
+    const limpeza = String(room.statusLimpeza || room.status || '').toLowerCase()
+
+    // Prioridade das cores do painel de quartos:
+    // Manutenção bloqueia o quarto; hospedado fica azul; reserva futura fica verde;
+    // limpeza/verificação fica laranja; livre fica branco.
+    if (limpeza === 'manutencao') return 'manutencao'
     if (r?.status === 'hospedado') return 'ocupado'
-    if (r) return 'reservado'
+    if (r && ['confirmada', 'pendente'].includes(r.status)) return 'reservado'
+    if (limpeza === 'limpeza' || limpeza === 'verificar') return 'limpeza'
     return 'livre'
   }
 

@@ -6629,3 +6629,238 @@ body,
     white-space: nowrap !important;
   }
 }
+
+
+/* =========================================================
+   AJUSTE SEGURO — CORES DA ABA QUARTOS
+   Mantém o desenho atual das portinhas; altera somente cores.
+   Livre = branco | Reservado = verde | Ocupado = azul
+   Limpeza = laranja | Manutenção = cinza
+   ========================================================= */
+
+.quartos-situacao-page .situacao-room-card.livre {
+  background: #ffffff !important;
+  border-color: #d7e1ee !important;
+  color: #64748b !important;
+}
+
+.quartos-situacao-page .situacao-room-card.livre strong {
+  color: rgba(100, 116, 139, .18) !important;
+  -webkit-text-stroke: 1.2px rgba(100, 116, 139, .62) !important;
+}
+
+.quartos-situacao-page .situacao-room-card.livre span,
+.quartos-situacao-page .situacao-room-card.livre em {
+  color: #0f172a !important;
+}
+
+.quartos-situacao-page .situacao-room-card.reservado {
+  background: linear-gradient(180deg, #4ade80 0%, #22c55e 62%, #16a34a 100%) !important;
+  border-color: #15803d !important;
+  color: #ffffff !important;
+}
+
+.quartos-situacao-page .situacao-room-card.ocupado {
+  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 62%, #1d4ed8 100%) !important;
+  border-color: #1e40af !important;
+  color: #ffffff !important;
+}
+
+.quartos-situacao-page .situacao-room-card.limpeza {
+  background: linear-gradient(180deg, #fdba74 0%, #f97316 62%, #ea580c 100%) !important;
+  border-color: #c2410c !important;
+  color: #ffffff !important;
+}
+
+.quartos-situacao-page .situacao-room-card.manutencao {
+  background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 62%, #64748b 100%) !important;
+  border-color: #475569 !important;
+  color: #ffffff !important;
+}
+
+.quartos-situacao-page .situacao-room-card.reservado strong,
+.quartos-situacao-page .situacao-room-card.ocupado strong,
+.quartos-situacao-page .situacao-room-card.limpeza strong,
+.quartos-situacao-page .situacao-room-card.manutencao strong {
+  color: rgba(255, 255, 255, .23) !important;
+  -webkit-text-stroke: 1.3px rgba(255, 255, 255, .78) !important;
+}
+
+.quartos-situacao-page .situacao-room-card.reservado span,
+.quartos-situacao-page .situacao-room-card.reservado em,
+.quartos-situacao-page .situacao-room-card.ocupado span,
+.quartos-situacao-page .situacao-room-card.ocupado em,
+.quartos-situacao-page .situacao-room-card.limpeza span,
+.quartos-situacao-page .situacao-room-card.limpeza em,
+.quartos-situacao-page .situacao-room-card.manutencao span,
+.quartos-situacao-page .situacao-room-card.manutencao em {
+  color: #ffffff !important;
+}
+
+.quartos-situacao-page .q-livre { background: #ffffff !important; border: 1px solid #cbd5e1 !important; }
+.quartos-situacao-page .q-reservado { background: #22c55e !important; }
+.quartos-situacao-page .q-ocupado { background: #2563eb !important; }
+.quartos-situacao-page .q-limpeza { background: #f97316 !important; }
+.quartos-situacao-page .q-manutencao { background: #64748b !important; }
+
+
+/* =========================================================
+   ATUALIZAÇÃO 45 — CORES DEFINITIVAS DOS QUARTOS POR STATUS
+   Não altera funções: apenas força a cor visual conforme a classe
+   gerada pelo sistema em App.jsx.
+
+   Livre       = branco
+   Reservado   = verde
+   Ocupado     = azul
+   Limpeza     = laranja
+   Manutenção  = cinza
+   ========================================================= */
+
+.quartos-situacao-page .quartos-legend .q-livre,
+.q-livre {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.quartos-situacao-page .quartos-legend .q-reservado,
+.q-reservado { background: #22c55e !important; }
+
+.quartos-situacao-page .quartos-legend .q-ocupado,
+.q-ocupado { background: #2563eb !important; }
+
+.quartos-situacao-page .quartos-legend .q-limpeza,
+.q-limpeza { background: #f97316 !important; }
+
+.quartos-situacao-page .quartos-legend .q-manutencao,
+.q-manutencao { background: #64748b !important; }
+
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card,
+.quartos-situacao-grid button.situacao-room-card,
+button.situacao-room-card {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  border-radius: 12px !important;
+  min-height: 136px !important;
+  height: 136px !important;
+  padding: 10px 7px !important;
+  cursor: pointer !important;
+  text-align: center !important;
+  overflow: hidden !important;
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease !important;
+}
+
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card:hover,
+.quartos-situacao-grid button.situacao-room-card:hover,
+button.situacao-room-card:hover {
+  transform: translateY(-2px) !important;
+  filter: brightness(1.03) saturate(1.05) !important;
+}
+
+/* Livre */
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.livre,
+.quartos-situacao-grid button.situacao-room-card.livre,
+button.situacao-room-card.livre {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border: 1px solid #d6e0ec !important;
+  color: #475569 !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.9), 0 10px 20px rgba(15,23,42,.06) !important;
+}
+
+/* Reservado */
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.reservado,
+.quartos-situacao-grid button.situacao-room-card.reservado,
+button.situacao-room-card.reservado {
+  background: linear-gradient(180deg, #4ade80 0%, #22c55e 62%, #16a34a 100%) !important;
+  border: 1px solid #15803d !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), 0 12px 24px rgba(34,197,94,.25) !important;
+}
+
+/* Ocupado */
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.ocupado,
+.quartos-situacao-grid button.situacao-room-card.ocupado,
+button.situacao-room-card.ocupado {
+  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 62%, #1d4ed8 100%) !important;
+  border: 1px solid #1e40af !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), 0 12px 24px rgba(37,99,235,.25) !important;
+}
+
+/* Limpeza / verificar saída */
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.limpeza,
+.quartos-situacao-grid button.situacao-room-card.limpeza,
+button.situacao-room-card.limpeza {
+  background: linear-gradient(180deg, #fdba74 0%, #f97316 62%, #ea580c 100%) !important;
+  border: 1px solid #c2410c !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), 0 12px 24px rgba(249,115,22,.25) !important;
+}
+
+/* Manutenção */
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.manutencao,
+.quartos-situacao-grid button.situacao-room-card.manutencao,
+button.situacao-room-card.manutencao {
+  background: linear-gradient(180deg, #cbd5e1 0%, #64748b 66%, #475569 100%) !important;
+  border: 1px solid #334155 !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), 0 12px 24px rgba(100,116,139,.25) !important;
+}
+
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card strong,
+.quartos-situacao-grid button.situacao-room-card strong,
+button.situacao-room-card strong {
+  color: rgba(100,116,139,.18) !important;
+  -webkit-text-stroke: 1.2px rgba(100,116,139,.65) !important;
+}
+
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.reservado strong,
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.ocupado strong,
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.limpeza strong,
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.manutencao strong,
+.quartos-situacao-grid button.situacao-room-card.reservado strong,
+.quartos-situacao-grid button.situacao-room-card.ocupado strong,
+.quartos-situacao-grid button.situacao-room-card.limpeza strong,
+.quartos-situacao-grid button.situacao-room-card.manutencao strong,
+button.situacao-room-card.reservado strong,
+button.situacao-room-card.ocupado strong,
+button.situacao-room-card.limpeza strong,
+button.situacao-room-card.manutencao strong {
+  color: rgba(255,255,255,.24) !important;
+  -webkit-text-stroke: 1.3px rgba(255,255,255,.82) !important;
+}
+
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.livre span,
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.livre em,
+.quartos-situacao-grid button.situacao-room-card.livre span,
+.quartos-situacao-grid button.situacao-room-card.livre em,
+button.situacao-room-card.livre span,
+button.situacao-room-card.livre em {
+  color: #0f172a !important;
+}
+
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.reservado span,
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.reservado em,
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.ocupado span,
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.ocupado em,
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.limpeza span,
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.limpeza em,
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.manutencao span,
+.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.manutencao em,
+.quartos-situacao-grid button.situacao-room-card.reservado span,
+.quartos-situacao-grid button.situacao-room-card.reservado em,
+.quartos-situacao-grid button.situacao-room-card.ocupado span,
+.quartos-situacao-grid button.situacao-room-card.ocupado em,
+.quartos-situacao-grid button.situacao-room-card.limpeza span,
+.quartos-situacao-grid button.situacao-room-card.limpeza em,
+.quartos-situacao-grid button.situacao-room-card.manutencao span,
+.quartos-situacao-grid button.situacao-room-card.manutencao em,
+button.situacao-room-card.reservado span,
+button.situacao-room-card.reservado em,
+button.situacao-room-card.ocupado span,
+button.situacao-room-card.ocupado em,
+button.situacao-room-card.limpeza span,
+button.situacao-room-card.limpeza em,
+button.situacao-room-card.manutencao span,
+button.situacao-room-card.manutencao em {
+  color: #ffffff !important;
+}
