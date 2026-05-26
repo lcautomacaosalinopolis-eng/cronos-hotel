@@ -6295,3 +6295,337 @@ button.primary {
   left: 50% !important;
   right: 4px !important;
 }
+
+/* =========================================================
+   CORREÇÃO FINAL — ESTABILIZAÇÃO DE DESIGN E RESPONSIVIDADE
+   ========================================================= */
+html,
+body,
+#root {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  text-align: initial !important;
+  overflow-x: hidden !important;
+}
+
+.hotel-layout {
+  width: 100% !important;
+  max-width: 100vw !important;
+  min-width: 0 !important;
+}
+
+.hotel-main,
+.hotel-topbar,
+.panel-card,
+.grid-two,
+.data-table,
+.form-grid,
+.rooms-grid,
+.painel-profissional {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.hotel-topbar {
+  gap: 16px !important;
+}
+
+.topbar-right {
+  min-width: 0 !important;
+  flex-wrap: wrap !important;
+}
+
+.search-field {
+  min-width: 220px !important;
+  max-width: min(420px, 100%) !important;
+}
+
+.toast {
+  position: fixed !important;
+  top: 18px !important;
+  right: 18px !important;
+  z-index: 9999 !important;
+  max-width: min(420px, calc(100vw - 32px)) !important;
+  padding: 14px 18px !important;
+  border-radius: 14px !important;
+  background: #0f172a !important;
+  color: #ffffff !important;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, .28) !important;
+  font-weight: 800 !important;
+}
+
+.login-page {
+  min-height: 100vh !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 24px !important;
+  background: radial-gradient(circle at top, rgba(15, 107, 255, .16), transparent 32%), linear-gradient(135deg, #06111f, #091a2b) !important;
+}
+
+.login-card {
+  width: min(440px, 100%) !important;
+  display: grid !important;
+  gap: 16px !important;
+  padding: 28px !important;
+  border: 1px solid rgba(148, 163, 184, .24) !important;
+  border-radius: 24px !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .24) !important;
+}
+
+.login-brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  margin-bottom: 8px !important;
+}
+
+.login-brand h1 {
+  margin: 0 !important;
+  color: #0f172a !important;
+  font-size: 24px !important;
+  font-weight: 950 !important;
+}
+
+.login-brand p,
+.login-card .hint {
+  color: #64748b !important;
+}
+
+.login-card label {
+  display: grid !important;
+  gap: 7px !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+}
+
+.login-card input {
+  min-height: 46px !important;
+  border: 1px solid #dbe3ee !important;
+  border-radius: 14px !important;
+  padding: 0 14px !important;
+  background: #fff !important;
+  color: #0f172a !important;
+}
+
+.sidebar-user {
+  align-items: center !important;
+}
+
+.logout-button {
+  margin-left: auto !important;
+  min-height: 34px !important;
+  padding: 0 10px !important;
+  border: 1px solid rgba(255, 255, 255, .14) !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, .08) !important;
+  color: #fff !important;
+  cursor: pointer !important;
+}
+
+.modal-backdrop > .modal-card.room-detail-modal,
+.room-detail-modal {
+  width: min(980px, calc(100vw - 32px)) !important;
+  max-height: calc(100vh - 32px) !important;
+  overflow: auto !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-radius: 22px !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 30px 90px rgba(15, 23, 42, .30) !important;
+  padding: 22px !important;
+}
+
+.room-detail-grid,
+.room-now-card,
+.room-fast-actions,
+.room-history,
+.mini-reservation,
+.cash-summary,
+.payment-bars,
+.type-group,
+.floor-section {
+  min-width: 0 !important;
+}
+
+.room-detail-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+
+.room-now-card {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 18px !important;
+  background: #f8fafc !important;
+  padding: 16px !important;
+}
+
+.room-fast-actions {
+  display: flex !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+  margin-top: 14px !important;
+}
+
+.room-history {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.history-item,
+.mini-reservation {
+  display: grid !important;
+  gap: 5px !important;
+  text-align: left !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  background: #fff !important;
+  color: #0f172a !important;
+  padding: 12px !important;
+}
+
+.cash-summary {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+  gap: 12px !important;
+  margin: 16px 0 !important;
+}
+
+.cash-summary > div {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  background: #f8fafc !important;
+  padding: 14px !important;
+}
+
+.cash-summary span,
+.payment-bars span {
+  color: #64748b !important;
+}
+
+.payment-bars {
+  display: grid !important;
+  gap: 10px !important;
+}
+
+.payment-bars > div {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: 1fr auto !important;
+  gap: 10px !important;
+  overflow: hidden !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  padding: 12px !important;
+  background: #fff !important;
+}
+
+.payment-bars i {
+  position: absolute !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  height: 4px !important;
+  background: #0f6bff !important;
+}
+
+.vip {
+  display: inline-flex !important;
+  margin-left: 8px !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+}
+
+.floor-section {
+  margin-top: 18px !important;
+}
+
+.floor-section h4,
+.type-group h4 {
+  color: inherit !important;
+  margin: 0 0 10px !important;
+}
+
+@media (max-width: 1180px) {
+  .hotel-layout {
+    grid-template-columns: 230px minmax(0, 1fr) !important;
+  }
+
+  .hotel-sidebar {
+    width: 230px !important;
+    min-width: 230px !important;
+    padding: 14px 12px !important;
+  }
+
+  .hotel-brand h1 {
+    font-size: 19px !important;
+  }
+
+  .menu-link {
+    min-height: 40px !important;
+    padding-inline: 10px !important;
+    font-size: 13px !important;
+  }
+}
+
+@media (max-width: 860px) {
+  body {
+    overflow-x: hidden !important;
+  }
+
+  .hotel-layout {
+    display: block !important;
+  }
+
+  .hotel-sidebar {
+    position: relative !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: auto !important;
+  }
+
+  .hotel-menu {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)) !important;
+  }
+
+  .hotel-main {
+    padding: 0 12px 24px !important;
+  }
+
+  .hotel-topbar {
+    position: relative !important;
+    min-height: auto !important;
+    margin: 0 -12px 16px !important;
+    padding: 14px !important;
+    align-items: flex-start !important;
+    flex-direction: column !important;
+  }
+
+  .topbar-right,
+  .search-field,
+  .date-input-top {
+    width: 100% !important;
+  }
+
+  .grid-two,
+  .servicos-produtos-page,
+  .room-detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .data-table {
+    display: block !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+  }
+}

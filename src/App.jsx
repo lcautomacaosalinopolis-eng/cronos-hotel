@@ -23,27 +23,55 @@ const blockStartSlot = (b) => dateToSlot(b.inicio, 0)
 const blockEndSlot = (b) => dateToSlot(b.fim, 0)
 const diffHalfDays = (r) => Math.max(1, reservationEndSlot(r) - reservationStartSlot(r)) / 2
 const moneyNumber = (v) => Number(String(v || 0).replace(/\./g, '').replace(',', '.')) || 0
-const id = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random())
-const reservationCode = () => String(Math.floor(33000 + Math.random() * 9000))
+const id = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()))
+const encodeText = (value) => {
+  try { return btoa(unescape(encodeURIComponent(String(value || '')))) } catch { return String(value || '') }
+}
+const passwordHash = (senha) => `local-v2:${encodeText(senha)}`
+const verifyPassword = (senha, usuario) => {
+  if (!usuario) return false
+  if (usuario.senhaHash) return usuario.senhaHash === passwordHash(senha)
+  return String(usuario.senha || '') === String(senha || '')
+}
+const sanitizeUser = (usuario) => {
+  if (!usuario) return null
+  const safeUser = { id: usuario.id, nome: usuario.nome, email: usuario.email, perfil: usuario.perfil, ativo: usuario.ativo, precisaTrocarSenha: usuario.precisaTrocarSenha }
+  return safeUser
+}
+const generateReservationCode = (existing = []) => {
+  const used = new Set(existing.map(item => String(item.codigo || item.reservaCodigo || '')))
+  for (let attempt = 0; attempt < 1000; attempt += 1) {
+    const code = String(Math.floor(100000 + Math.random() * 900000))
+    if (!used.has(code)) return code
+  }
+  return String(Date.now()).slice(-8)
+}
+
 
 function useLocalState(key, initialValue) {
   const [state, setState] = useState(() => {
     try {
       const stored = localStorage.getItem(key)
       return stored ? JSON.parse(stored) : initialValue
-    } catch {
+    } catch (error) {
+      console.warn(`Falha ao carregar ${key}. Usando valor inicial.`, error)
       return initialValue
     }
   })
   const save = (value) => {
     setState((current) => {
       const nextValue = typeof value === 'function' ? value(current) : value
-      localStorage.setItem(key, JSON.stringify(nextValue))
+      try {
+        localStorage.setItem(key, JSON.stringify(nextValue))
+      } catch (error) {
+        console.warn(`Falha ao salvar ${key}.`, error)
+      }
       return nextValue
     })
   }
   return [state, save]
 }
+
 
 const roomTypesSeed = [
   { id: 'casal', nome: 'Casal', capacidade: 2, diaria: 200 },
@@ -106,21 +134,7 @@ const paymentMethodsSeed = [
 ]
 
 
-const MOVEMENT_STORAGE_KEYS = [
-  'fh_clients_v2',
-  'fh_reservations_v2',
-  'fh_payments_v2',
-  'fh_consumos_v1',
-  'fh_blocks_v2',
-  'fh_rates_v2',
-  'fh_precheckins_v2',
-  'fh_audit_logs_v1',
-]
 
-if (typeof localStorage !== 'undefined' && localStorage.getItem('fh_movimentos_zerados_v14') !== 'ok') {
-  MOVEMENT_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key))
-  localStorage.setItem('fh_movimentos_zerados_v14', 'ok')
-}
 
 const menu = [
   ['dashboard', '▦', 'Dashboard'],
@@ -137,15 +151,18 @@ const menu = [
   ['caixa', '▣', 'Caixa diário'],
   ['relatorios', '▧', 'Relatórios'],
   ['auditoria', '☷', 'Auditoria'],
+  ['usuarios', '👤', 'Usuários'],
   ['config', '⚙', 'Configurações'],
 ]
 
 function App() {
-  const [products, setProducts] = useState([])
+  const [products, setProducts] = useLocalState('fh_products_v1', [])
   const [productForm, setProductForm] = useState({ nome: '', categoria: 'Frigobar', estoque: '', valor: '' })
   const [tab, setTab] = useState('dashboard')
-  const [usuarios, setUsuarios] = useState([{ id: 'admin', nome: 'Administrador', email: '', perfil: 'Administrador', ativo: true }])
+  const [usuarios, setUsuarios] = useLocalState('fh_usuarios_v1', [{ id: 'admin', nome: 'Administrador', email: 'admin@hotel.local', perfil: 'Administrador', senhaHash: passwordHash('admin'), precisaTrocarSenha: true, ativo: true }])
   const [usuarioForm, setUsuarioForm] = useState({ nome: '', email: '', perfil: 'Recepção', senha: '', ativo: true })
+  const [currentUser, setCurrentUser] = useLocalState('fh_current_user_v1', null)
+  const [loginForm, setLoginForm] = useState({ email: '', senha: '' })
   const [search, setSearch] = useState('')
   const [roomTypes, setRoomTypes] = useLocalState('fh_room_types_v3', roomTypesSeed)
   const [rooms, setRooms] = useLocalState('fh_rooms_v3', roomsSeed)
@@ -183,6 +200,8 @@ function App() {
   const [rateForm, setRateForm] = useState({ tipoId: 'todos', inicio: todayISO(), fim: todayISO(), diasSemana: ['0','1','2','3','4','5','6'], valor: '', acao: 'criar' })
   const [preBusca, setPreBusca] = useState('')
 
+  const publicPrecheckinMatch = window.location.pathname.match(/^\/pre-checkin\/([^/]+)$/)
+
   const dates = useMemo(() => Array.from({ length: Number(periodDays) }, (_, i) => addDays(periodStart, i)), [periodStart, periodDays])
   const futureReservations = reservations.filter(r => ['pendente', 'confirmada'].includes(r.status))
   const hospedados = reservations.filter(r => r.status === 'hospedado')
@@ -195,7 +214,7 @@ function App() {
   }
 
   function logAction(acao, detalhe) {
-    setAuditLogs([{ id: id(), data: new Date().toLocaleString('pt-BR'), usuario: 'Administrador', acao, detalhe }, ...auditLogs].slice(0, 300))
+    setAuditLogs([{ id: id(), data: new Date().toLocaleString('pt-BR'), usuario: currentUser?.nome || 'Administrador', acao, detalhe }, ...auditLogs].slice(0, 300))
   }
 
   function clientOf(r) {
@@ -210,9 +229,23 @@ function App() {
     return rooms.find(q => q.id === idQuarto) || {}
   }
 
-  function diariaTotal(r) {
-    return diffHalfDays(r) * Number(r.diaria || typeOf(r.tipoId).diaria || 0)
+  function tarifaAplicavel(tipoId, entrada, fallback) {
+    const data = entrada || todayISO()
+    const diaSemana = String(new Date(`${data}T12:00:00`).getDay())
+    const regra = rates.find(rate =>
+      rate.tipoId === tipoId &&
+      rate.acao !== 'remover' &&
+      data >= rate.inicio &&
+      data <= rate.fim &&
+      (!Array.isArray(rate.diasSemana) || rate.diasSemana.includes(diaSemana))
+    )
+    return Number(regra?.valor || fallback || 0)
   }
+
+  function diariaTotal(r) {
+    return diffHalfDays(r) * tarifaAplicavel(r.tipoId, r.entrada, r.diaria || typeOf(r.tipoId).diaria)
+  }
+
 
   function servicesTotal(reservaId) {
     return consumos.filter(c => c.reservaId === reservaId).reduce((s, c) => s + Number(c.qtd || 1) * Number(c.valor || 0), 0)
@@ -286,10 +319,10 @@ function App() {
       credito: 0,
       vip: false
     }
-    const diaria = typeOf(quarto.tipoId).diaria || 0
+    const diaria = tarifaAplicavel(quarto.tipoId, data.entrada, typeOf(quarto.tipoId).diaria || 0)
     const reserva = {
       id: id(),
-      codigo: reservationCode(),
+      codigo: generateReservationCode(reservations),
       clienteId: cli.id,
       quartoId: quarto.id,
       tipoId: quarto.tipoId,
@@ -301,7 +334,6 @@ function App() {
       criancas: Number(data.criancas || 0),
       diaria: moneyNumber(data.diaria) || diaria,
       status: 'pendente',
-      origem: 'Painel de reservas',
       canal: data.canal || 'Direto',
       origem: data.origem || 'Painel de reservas',
       observacao: data.observacao || 'Criada arrastando no painel de reservas.'
@@ -366,10 +398,10 @@ function App() {
       email: (newReservation.email || '').trim(),
       nascimento: newReservation.nascimento || '',
       endereco: newReservation.endereco || '',
-      reservaCodigo: reservationCode()
+      reservaCodigo: generateReservationCode([...clients, ...reservations])
     }
 
-    const diaria = moneyNumber(newReservation.diaria || 0)
+    const diaria = moneyNumber(newReservation.diaria || 0) || tarifaAplicavel(newReservation.tipoId, newReservation.entrada, typeOf(newReservation.tipoId).diaria)
     if (diaria <= 0) {
       notify('Informe o valor da diária.')
       return
@@ -377,7 +409,7 @@ function App() {
 
     const reserva = {
       id: id(),
-      codigo: reservationCode(),
+      codigo: generateReservationCode(reservations),
       clienteId: cliente.id,
       quartoId: quartoSelecionado,
       entrada: newReservation.entrada,
@@ -547,11 +579,6 @@ function App() {
     logAction('WhatsApp da reserva', `Mensagem da reserva ${r.codigo} enviada/aberta no WhatsApp.`)
   }
 
-  function limparQuarto(quartoId) {
-    setRooms(rooms.map(q => q.id === quartoId ? { ...q, statusLimpeza: 'limpo' } : q))
-    logAction('Governança', `Quarto ${quartoId} marcado como limpo/liberado.`)
-    notify(`Quarto ${quartoId} marcado como limpo/liberado.`)
-  }
 
   function saveConsumo(form) {
     const valor = moneyNumber(form.valor)
@@ -638,7 +665,7 @@ function App() {
     if (!telefone) return notify('Informe o telefone/WhatsApp do cliente.')
     if (!email) return notify('Informe o e-mail do cliente.')
 
-    const cli = { id: id(), ...newClient, nome, cpf, telefone, email, reservaCodigo: reservationCode(), credito: 0, vip: false }
+    const cli = { id: id(), ...newClient, nome, cpf, telefone, email, reservaCodigo: generateReservationCode([...clients, ...reservations]), credito: 0, vip: false }
     setClients([cli, ...clients])
     setNewClient({ nome: '', cpf: '', telefone: '', email: '', nascimento: '', endereco: '', observacao: '' })
     logAction('Cliente cadastrado', `${cli.nome} cadastrado.`)
@@ -646,6 +673,13 @@ function App() {
   }
 
   function createPrecheckin(reserva) {
+    const existente = precheckins.find(p => p.reservaId === reserva.id && p.status !== 'cancelado')
+    if (existente) {
+      const cliente = clientOf(reserva)
+      const msg = `Olá ${cliente.nome}, segue o link do pré check-in da sua reserva ${reserva.codigo}: ${existente.link}`
+      window.open(`https://wa.me/55${String(cliente.telefone || '').replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank')
+      return notify('Já existia link de pré check-in. Reenviei pelo WhatsApp.')
+    }
     const token = id().slice(0, 8)
     const link = `${location.origin}/pre-checkin/${reserva.codigo}-${token}`
     setPrecheckins([{ id: id(), reservaId: reserva.id, codigo: reserva.codigo, token, link, status: 'enviado', data: todayISO(), nomeCompleto: '', selfie: '', documentoFoto: '', endereco: '', nascimento: '', observacao: '' }, ...precheckins])
@@ -725,6 +759,7 @@ function App() {
       rates,
       precheckins,
       paymentMethods,
+      products,
       auditLogs,
       exportedAt: new Date().toISOString()
     }
@@ -750,6 +785,7 @@ function App() {
     setRates([])
     setPrecheckins([])
     setAuditLogs([])
+    logAction('Movimentações zeradas', 'Clientes, reservas, financeiro e auditoria foram zerados manualmente.')
     setSelectedReserva(null)
     setSelectedRoom(null)
     localStorage.removeItem('fh_clients_v2')
@@ -775,6 +811,40 @@ function App() {
   }
 
 
+  const permissionsByProfile = {
+    Administrador: menu.map(([key]) => key),
+    Gerente: menu.map(([key]) => key).filter(key => key !== 'usuarios'),
+    Recepção: ['dashboard', 'painel', 'reservas', 'recepcao', 'clientes', 'hospedes', 'precheckin', 'quartos'],
+    Financeiro: ['dashboard', 'financeiro', 'caixa', 'relatorios', 'auditoria'],
+  }
+  const allowedTabs = permissionsByProfile[currentUser?.perfil] || permissionsByProfile.Administrador
+  const visibleMenu = menu.filter(([key]) => allowedTabs.includes(key))
+
+  function doLogin(event) {
+    event?.preventDefault?.()
+    const email = loginForm.email.trim().toLowerCase()
+    const found = usuarios.find(u => u.ativo !== false && String(u.email || '').toLowerCase() === email && verifyPassword(loginForm.senha, u))
+    if (!found) return notify('E-mail ou senha inválidos.')
+    setCurrentUser(sanitizeUser(found))
+    setTab('dashboard')
+    notify(`Bem-vindo, ${found.nome}.`)
+  }
+
+  function doLogout() {
+    setCurrentUser(null)
+    setLoginForm({ email: '', senha: '' })
+  }
+
+  if (publicPrecheckinMatch) {
+    return <PublicPreCheckin tokenParam={publicPrecheckinMatch[1]} precheckins={precheckins} setPrecheckins={setPrecheckins} reservations={reservations} clients={clients} />
+  }
+
+  if (!currentUser) {
+    return <LoginScreen loginForm={loginForm} setLoginForm={setLoginForm} onLogin={doLogin} toast={toast} />
+  }
+
+  if (!allowedTabs.includes(tab)) setTimeout(() => setTab(allowedTabs[0] || 'dashboard'), 0)
+
   const pageTitle = menu.find(m => m[0] === tab)?.[2] || 'Dashboard'
 
   return (
@@ -785,13 +855,13 @@ function App() {
           <div><h1>HOTEL BRISAS</h1><p>Sistema de Gestão</p></div>
         </div>
         <nav className="hotel-menu">
-          {menu.map(([key, icon, label]) => (
+          {visibleMenu.map(([key, icon, label]) => (
             <button key={key} className={'menu-link ' + (tab === key ? 'active' : '')} onClick={() => setTab(key)}>
               <span>{icon}</span>{label}
             </button>
           ))}
         </nav>
-        <div className="sidebar-user"><div className="user-avatar">LA</div><div><strong>Lucas Almeida</strong><small>Administrador</small></div></div>
+        <div className="sidebar-user"><div className="user-avatar">{(currentUser.nome || 'U').slice(0, 2).toUpperCase()}</div><div><strong>{currentUser.nome}</strong><small>{currentUser.perfil}</small></div><button className="logout-button" onClick={doLogout}>Sair</button></div>
       </aside>
 
       <main className="hotel-main">
@@ -809,23 +879,23 @@ function App() {
         {tab === 'painel' && <Painel dates={dates} periodStart={periodStart} setPeriodStart={setPeriodStart} periodDays={periodDays} setPeriodDays={setPeriodDays} groupByType={groupByType} setGroupByType={setGroupByType} roomTypes={roomTypes} rooms={rooms} reservations={reservations} blocks={blocks} expandedTypes={expandedTypes} setExpandedTypes={setExpandedTypes} setSelectedReserva={setSelectedReserva} setBlockModal={setBlockModal} clientOf={clientOf} moveReservation={moveReservation} dragSelection={dragSelection} setDragSelection={setDragSelection} createReservationByDrag={createReservationByDrag} />}
         {tab === 'reservas' && <Reservas newReservation={newReservation} setNewReservation={setNewReservation} roomTypes={roomTypes} availableRooms={availableRooms} saveReservation={saveReservation} clients={clients} reservations={reservations} clientOf={clientOf} roomOf={roomOf} balance={balance} setSelectedReserva={setSelectedReserva} setReceiveReserva={setReceiveReserva} doCheckin={doCheckin} />}
         {tab === 'recepcao' && <Recepcao rooms={rooms} roomTypes={roomTypes} reservations={reservations} roomStatus={roomStatus} clientOf={clientOf} roomOf={roomOf} setSelectedReserva={setSelectedReserva} setSelectedRoom={openRoom} setBlockModal={setBlockModal} moveReservation={moveReservation} />}
-        {tab === 'clientes' && <Clientes clients={clients} setClients={setClients} newClient={newClient} setNewClient={setNewClient} saveClient={saveClient} reservations={reservations} />}
-        {tab === 'hospedes' && <Hospedes reservations={reservations} clients={clients} guests={guests} setGuests={setGuests} clientOf={clientOf} roomOf={roomOf} logAction={logAction} notify={notify} />}
+        {tab === 'clientes' && <Clientes clients={clients} newClient={newClient} setNewClient={setNewClient} saveClient={saveClient} reservations={reservations} />}
+        {tab === 'hospedes' && <Hospedes reservations={reservations} guests={guests} setGuests={setGuests} clientOf={clientOf} roomOf={roomOf} logAction={logAction} notify={notify} />}
         {tab === 'usuarios' && <Usuarios usuarios={usuarios} setUsuarios={setUsuarios} usuarioForm={usuarioForm} setUsuarioForm={setUsuarioForm} notify={notify} logAction={logAction} />}
-      {tab === 'precheckin' && <PreCheckin preBusca={preBusca} setPreBusca={setPreBusca} reservations={reservations} precheckins={precheckins} setPrecheckins={setPrecheckins} clientOf={clientOf} createPrecheckin={createPrecheckin} />}
+      {tab === 'precheckin' && <PreCheckin preBusca={preBusca} setPreBusca={setPreBusca} reservations={reservations} precheckins={precheckins} clientOf={clientOf} createPrecheckin={createPrecheckin} />}
         {tab === 'quartos' && <Quartos roomTypes={roomTypes} rooms={rooms} reservations={reservations} clients={clients} consumos={consumos} payments={payments} setConsumos={setConsumos} setPayments={setPayments} setSelectedRoom={openRoom} notify={notify} logAction={logAction} />}
         {tab === 'tarifas' && <Tarifas roomTypes={roomTypes} rateForm={rateForm} setRateForm={setRateForm} saveRate={saveRate} rates={rates} />}
         {tab === 'servicos' && <Servicos products={products} productForm={productForm} setProductForm={setProductForm} saveProduct={saveProduct} consumos={consumos} reservations={reservations} clients={clients} rooms={rooms} />}
         {tab === 'financeiro' && <Financeiro reservations={reservations} payments={payments} clients={clients} clientOf={clientOf} roomOf={roomOf} setReceiveReserva={setReceiveReserva} setCancelReserva={setCancelReserva} balance={balance} paidTotal={paidTotal} reservationTotal={reservationTotal} />}
         {tab === 'caixa' && <CaixaDiario payments={payments} consumos={consumos} reservations={reservations} clients={clients} clientOf={clientOf} roomOf={roomOf} />}
-        {tab === 'relatorios' && <Relatorios reservations={reservations} payments={payments} clients={clients} rooms={rooms} clientOf={clientOf} roomOf={roomOf} printReceipt={printReceipt} />}
+        {tab === 'relatorios' && <Relatorios reservations={reservations} payments={payments} clients={clients} rooms={rooms} clientOf={clientOf} roomOf={roomOf} printReceipt={printReceipt} notify={notify} />}
         {tab === 'auditoria' && <Auditoria auditLogs={auditLogs} />}
         {tab === 'config' && <Config roomTypes={roomTypes} rooms={rooms} clients={clients} reservations={reservations} payments={payments} exportSystemData={exportSystemData} clearOperationalData={clearOperationalData} restoreRoomDefaults={restoreRoomDefaults} paymentMethods={paymentMethods} methodForm={methodForm} setMethodForm={setMethodForm} savePaymentMethod={savePaymentMethod} togglePaymentMethod={togglePaymentMethod} />}
       </main>
 
       {selectedRoom && <RoomModal room={selectedRoom} status={roomStatus(selectedRoom)} reservations={reservations.filter(r => r.quartoId === selectedRoom.id).sort((a,b)=>a.entrada.localeCompare(b.entrada))} blocks={blocks.filter(b => b.quartoId === selectedRoom.id)} clientOf={clientOf} setSelectedReserva={setSelectedReserva} setBlockModal={setBlockModal} setRooms={setRooms} rooms={rooms} onClose={() => setSelectedRoom(null)} />}
       {selectedReserva && <ReservationModal r={selectedReserva} client={clientOf(selectedReserva)} room={roomOf(selectedReserva.quartoId)} diariaTotal={diariaTotal(selectedReserva)} servicesTotal={servicesTotal(selectedReserva.id)} total={reservationTotal(selectedReserva)} paid={paidTotal(selectedReserva.id)} balance={balance(selectedReserva)} payments={payments.filter(p => p.reservaId === selectedReserva.id)} consumos={consumos.filter(c => c.reservaId === selectedReserva.id)} guests={guests.filter(g => g.reservaId === selectedReserva.id)} onClose={() => setSelectedReserva(null)} onReceive={() => setReceiveReserva(selectedReserva)} onCancel={() => setCancelReserva(selectedReserva)} onCheckin={() => doCheckin(selectedReserva)} onCheckout={() => doCheckout(selectedReserva)} onPre={() => createPrecheckin(selectedReserva)} onService={() => setServiceReserva(selectedReserva)} onTransfer={() => setTransferReserva(selectedReserva)} onReschedule={() => setRescheduleReserva(selectedReserva)} onWhatsapp={() => sendReservationWhatsapp(selectedReserva)} onPrint={() => printReceipt(selectedReserva)} />}
-      {receiveReserva && <ReceiveModal reserva={receiveReserva} client={clientOf(receiveReserva)} saldo={balance(receiveReserva)} paymentMethods={paymentMethods} onClose={() => setReceiveReserva(null)} onSave={receivePayment} />}
+      {receiveReserva && <ReceiveModal client={clientOf(receiveReserva)} saldo={balance(receiveReserva)} paymentMethods={paymentMethods} onClose={() => setReceiveReserva(null)} onSave={receivePayment} />}
       {cancelReserva && <CancelModal reserva={cancelReserva} received={paidTotal(cancelReserva.id)} onClose={() => setCancelReserva(null)} onSave={cancelWithCredit} />}
       {rescheduleReserva && <RescheduleModal reserva={rescheduleReserva} rooms={rooms} roomTypes={roomTypes} roomOf={roomOf} availableRooms={availableRooms} onClose={() => setRescheduleReserva(null)} onSave={rescheduleReservation} />}
       {transferReserva && <TransferModal reserva={transferReserva} rooms={rooms} roomOf={roomOf} availableRooms={availableRooms} onClose={() => setTransferReserva(null)} onSave={transferRoom} />}
@@ -836,6 +906,22 @@ function App() {
   )
 }
 
+
+function LoginScreen({ loginForm, setLoginForm, onLogin, toast }) {
+  return <main className="login-page">
+    {toast && <div className="toast">{toast}</div>}
+    <form className="login-card" onSubmit={onLogin}>
+      <div className="login-brand">
+        <img className="hotel-logo-img" src={hotelBrisasLogo} alt="Hotel Brisas" />
+        <div><h1>HOTEL BRISAS</h1><p>Acesso ao sistema</p></div>
+      </div>
+      <label>E-mail<input autoFocus type="email" value={loginForm.email} onChange={e=>setLoginForm({...loginForm,email:e.target.value})} placeholder="admin@hotel.local" /></label>
+      <label>Senha<input type="password" value={loginForm.senha} onChange={e=>setLoginForm({...loginForm,senha:e.target.value})} placeholder="Senha" /></label>
+      <button className="primary" type="submit">Entrar</button>
+      <p className="hint">Usuário inicial: admin@hotel.local / senha: admin. Troque a senha na aba Usuários antes de usar em produção.</p>
+    </form>
+  </main>
+}
 
 function DragReservationModal({ data, setData, onClose, onSave }) {
   const noites = Math.max(0.5, (Number(data.saidaSlot ?? dateToSlot(data.saida, 0)) - Number(data.entradaSlot ?? dateToSlot(data.entrada, 0))) / 2)
@@ -871,110 +957,25 @@ function DragReservationModal({ data, setData, onClose, onSave }) {
 
 
 
-function RoomAccountModal({ data, setData, rooms, reservations, clients, consumos, payments, onClose, onAdd, onReceive }) {
-  const room = rooms.find(r => r.id === data.roomId) || {}
-  const activeReservations = reservations.filter(r => r.quartoId === data.roomId && ['hospedado','confirmada','pendente'].includes(r.status))
-  const reserva = reservations.find(r => r.id === data.reservaId) || activeReservations[0]
-  const cliente = clients.find(c => c.id === reserva?.clienteId) || {}
-  const itens = reserva ? consumos.filter(c => c.reservaId === reserva.id) : []
-  const totalConsumo = itens.reduce((s, c) => s + Number(c.qtd || 1) * Number(c.valor || 0), 0)
-  const pagoConsumo = reserva ? payments
-    .filter(p => p.reservaId === reserva.id && p.tipo === 'recebimento' && String(p.observacao || '').toLowerCase().includes('consumo'))
-    .reduce((s, p) => s + Number(p.valor || 0), 0) : 0
-  const saldo = Math.max(0, totalConsumo - pagoConsumo)
-
-  return (
-    <div className="modal-backdrop">
-      <div className="modal-card quarto-conta-modal">
-        <div className="modal-head">
-          <div>
-            <h3>Quarto {room.numero}</h3>
-            <p>{room.tipo} · {reserva ? `Reserva ${reserva.codigo} — ${cliente.nome || 'Cliente'}` : 'Sem reserva ativa'}</p>
-          </div>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-
-        {!reserva && (
-          <div className="empty-room-account">
-            <b>Quarto sem hospedagem ativa.</b>
-            <span>Para lançar consumo, primeiro crie ou vincule uma reserva ao quarto.</span>
-          </div>
-        )}
-
-        {reserva && (
-          <>
-            <div className="room-account-summary">
-              <div><small>Total consumido</small><b>{BRL.format(totalConsumo)}</b></div>
-              <div><small>Pago em consumo</small><b>{BRL.format(pagoConsumo)}</b></div>
-              <div className={saldo > 0 ? 'saldo-devedor' : 'saldo-ok'}><small>Saldo consumo</small><b>{BRL.format(saldo)}</b></div>
-            </div>
-
-            <div className="form-grid">
-              <label>Item / Produto
-                <input value={data.item || ''} onChange={e => setData({ ...data, item: e.target.value })} placeholder="Ex: Água, refrigerante, almoço..." />
-              </label>
-              <label>Quantidade
-                <input type="number" min="1" value={data.qtd || 1} onChange={e => setData({ ...data, qtd: e.target.value })} />
-              </label>
-              <label>Valor unitário
-                <input value={data.valor || ''} onChange={e => setData({ ...data, valor: e.target.value })} placeholder="R$" />
-              </label>
-              {activeReservations.length > 1 && (
-                <label>Reserva vinculada
-                  <select value={data.reservaId || reserva.id} onChange={e => setData({ ...data, reservaId: e.target.value })}>
-                    {activeReservations.map(r => <option key={r.id} value={r.id}>{r.codigo}</option>)}
-                  </select>
-                </label>
-              )}
-            </div>
-
-            <div className="actions">
-              <button onClick={() => onAdd({ ...data, reservaId: data.reservaId || reserva.id })}>Adicionar item</button>
-              {saldo > 0 && <button className="primary" onClick={() => onReceive(reserva.id, saldo)}>Receber consumo</button>}
-            </div>
-
-            <h4>Itens consumidos no quarto</h4>
-            <table className="data-table">
-              <thead><tr><th>Data</th><th>Item</th><th>Qtd.</th><th>Valor</th><th>Total</th></tr></thead>
-              <tbody>
-                {itens.length === 0 && <tr><td colSpan="5">Nenhum consumo lançado.</td></tr>}
-                {itens.map(c => (
-                  <tr key={c.id}>
-                    <td>{c.data}</td>
-                    <td>{c.item}</td>
-                    <td>{c.qtd}</td>
-                    <td>{BRL.format(Number(c.valor || 0))}</td>
-                    <td>{BRL.format(Number(c.qtd || 1) * Number(c.valor || 0))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {saldo > 0 && <div className="checkout-warning">Checkout bloqueado enquanto houver consumo em aberto neste quarto.</div>}
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
-
-
-function Card({ label, value, sub, icon, color }) {
-  return <div className="stat-card"><div className={`stat-icon ${color}`}>{icon}</div><div><p>{label}</p><h3>{value}</h3><small>{sub}</small></div></div>
-}
-
 
 function Usuarios({ usuarios, setUsuarios, usuarioForm, setUsuarioForm, notify, logAction }) {
   function saveUsuario() {
-    if (!usuarioForm.nome?.trim() || !usuarioForm.email?.trim() || !usuarioForm.perfil?.trim()) {
-      notify('Informe nome, e-mail e perfil do usuário.')
+    if (!usuarioForm.nome?.trim() || !usuarioForm.email?.trim() || !usuarioForm.perfil?.trim() || !usuarioForm.senha?.trim()) {
+      notify('Informe nome, e-mail, perfil e senha do usuário.')
+      return
+    }
+    const email = usuarioForm.email.trim().toLowerCase()
+    if (usuarios.some(u => String(u.email || '').toLowerCase() === email)) {
+      notify('Já existe usuário cadastrado com esse e-mail.')
       return
     }
     const novo = {
       id: id(),
       nome: usuarioForm.nome.trim(),
-      email: usuarioForm.email.trim(),
+      email,
       perfil: usuarioForm.perfil,
+      senhaHash: passwordHash(usuarioForm.senha.trim()),
+      precisaTrocarSenha: true,
       ativo: usuarioForm.ativo !== false
     }
     setUsuarios([novo, ...usuarios])
@@ -1328,12 +1329,12 @@ function Recepcao({ rooms, roomTypes, reservations, roomStatus, clientOf, setSel
   </section>
 }
 
-function Clientes({ clients, setClients, newClient, setNewClient, saveClient, reservations }) {
+function Clientes({ clients, newClient, setNewClient, saveClient, reservations }) {
   return <section className="grid-two"><div className="panel-card"><h3>Cadastrar cliente</h3><div className="form-grid">{['nome','cpf','telefone','email','nascimento','endereco'].map(k=><label key={k}>{k.toUpperCase()}<input type={k==='nascimento'?'date':'text'} value={newClient[k]} onChange={e=>setNewClient({...newClient,[k]:e.target.value})}/></label>)}<label className="full">Observação<textarea value={newClient.observacao} onChange={e=>setNewClient({...newClient,observacao:e.target.value})}></textarea></label></div><button className="primary" onClick={saveClient}>Salvar cliente</button></div><div className="panel-card"><h3>Clientes / crédito</h3><table className="data-table"><thead><tr><th>Cliente</th><th>Documento</th><th>Telefone</th><th>Crédito</th><th>Reservas</th></tr></thead><tbody>{clients.map(c=><tr key={c.id}><td><b>{c.nome}</b>{c.vip&&<span className="vip">VIP</span>}</td><td>{c.cpf}</td><td>{c.telefone}</td><td>{BRL.format(Number(c.credito||0))}</td><td>{reservations.filter(r=>r.clienteId===c.id).length}</td></tr>)}</tbody></table></div></section>
 }
 
 
-function Hospedes({ reservations, clients, guests, setGuests, clientOf, roomOf, logAction, notify }) {
+function Hospedes({ reservations, guests, setGuests, clientOf, roomOf, logAction, notify }) {
   const reservasAtivas = reservations.filter(r => !['cancelada', 'checkout'].includes(r.status))
   const [form, setForm] = useState({ reservaId: '', nome: '', documento: '', nascimento: '', telefone: '', endereco: '', tipo: 'Acompanhante', observacao: '' })
   const reserva = reservasAtivas.find(r => r.id === form.reservaId)
@@ -1363,9 +1364,47 @@ function Hospedes({ reservations, clients, guests, setGuests, clientOf, roomOf, 
   </section>
 }
 
-function PreCheckin({ preBusca, setPreBusca, reservations, precheckins, setPrecheckins, clientOf, createPrecheckin }) {
-  const reserva = reservations.find(r => r.codigo === preBusca)
-  return <section className="grid-two"><div className="panel-card"><h3>Pré check-in por número da reserva</h3><div className="search-reserva"><input value={preBusca} onChange={e=>setPreBusca(e.target.value)} placeholder="Digite o número da reserva" /></div>{reserva ? <div className="pre-box"><h3>Reserva {reserva.codigo}</h3><p>{clientOf(reserva).nome}</p><p>Obrigatório para o cliente: nome completo, selfie, documento com foto, endereço, data de nascimento e observação.</p><button className="primary" onClick={()=>createPrecheckin(reserva)}>Enviar link pelo WhatsApp</button></div> : <p className="hint">Digite o código para localizar a reserva.</p>}</div><div className="panel-card"><h3>Links enviados</h3><table className="data-table"><thead><tr><th>Reserva</th><th>Status</th><th>Link</th><th>Data</th></tr></thead><tbody>{precheckins.map(p=><tr key={p.id}><td>{p.codigo}</td><td><span className="pill confirmada">{p.status}</span></td><td><input value={p.link} readOnly /></td><td>{p.data}</td></tr>)}</tbody></table></div></section>
+function PreCheckin({ preBusca, setPreBusca, reservations, precheckins, clientOf, createPrecheckin }) {
+  const reserva = reservations.find(r => r.codigo === preBusca.trim())
+  return <section className="grid-two"><div className="panel-card"><h3>Pré check-in por número da reserva</h3><div className="search-reserva"><input value={preBusca} onChange={e=>setPreBusca(e.target.value)} placeholder="Digite o número da reserva" /></div>{reserva ? <div className="pre-box"><h3>Reserva {reserva.codigo}</h3><p>{clientOf(reserva).nome}</p><p>Obrigatório para o cliente: nome completo, selfie, documento com foto, endereço, data de nascimento e observação.</p><button className="primary" onClick={()=>createPrecheckin(reserva)}>Enviar link pelo WhatsApp</button></div> : <p className="hint">Digite o código para localizar a reserva.</p>}</div><div className="panel-card"><h3>Links enviados</h3><table className="data-table"><thead><tr><th>Reserva</th><th>Status</th><th>Link</th><th>Data</th></tr></thead><tbody>{precheckins.length ? precheckins.map(p=><tr key={p.id}><td>{p.codigo}</td><td><span className={`pill ${p.status === 'preenchido' ? 'hospedado' : 'confirmada'}`}>{p.status}</span></td><td><input value={p.link} readOnly onFocus={e=>e.target.select()} /></td><td>{p.data}</td></tr>) : <tr><td colSpan="4">Nenhum link enviado.</td></tr>}</tbody></table></div></section>
+}
+
+function PublicPreCheckin({ tokenParam, precheckins, setPrecheckins, reservations, clients }) {
+  const item = precheckins.find(p => `${p.codigo}-${p.token}` === tokenParam)
+  const reserva = reservations.find(r => r.id === item?.reservaId)
+  const cliente = clients.find(c => c.id === reserva?.clienteId)
+  const [form, setForm] = useState({
+    nomeCompleto: item?.nomeCompleto || cliente?.nome || '',
+    documentoFoto: item?.documentoFoto || '',
+    endereco: item?.endereco || cliente?.endereco || '',
+    nascimento: item?.nascimento || cliente?.nascimento || '',
+    selfie: item?.selfie || '',
+    observacao: item?.observacao || ''
+  })
+  const [sent, setSent] = useState(false)
+
+  function submit(event) {
+    event.preventDefault()
+    if (!item) return
+    if (!form.nomeCompleto.trim() || !form.documentoFoto.trim() || !form.endereco.trim() || !form.nascimento) return alert('Preencha nome, documento, endereço e data de nascimento.')
+    setPrecheckins(precheckins.map(p => p.id === item.id ? { ...p, ...form, status: 'preenchido', preenchidoEm: new Date().toISOString() } : p))
+    setSent(true)
+  }
+
+  if (!item || !reserva) return <main className="login-page"><div className="login-card"><h2>Pré check-in não encontrado</h2><p className="hint">Confira se o link recebido está completo.</p></div></main>
+  if (sent) return <main className="login-page"><div className="login-card"><h2>Pré check-in enviado</h2><p>Obrigado. Seus dados foram registrados para a reserva {reserva.codigo}.</p></div></main>
+
+  return <main className="login-page"><form className="login-card public-precheckin" onSubmit={submit}>
+    <h2>Pré check-in · Reserva {reserva.codigo}</h2>
+    <p className="hint">Quarto {reserva.quartoId} · entrada {reserva.entrada} · saída {reserva.saida}</p>
+    <label>Nome completo*<input value={form.nomeCompleto} onChange={e=>setForm({...form,nomeCompleto:e.target.value})} /></label>
+    <label>Documento com foto*<input value={form.documentoFoto} onChange={e=>setForm({...form,documentoFoto:e.target.value})} placeholder="RG, CPF, CNH ou passaporte" /></label>
+    <label>Endereço completo*<input value={form.endereco} onChange={e=>setForm({...form,endereco:e.target.value})} /></label>
+    <label>Data de nascimento*<input type="date" value={form.nascimento} onChange={e=>setForm({...form,nascimento:e.target.value})} /></label>
+    <label>Selfie / link do arquivo<input value={form.selfie} onChange={e=>setForm({...form,selfie:e.target.value})} placeholder="Cole um link da selfie/documento, se houver" /></label>
+    <label>Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label>
+    <button className="primary">Enviar pré check-in</button>
+  </form></main>
 }
 
 function Quartos({ roomTypes = [], rooms = [], reservations = [], clients = [], consumos = [], payments = [], setConsumos = () => {}, setPayments = () => {}, setSelectedRoom = () => {}, notify = () => {}, logAction = () => {} }) {
@@ -1797,7 +1836,7 @@ function CaixaDiario({ payments, consumos, reservations, clientOf, roomOf }) {
   </section>
 }
 
-function Relatorios({ reservations, payments, clients, rooms, clientOf, roomOf, printReceipt }) {
+function Relatorios({ reservations, payments, clients, rooms, clientOf, roomOf, printReceipt, notify }) {
   const ativos = reservations.filter(r=>!['cancelada','checkout'].includes(r.status)).length
   const recebidos = payments.filter(p=>p.tipo==='recebimento').reduce((s,p)=>s+Number(p.valor||0),0)
   const creditos = clients.reduce((s,c)=>s+Number(c.credito||0),0)
@@ -1830,13 +1869,14 @@ function Config({ roomTypes, rooms = [], clients = [], reservations = [], paymen
 
 
 function RoomModal({ room, status, reservations, blocks, clientOf, setSelectedReserva, setBlockModal, setRooms, rooms, onClose }) {
-  const futuras = reservations.filter(r => ['pendente', 'confirmada'].includes(r.status))
-  const hospedado = reservations.find(r => r.status === 'hospedado')
-  const historico = reservations.filter(r => ['checkout', 'cancelada'].includes(r.status))
+  const reservasDoQuarto = reservations.filter(r => r.quartoId === room.id)
+  const futuras = reservasDoQuarto.filter(r => ['pendente', 'confirmada'].includes(r.status))
+  const hospedado = reservasDoQuarto.find(r => r.status === 'hospedado')
+  const historico = reservasDoQuarto.filter(r => ['checkout', 'cancelada'].includes(r.status))
   const [cls, label] = status
   const marcar = (statusLimpeza) => setRooms(rooms.map(q => q.id === room.id ? { ...q, statusLimpeza } : q))
 
-  return <div className="modal-backdrop"><div className="modal large room-detail-modal"><button className="modal-close" onClick={onClose}>×</button>
+  return <div className="modal-backdrop"><div className="modal-card large room-detail-modal"><button className="modal-close" onClick={onClose}>×</button>
     <div className="reservation-head"><div><h2>Quarto {room.numero}</h2><p>{room.tipo} · {room.andar}</p></div><span className={`pill ${cls}`}>{label}</span></div>
     <div className="room-detail-grid">
       <section className="room-now-card">
@@ -1847,7 +1887,7 @@ function RoomModal({ room, status, reservations, blocks, clientOf, setSelectedRe
       <section className="room-now-card"><h3>Próximas reservas</h3>{futuras.length ? futuras.map(r=><div className="mini-reservation" key={r.id}><b>{r.codigo} · {clientOf(r).nome}</b><span>{r.entrada} até {r.saida}</span><button onClick={()=>setSelectedReserva(r)}>Abrir</button></div>) : <p className="hint">Nenhuma reserva futura.</p>}</section>
     </div>
     <h3>Linha do tempo do quarto</h3>
-    <div className="room-history">{reservations.map(r=><button key={r.id} className={`history-item ${r.status}`} onClick={()=>setSelectedReserva(r)}><b>{r.codigo}</b><span>{clientOf(r).nome}</span><small>{r.entrada} → {r.saida}</small></button>)}{blocks.map(b=><div key={b.id} className="history-item bloqueado"><b>Bloqueio</b><span>{b.motivo}</span><small>{b.inicio} → {b.fim}</small></div>)}{historico.length === 0 && blocks.length === 0 && futuras.length === 0 && !hospedado && <p className="hint">Ainda não existe histórico nesse quarto.</p>}</div>
+    <div className="room-history">{reservasDoQuarto.map(r=><button key={r.id} className={`history-item ${r.status}`} onClick={()=>setSelectedReserva(r)}><b>{r.codigo}</b><span>{clientOf(r).nome}</span><small>{r.entrada} → {r.saida}</small></button>)}{blocks.map(b=><div key={b.id} className="history-item bloqueado"><b>Bloqueio</b><span>{b.motivo}</span><small>{b.inicio} → {b.fim}</small></div>)}{historico.length === 0 && blocks.length === 0 && futuras.length === 0 && !hospedado && <p className="hint">Ainda não existe histórico nesse quarto.</p>}</div>
   </div></div>
 }
 
@@ -1930,7 +1970,7 @@ function ReservationModal({ r, client, room, diariaTotal, servicesTotal, total, 
 }
 
 
-function ReceiveModal({ reserva, client, saldo, paymentMethods, onClose, onSave }) {
+function ReceiveModal({ client, saldo, paymentMethods, onClose, onSave }) {
   const [form, setForm] = useState({ forma: 'PIX', valor: String(saldo > 0 ? saldo : ''), observacao: '' })
   return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}>×</button><h2>Receber</h2><p>Recebido: {BRL.format(0)}<br/>A receber: {BRL.format(saldo)}</p><div className="info-box">Caso cancele uma reserva, o valor pode voltar como saldo/crédito do cliente. Use a forma <b>Crédito do cliente</b> para abater em nova reserva.</div><div className="form-grid"><label>Ponto de venda<select><option>Recepção</option></select></label><label>Forma de recebimento<select value={form.forma} onChange={e=>setForm({...form,forma:e.target.value})}>{paymentMethods.filter(m=>m.ativo).map(m=><option key={m.id}>{m.nome}</option>)}</select></label><label>Pagante<input value={client.nome} readOnly /></label><label>Documento<input value={client.cpf || ''} readOnly /></label><label>Valor<input value={form.valor} onChange={e=>setForm({...form,valor:e.target.value})}/></label><label>Comprovante<input type="file"/></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Receber</button></div></div></div>
 }
