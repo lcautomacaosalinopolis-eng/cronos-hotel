@@ -1064,10 +1064,10 @@ function App() {
     const cliente = clientOf(reserva)
     const token = id().slice(0, 8)
     const link = `${getPublicAppOrigin()}/pre-checkin/${reserva.codigo}-${token}`
-    const msg = `Olá ${cliente.nome}, segue o link do pré check-in da sua reserva ${reserva.codigo}: ${link}`
+    const msg = `Olá ${cliente.nome}, segue o link do pré check-in da sua reserva ${reserva.codigo}. Preencha os dados dos hóspedes/acompanhantes neste link: ${link}`
     window.open(`https://wa.me/55${String(cliente.telefone || '').replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank')
-    logAction('Pré check-in enviado', `Reserva ${reserva.codigo}: link público enviado por WhatsApp.`)
-    notify('Link de pré check-in enviado pelo WhatsApp.')
+    logAction('Pré check-in enviado', `Reserva ${reserva.codigo}: link público para até 20 hóspedes enviado por WhatsApp.`)
+    notify('Link de pré check-in dos hóspedes enviado pelo WhatsApp.')
   }
 
   function savePaymentMethod() {
@@ -1827,76 +1827,120 @@ function PublicPreCheckin({ tokenParam, guests = [], setGuests, reservations, cl
   const reservaCodigo = reserva?.codigo || parsed.codigo || ''
   const reservaId = reserva?.id || ''
   const [sent, setSent] = useState(false)
-  const [form, setForm] = useState({
-    nomeCompleto: cliente?.nome || '',
-    telefone: cliente?.telefone || '',
-    endereco: cliente?.endereco || '',
-    email: cliente?.email || '',
+
+  const emptyGuest = () => ({ nomeCompleto: '', telefone: '', endereco: '', email: '' })
+  const [guestForms, setGuestForms] = useState(() => {
+    const base = Array.from({ length: 20 }, () => emptyGuest())
+    base[0] = {
+      nomeCompleto: cliente?.nome || '',
+      telefone: cliente?.telefone || '',
+      endereco: cliente?.endereco || '',
+      email: cliente?.email || '',
+    }
+    return base
   })
+
+  const filledGuests = guestForms
+    .map((item, index) => ({
+      index,
+      nomeCompleto: item.nomeCompleto.trim(),
+      telefone: item.telefone.trim(),
+      endereco: item.endereco.trim(),
+      email: item.email.trim(),
+    }))
+    .filter(item => item.nomeCompleto || item.telefone || item.endereco || item.email)
+
+  function updateGuest(index, field, value) {
+    setGuestForms(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item))
+  }
+
+  function clearGuest(index) {
+    setGuestForms(current => current.map((item, itemIndex) => itemIndex === index ? emptyGuest() : item))
+  }
 
   async function submit(event) {
     event.preventDefault()
-    const nomeCompleto = form.nomeCompleto.trim()
-    const telefone = form.telefone.trim()
-    const endereco = form.endereco.trim()
-    const email = form.email.trim()
 
-    if (!nomeCompleto || !telefone || !endereco) {
-      alert('Preencha nome completo, telefone/WhatsApp e endereço.')
+    if (!filledGuests.length) {
+      alert('Preencha pelo menos 1 hóspede.')
+      return
+    }
+
+    const incompletos = filledGuests.filter(item => !item.nomeCompleto || !item.telefone || !item.endereco)
+    if (incompletos.length) {
+      alert(`Complete nome, telefone/WhatsApp e endereço do hóspede ${incompletos[0].index + 1}. O e-mail é opcional.`)
       return
     }
 
     try {
-      const { data, error } = await supabase
+      const rows = filledGuests.map((item, index) => ({
+        reserva_id: String(reservaId || ''),
+        reserva_codigo: String(reservaCodigo || ''),
+        nome_completo: item.nomeCompleto,
+        telefone: item.telefone,
+        endereco: item.endereco,
+        email: item.email || null,
+        origem: 'pre_checkin',
+      }))
+
+      // IMPORTANTE: não usar .select() depois do insert no link público.
+      // Em alguns Supabase, o INSERT é permitido mas o SELECT é bloqueado por RLS,
+      // e isso fazia aparecer o erro mesmo quando o cadastro estava correto.
+      const { error } = await supabase
         .from('hospedes')
-        .insert({
-          reserva_id: String(reservaId || ''),
-          reserva_codigo: String(reservaCodigo || ''),
-          nome_completo: nomeCompleto,
-          telefone,
-          endereco,
-          email: email || null,
-          origem: 'pre_checkin',
-        })
-        .select('*')
-        .maybeSingle()
+        .insert(rows)
 
       if (error) throw error
 
-      const novoHospede = data ? mapSupabaseHospede(data) : {
+      const novosHospedes = filledGuests.map((item, index) => ({
         id: id(),
         reservaId,
         reservaCodigo,
-        nome: nomeCompleto,
-        telefone,
-        endereco,
-        email,
+        nome: item.nomeCompleto,
+        telefone: item.telefone,
+        endereco: item.endereco,
+        email: item.email,
         origem: 'pre_checkin',
-        tipo: 'Contratante',
+        tipo: index === 0 ? 'Contratante' : 'Acompanhante',
         criadoEm: todayISO(),
-      }
+      }))
 
-      if (setGuests) setGuests([novoHospede, ...guests])
+      if (setGuests) setGuests([...novosHospedes, ...guests])
       setSent(true)
     } catch (error) {
-      console.warn('Falha ao salvar hóspede no Supabase.', error)
-      alert('Não foi possível salvar agora. Tente novamente em alguns segundos.')
+      console.warn('Falha ao salvar hóspedes no Supabase.', error)
+      const mensagem = error?.message || error?.details || ''
+      alert(mensagem ? `Não foi possível salvar: ${mensagem}` : 'Não foi possível salvar agora. Tente novamente em alguns segundos.')
     }
   }
 
-  if (sent) return <main className="login-page"><div className="login-card public-precheckin"><h2>Pré check-in enviado</h2><p>Obrigado. Seus dados foram registrados{reservaCodigo ? ` para a reserva ${reservaCodigo}` : ''}.</p></div></main>
+  if (sent) return <main className="login-page"><div className="login-card public-precheckin"><h2>Pré check-in enviado</h2><p>Obrigado. Os hóspedes foram registrados{reservaCodigo ? ` para a reserva ${reservaCodigo}` : ''}.</p></div></main>
 
-  return <main className="login-page mobile-precheckin-page"><form className="login-card public-precheckin mobile-precheckin-card" onSubmit={submit}>
+  return <main className="login-page mobile-precheckin-page"><form className="login-card public-precheckin mobile-precheckin-card precheckin-guests-card" onSubmit={submit}>
     <h2>Pré check-in</h2>
-    <p>{reservaCodigo ? `Reserva ${reservaCodigo}` : 'Preencha seus dados para agilizar sua chegada.'}</p>
-    <label>Nome completo *</label>
-    <input value={form.nomeCompleto} onChange={e=>setForm({...form, nomeCompleto:e.target.value})} placeholder="Digite seu nome completo" autoComplete="name" />
-    <label>Telefone/WhatsApp *</label>
-    <input value={form.telefone} onChange={e=>setForm({...form, telefone:e.target.value})} placeholder="(00) 00000-0000" autoComplete="tel" inputMode="tel" />
-    <label>Endereço *</label>
-    <input value={form.endereco} onChange={e=>setForm({...form, endereco:e.target.value})} placeholder="Rua, número, bairro, cidade" autoComplete="street-address" />
-    <label>E-mail <span>opcional</span></label>
-    <input value={form.email} onChange={e=>setForm({...form, email:e.target.value})} placeholder="email@exemplo.com" autoComplete="email" inputMode="email" />
+    <p>{reservaCodigo ? `Reserva ${reservaCodigo}` : 'Preencha os dados dos hóspedes para agilizar a chegada.'}</p>
+    <p className="precheckin-limit">Cadastre até 20 hóspedes/acompanhantes. Nome, telefone/WhatsApp e endereço são obrigatórios. E-mail é opcional.</p>
+
+    <div className="precheckin-guests-list">
+      {guestForms.map((guest, index) => {
+        const active = index === 0 || guest.nomeCompleto || guest.telefone || guest.endereco || guest.email
+        return <section className={`precheckin-guest-card ${active ? 'active' : ''}`} key={index}>
+          <div className="precheckin-guest-head">
+            <strong>Hóspede {index + 1}</strong>
+            {index > 0 && active && <button type="button" onClick={() => clearGuest(index)}>Limpar</button>}
+          </div>
+          <label>Nome completo {active && '*'}</label>
+          <input value={guest.nomeCompleto} onChange={e=>updateGuest(index, 'nomeCompleto', e.target.value)} placeholder="Digite o nome completo" autoComplete="name" />
+          <label>Telefone/WhatsApp {active && '*'}</label>
+          <input value={guest.telefone} onChange={e=>updateGuest(index, 'telefone', e.target.value)} placeholder="(00) 00000-0000" autoComplete="tel" inputMode="tel" />
+          <label>Endereço {active && '*'}</label>
+          <input value={guest.endereco} onChange={e=>updateGuest(index, 'endereco', e.target.value)} placeholder="Rua, número, bairro, cidade" autoComplete="street-address" />
+          <label>E-mail <span>opcional</span></label>
+          <input value={guest.email} onChange={e=>updateGuest(index, 'email', e.target.value)} placeholder="email@exemplo.com" autoComplete="email" inputMode="email" />
+        </section>
+      })}
+    </div>
+
     <button className="primary" type="submit">Enviar pré check-in</button>
   </form></main>
 }
