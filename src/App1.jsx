@@ -980,7 +980,7 @@ function App() {
         {tab === 'hospedes' && <Hospedes reservations={reservations} guests={guests} setGuests={setGuests} clientOf={clientOf} roomOf={roomOf} logAction={logAction} notify={notify} />}
         {tab === 'usuarios' && <Usuarios usuarios={usuarios} setUsuarios={setUsuarios} usuarioForm={usuarioForm} setUsuarioForm={setUsuarioForm} notify={notify} logAction={logAction} />}
       {tab === 'precheckin' && <PreCheckin preBusca={preBusca} setPreBusca={setPreBusca} reservations={reservations} precheckins={precheckins} clientOf={clientOf} createPrecheckin={createPrecheckin} />}
-        {tab === 'quartos' && <Quartos roomTypes={roomTypes} rooms={rooms} reservations={reservations} blocks={blocks} clients={clients} consumos={consumos} payments={payments} setConsumos={setConsumos} setPayments={setPayments} setSelectedRoom={openRoom} notify={notify} logAction={logAction} />}
+        {tab === 'quartos' && <Quartos roomTypes={roomTypes} rooms={rooms} reservations={reservations} clients={clients} consumos={consumos} payments={payments} setConsumos={setConsumos} setPayments={setPayments} setSelectedRoom={openRoom} notify={notify} logAction={logAction} />}
         {tab === 'tarifas' && <Tarifas roomTypes={roomTypes} rateForm={rateForm} setRateForm={setRateForm} saveRate={saveRate} rates={rates} />}
         {tab === 'servicos' && <Servicos products={products} productForm={productForm} setProductForm={setProductForm} saveProduct={saveProduct} consumos={consumos} reservations={reservations} clients={clients} rooms={rooms} />}
         {tab === 'financeiro' && <Financeiro reservations={reservations} payments={payments} clients={clients} clientOf={clientOf} roomOf={roomOf} setReceiveReserva={setReceiveReserva} setCancelReserva={setCancelReserva} balance={balance} paidTotal={paidTotal} reservationTotal={reservationTotal} />}
@@ -1550,7 +1550,7 @@ function PublicPreCheckin({ tokenParam, precheckins, setPrecheckins, reservation
   </form></main>
 }
 
-function Quartos({ roomTypes = [], rooms = [], reservations = [], blocks = [], clients = [], consumos = [], payments = [], setConsumos = () => {}, setPayments = () => {}, setSelectedRoom = () => {}, notify = () => {}, logAction = () => {} }) {
+function Quartos({ roomTypes = [], rooms = [], reservations = [], clients = [], consumos = [], payments = [], setConsumos = () => {}, setPayments = () => {}, setSelectedRoom = () => {}, notify = () => {}, logAction = () => {} }) {
   const [roomAccount, setRoomAccount] = useState(null)
 
   function tipoNome(room) {
@@ -1567,22 +1567,15 @@ function Quartos({ roomTypes = [], rooms = [], reservations = [], blocks = [], c
 
   function statusRoom(room) {
     const r = activeReservation(room.id)
-    const limpeza = String(room.statusLimpeza || room.status || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .trim()
-    const bloqueado = blocks.some(b => b.quartoId === room.id && todayISO() >= b.inicio && todayISO() < b.fim)
+    const limpeza = String(room.statusLimpeza || room.status || '').toLowerCase()
 
-    // Prioridade correta dos status da aba Quartos:
-    // manutenção = laranja; bloqueado/reserva futura = verde; verificar saída = amarelo;
-    // hospedado = azul; livre = cinza claro.
-    if (limpeza === 'manutencao' || limpeza === 'manutencao preventiva' || limpeza === 'manutencao corretiva') return 'manutencao'
-    if (bloqueado) return 'bloqueado'
-    if (limpeza === 'verificar' || limpeza === 'verificar saida' || limpeza === 'saida') return 'verificar'
+    // Prioridade das cores do painel de quartos:
+    // Manutenção bloqueia o quarto; hospedado fica azul; reserva futura fica verde;
+    // limpeza/verificação fica laranja; livre fica branco.
+    if (limpeza === 'manutencao') return 'manutencao'
     if (r?.status === 'hospedado') return 'ocupado'
     if (r && ['confirmada', 'pendente'].includes(r.status)) return 'reservado'
-    if (limpeza === 'limpeza' || limpeza === 'limpar') return 'limpeza'
+    if (limpeza === 'limpeza' || limpeza === 'verificar') return 'limpeza'
     return 'livre'
   }
 
@@ -1660,8 +1653,6 @@ function Quartos({ roomTypes = [], rooms = [], reservations = [], blocks = [], c
     reservado: 'Reservado',
     ocupado: 'Ocupado',
     limpeza: 'Limpeza',
-    verificar: 'Verificar saída',
-    bloqueado: 'Bloqueado',
     manutencao: 'Manutenção'
   }
 
