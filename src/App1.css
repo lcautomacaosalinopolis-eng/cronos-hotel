@@ -15,11 +15,7 @@
   --hb-muted: #b8c5d8;
   --hb-blue: #0f6bff;
   --hb-blue-2: #0052d6;
-  --hb-green: #22c55e;
-  --hb-yellow: #fbbf24;
-  --hb-purple: #a855f7;
   --hb-cyan: #06b6d4;
-  --hb-red: #ef4444;
   --hb-shadow: 0 18px 50px rgba(0,0,0,.32);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -310,9 +306,6 @@ button, input, select, textarea {
   border-left: 4px solid var(--hb-blue) !important;
 }
 
-.stat-card:nth-child(2) { border-left-color: var(--hb-green) !important; }
-.stat-card:nth-child(3) { border-left-color: var(--hb-yellow) !important; }
-.stat-card:nth-child(4) { border-left-color: var(--hb-purple) !important; }
 
 .stat-card p {
   margin: 0 0 8px;
@@ -337,11 +330,6 @@ button, input, select, textarea {
   font-size: 35px;
   box-shadow: none !important;
 }
-
-.stat-icon.green { color: var(--hb-green); }
-.stat-icon.yellow { color: var(--hb-yellow); }
-.stat-icon.purple { color: var(--hb-purple); }
-.stat-icon.blue { color: #3392ff; }
 
 .dashboard-grid {
   display: grid;
@@ -433,64 +421,6 @@ textarea {
   background: rgba(15,107,255,.07) !important;
 }
 
-.pill {
-  border-radius: 999px;
-  padding: 7px 12px;
-  font-weight: 900;
-  font-size: 12px;
-  text-transform: capitalize;
-}
-
-.pill.confirmada,
-.pill.confirmado,
-.pill.pendente {
-  background: rgba(20,184,166,.22);
-  color: #22f3c3;
-}
-
-.pill.hospedado {
-  background: rgba(59,130,246,.23);
-  color: #93c5fd;
-}
-
-.pill.cancelada {
-  background: rgba(239,68,68,.2);
-  color: #fecaca;
-}
-
-/* FINANCE / STATUS */
-.finance-summary,
-.fast-status-strip,
-.config-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(130px, 1fr));
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.finance-summary > div,
-.fast-status-strip > div,
-.config-metrics > div {
-  background: rgba(7,21,36,.55) !important;
-  border: 1px solid var(--hb-border);
-  border-radius: 10px;
-  padding: 16px;
-  color: #fff;
-}
-
-.finance-summary b,
-.fast-status-strip b,
-.config-metrics b {
-  display: block;
-  color: #fff;
-  font-size: 25px;
-}
-
-.finance-summary small,
-.fast-status-strip span,
-.config-metrics span {
-  color: var(--hb-muted);
-}
 
 /* DONUT */
 .donut {
@@ -498,7 +428,7 @@ textarea {
   height: 172px;
   border-radius: 50%;
   margin: 28px auto;
-  background: conic-gradient(var(--hb-green) var(--p, 0%), rgba(148,163,184,.22) 0);
+  background: rgba(148,163,184,.22);
   display: grid;
   place-items: center;
   position: relative;
@@ -592,26 +522,6 @@ textarea {
   background: rgba(15,107,255,.08) !important;
 }
 
-.booking-chip {
-  border: 0;
-  color: #fff;
-  border-radius: 999px;
-}
-
-.booking-chip.confirmada,
-.booking-chip.pendente {
-  background: linear-gradient(135deg, #16a34a, #0f8d41) !important;
-}
-
-.booking-chip.hospedado {
-  background: linear-gradient(135deg, #0f6bff, #004ab8) !important;
-}
-
-.block-chip {
-  background: var(--hb-red) !important;
-  color: white !important;
-}
-
 .fast-map {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
@@ -627,12 +537,6 @@ textarea {
   color: #fff !important;
   background: rgba(7,21,36,.70) !important;
 }
-
-.room-card.status-free { border-left: 4px solid var(--hb-green) !important; }
-.room-card.status-green { border-left: 4px solid var(--hb-green) !important; background: rgba(22,163,74,.16) !important; }
-.room-card.status-blue { border-left: 4px solid var(--hb-blue) !important; background: rgba(37,99,235,.18) !important; }
-.room-card.status-orange { border-left: 4px solid var(--hb-yellow) !important; background: rgba(245,158,11,.18) !important; }
-.room-card.status-red { border-left: 4px solid var(--hb-red) !important; background: rgba(239,68,68,.18) !important; }
 
 .room-card strong {
   font-size: 27px;
@@ -661,7 +565,7 @@ textarea {
 
 /* FOOTER / EXTRA */
 .hotel-main::after {
-  content: "© 2026 Hotel Brisas - Sistema de Gestão. Todos os direitos reservados.";
+  content: "© 2026 Hotel Brisas - Sistema de Gestão. Todos os direitos protegidos.";
   display: block;
   margin-top: 26px;
   color: var(--hb-muted);
@@ -725,13 +629,6 @@ button.danger,
   .search-field,
   .date-input-top {
     width: 100%;
-  }
-  .stats-grid,
-  .finance-summary,
-  .fast-status-strip,
-  .config-metrics,
-  .form-grid {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -1206,10 +1103,7 @@ body,
   overflow: hidden !important;
 }
 
-/* =========================================================
-   PAINEL DE RESERVAS — VOLTAR AO COMPORTAMENTO ANTERIOR
-   Mantém as cores escuras, mas remove o alongamento/desalinhamento.
-   ========================================================= */
+
 
 .painel-profissional {
   padding: 22px !important;
@@ -1329,40 +1223,6 @@ body,
   align-items: center !important;
   justify-content: space-between !important;
   padding: 12px 14px !important;
-}
-
-.booking-chip {
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  height: 30px !important;
-  padding: 4px 8px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  overflow: hidden !important;
-  white-space: nowrap !important;
-  text-overflow: ellipsis !important;
-}
-
-.booking-chip.start {
-  justify-content: flex-start !important;
-}
-
-.booking-chip b,
-.booking-chip span {
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-}
-
-.block-chip {
-  width: 100% !important;
-  height: 28px !important;
-  display: grid !important;
-  place-items: center !important;
-  border-radius: 999px !important;
-  font-size: 11px !important;
 }
 
 /* Tabelas e formulários com alinhamento melhor */
@@ -1531,11 +1391,7 @@ body,
 }
 
 
-/* =========================================================
-   ATUALIZAÇÃO 25 — ABA PAINEL DE RESERVAS
-   Corrige desalinhamentos vistos no print.
-   Mantém cores atuais e não altera outras funções.
-   ========================================================= */
+
 
 /* painel mais parecido com grade operacional */
 .painel-profissional {
@@ -1747,24 +1603,6 @@ body,
   color: #e5edf8 !important;
 }
 
-/* chips de reserva */
-.painel-profissional .booking-chip {
-  height: 28px !important;
-  min-height: 28px !important;
-  width: 64px !important;
-  max-width: 64px !important;
-  border-radius: 999px !important;
-  padding: 0 6px !important;
-  font-size: 10px !important;
-  line-height: 1 !important;
-}
-
-.painel-profissional .booking-chip.start {
-  width: 68px !important;
-  max-width: 68px !important;
-  justify-content: center !important;
-}
-
 .painel-profissional .free-dot {
   font-size: 14px !important;
   color: #dbeafe !important;
@@ -1832,11 +1670,7 @@ body,
   --hb-muted: #64748b;
   --hb-blue: #2563eb;
   --hb-blue-2: #1d4ed8;
-  --hb-green: #16a34a;
-  --hb-yellow: #eab308;
-  --hb-purple: #9333ea;
   --hb-cyan: #0891b2;
-  --hb-red: #dc2626;
   --hb-shadow: 0 10px 30px rgba(15,23,42,.06);
 }
 
@@ -1991,26 +1825,6 @@ body {
   background: rgba(37,99,235,.04) !important;
 }
 
-/* resumo financeiro */
-.finance-summary > div,
-.fast-status-strip > div,
-.config-metrics > div {
-  background: #ffffff !important;
-  border: 1px solid rgba(15,23,42,.08) !important;
-}
-
-.finance-summary b,
-.fast-status-strip b,
-.config-metrics b {
-  color: #0f172a !important;
-}
-
-.finance-summary small,
-.fast-status-strip span,
-.config-metrics span {
-  color: #64748b !important;
-}
-
 /* painel reservas */
 .painel-profissional,
 .reservation-board,
@@ -2114,10 +1928,6 @@ button.primary,
 .data-table,
 .modal-card {
   color: #0f172a !important;
-}
-
-.hotel-layout *:not(.primary):not(button.primary):not(.menu-link.active):not(.booking-chip):not(.block-chip):not(.pill) {
-  text-shadow: none !important;
 }
 
 /* textos que estavam quase brancos */
@@ -2320,12 +2130,6 @@ textarea {
 
 .data-table td {
   font-size: 14px !important;
-}
-
-.pill {
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  padding: 6px 10px !important;
 }
 
 /* Modal clean para criação por arrasto */
@@ -2547,28 +2351,6 @@ textarea {
   font-size: 16px;
 }
 
-.fast-tarifa-pill {
-  margin: 18px 24px 0;
-  border: 1px solid #cbd5e1;
-  border-radius: 999px;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: #334155;
-  background: #f8fafc;
-  font-weight: 700;
-  font-size: 13px;
-}
-
-.fast-tarifa-pill button {
-  border: 0 !important;
-  background: transparent !important;
-  color: #2563eb !important;
-  padding: 0 !important;
-  font-size: 15px !important;
-}
-
 .fast-reserva-modal .form-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   gap: 14px !important;
@@ -2760,7 +2542,7 @@ textarea {
   text-shadow: none !important;
 }
 
-/* título/status da reserva */
+
 .modal-card > h3,
 .modal-card .modal-title,
 .modal-card h3 {
@@ -2841,23 +2623,6 @@ textarea {
   background: #ffffff !important;
   color: #475569 !important;
   border: 1px solid #dbe3ee !important;
-}
-
-/* status colorido legível */
-.modal-card .pill.confirmada,
-.modal-card .pill.pendente {
-  background: #dcfce7 !important;
-  color: #166534 !important;
-}
-
-.modal-card .pill.hospedado {
-  background: #dbeafe !important;
-  color: #1d4ed8 !important;
-}
-
-.modal-card .pill.cancelada {
-  background: #fee2e2 !important;
-  color: #991b1b !important;
 }
 
 /* evita o conteúdo ficar “solto” no fundo */
@@ -3158,27 +2923,6 @@ button.primary:active,
   transform: translateY(0) scale(.99) !important;
 }
 
-/* Botões comuns ficam claros e discretos */
-button:not(.primary):not(.menu-link):not(.modal-close):not(.danger):not(.booking-chip):not(.block-chip):not(.bell-button):not(.hamburger) {
-  background: #ffffff !important;
-  color: #334155 !important;
-  border: 1px solid #dbe3ee !important;
-  border-radius: 12px !important;
-  min-height: 38px !important;
-  padding: 8px 14px !important;
-  font-weight: 700 !important;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04) !important;
-  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease !important;
-}
-
-button:not(.primary):not(.menu-link):not(.modal-close):not(.danger):not(.booking-chip):not(.block-chip):not(.bell-button):not(.hamburger):hover {
-  background: #f8fafc !important;
-  border-color: #bfdbfe !important;
-  color: #1d4ed8 !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07) !important;
-}
-
 /* Botões do cabeçalho do painel: Ver conflitos / Bloquear dia */
 .painel-profissional > .card-head .actions button {
   border-radius: 15px !important;
@@ -3382,13 +3126,6 @@ button[disabled] {
   color: #475569 !important;
   line-height: 1.45 !important;
   text-align: left !important;
-}
-
-/* Força todo conteúdo interno a ficar legível */
-.modal-backdrop > .modal-card,
-.modal-backdrop > .modal-card *:not(.primary):not(.danger):not(.modal-close):not(.pill) {
-  color: #0f172a !important;
-  text-shadow: none !important;
 }
 
 /* Labels e campos */
@@ -3628,1170 +3365,12 @@ button[disabled] {
   max-width: 100% !important;
 }
 
-
-/* =========================================================
-   ATUALIZAÇÃO 37 — ABA QUARTOS COM CONSUMO FUNCIONAL
-   ========================================================= */
-
-.quartos-situacao-page {
-  padding: 22px !important;
-}
-
-.quartos-title-line {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 18px;
-}
-
-.quartos-title-line h3 {
-  font-size: 25px !important;
-  margin: 0 0 6px !important;
-}
-
-.quartos-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.quartos-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #475569;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.quartos-legend i {
-  width: 12px;
-  height: 12px;
-  border-radius: 4px;
-  display: inline-block;
-}
-
-.q-livre { background: #e5e7eb; }
-.q-reservado { background: #ef4444; }
-.q-ocupado { background: #2563eb; }
-.q-limpeza { background: #f59e0b; }
-.q-manutencao { background: #64748b; }
-
-.quartos-situacao-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
-  gap: 14px;
-  align-items: stretch;
-}
-
-.situacao-room-card {
-  position: relative;
-  min-height: 128px !important;
-  border-radius: 3px !important;
-  padding: 10px 8px !important;
-  text-align: center !important;
-  background: linear-gradient(180deg, #f8fafc, #e5e7eb) !important;
-  border: 1px solid #cbd5e1 !important;
-  color: #334155 !important;
-  box-shadow: 0 10px 20px rgba(15,23,42,.06) !important;
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.situacao-room-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,0));
-  pointer-events: none;
-}
-
-.situacao-room-card strong {
-  display: block;
-  font-size: 30px;
-  line-height: 1;
-  color: rgba(15, 23, 42, .38) !important;
-  -webkit-text-stroke: 1px rgba(15,23,42,.35);
-  margin-top: 3px;
-}
-
-.situacao-room-card span {
-  display: block;
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  bottom: 20px;
-  font-size: 10px;
-  color: #334155 !important;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.situacao-room-card em {
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
-  font-style: normal;
-  font-size: 10px;
-  color: #64748b !important;
-}
-
-.situacao-room-card small {
-  position: absolute;
-  right: 6px;
-  top: 8px;
-  font-size: 9px;
-  background: rgba(255,255,255,.75);
-  border-radius: 999px;
-  padding: 2px 5px;
-  color: #334155 !important;
-}
-
-.situacao-room-card.reservado {
-  background: linear-gradient(180deg, #ff6b7a, #ef4444) !important;
-  border-color: #dc2626 !important;
-}
-
-.situacao-room-card.ocupado {
-  background: linear-gradient(180deg, #60a5fa, #2563eb) !important;
-  border-color: #1d4ed8 !important;
-}
-
-.situacao-room-card.limpeza {
-  background: linear-gradient(180deg, #fcd34d, #f59e0b) !important;
-  border-color: #d97706 !important;
-}
-
-.situacao-room-card.manutencao {
-  background: linear-gradient(180deg, #94a3b8, #64748b) !important;
-  border-color: #475569 !important;
-}
-
-.situacao-room-card.reservado strong,
-.situacao-room-card.ocupado strong,
-.situacao-room-card.limpeza strong,
-.situacao-room-card.manutencao strong {
-  color: rgba(255,255,255,.70) !important;
-  -webkit-text-stroke: 1px rgba(255,255,255,.65);
-}
-
-.situacao-room-card.reservado span,
-.situacao-room-card.reservado em,
-.situacao-room-card.ocupado span,
-.situacao-room-card.ocupado em,
-.situacao-room-card.limpeza span,
-.situacao-room-card.limpeza em,
-.situacao-room-card.manutencao span,
-.situacao-room-card.manutencao em {
-  color: #ffffff !important;
-}
-
-.debt-badge {
-  position: absolute;
-  left: 6px;
-  top: 8px;
-  background: #991b1b;
-  color: #fff !important;
-  border-radius: 999px;
-  padding: 3px 6px;
-  font-size: 9px;
-  z-index: 2;
-}
-
-/* Modal da conta do quarto */
-.quarto-conta-modal {
-  width: min(920px, calc(100vw - 56px)) !important;
-  padding: 0 !important;
-  overflow: hidden !important;
-}
-
-.quarto-conta-modal .modal-head {
-  padding: 22px 24px !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-}
-
-.quarto-conta-modal > .form-grid,
-.quarto-conta-modal > h4,
-.quarto-conta-modal > table,
-.quarto-conta-modal > .actions,
-.room-account-summary,
-.empty-room-account,
-.checkout-warning {
-  margin-left: 24px !important;
-  margin-right: 24px !important;
-}
-
-.room-account-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 20px;
-  margin-bottom: 18px;
-}
-
-.room-account-summary div {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 14px;
-}
-
-.room-account-summary small {
-  display: block;
-  color: #64748b !important;
-  font-weight: 800;
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.room-account-summary b {
-  display: block;
-  margin-top: 5px;
-  font-size: 21px;
-  color: #0f172a !important;
-}
-
-.room-account-summary .saldo-devedor {
-  background: #fff1f2;
-  border-color: #fecdd3;
-}
-
-.room-account-summary .saldo-devedor b {
-  color: #b91c1c !important;
-}
-
-.room-account-summary .saldo-ok {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-}
-
-.room-account-summary .saldo-ok b {
-  color: #15803d !important;
-}
-
-.quarto-conta-modal .actions {
-  margin-bottom: 18px !important;
-}
-
-.quarto-conta-modal h4 {
-  margin-top: 18px !important;
-}
-
-.quarto-conta-modal .data-table {
-  margin-bottom: 24px !important;
-}
-
-.empty-room-account {
-  margin-top: 20px;
-  margin-bottom: 24px;
-  padding: 22px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-}
-
-.empty-room-account b {
-  display: block;
-  margin-bottom: 6px;
-}
-
-.checkout-warning {
-  margin-bottom: 24px;
-  background: #fff1f2;
-  border: 1px solid #fecdd3;
-  color: #991b1b !important;
-  border-radius: 14px;
-  padding: 14px;
-  font-weight: 800;
-}
-
 @media (max-width: 1366px) {
-  .quartos-situacao-grid {
-    grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
-    gap: 12px;
-  }
-
-  .situacao-room-card {
-    min-height: 118px !important;
-  }
-
-  .situacao-room-card strong {
-    font-size: 27px;
-  }
-}
-
-
-/* =========================================================
-   ATUALIZAÇÃO 38 — CORREÇÃO DA ABA QUARTOS
-   Corrige tela branca e deixa aba funcional.
-   ========================================================= */
-
-.quartos-situacao-page {
-  display: block !important;
-  min-height: 400px !important;
-  background: #ffffff !important;
-  color: #0f172a !important;
-  padding: 22px !important;
-}
-
-.quartos-title-line {
-  display: flex !important;
-  align-items: flex-start !important;
-  justify-content: space-between !important;
-  gap: 18px !important;
-  margin-bottom: 18px !important;
-}
-
-.quartos-title-line h3 {
-  margin: 0 0 6px !important;
-  color: #0f172a !important;
-  font-size: 25px !important;
-}
-
-.quartos-legend {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 10px !important;
-  justify-content: flex-end !important;
-}
-
-.quartos-legend span {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  color: #475569 !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-}
-
-.quartos-legend i {
-  width: 12px !important;
-  height: 12px !important;
-  border-radius: 4px !important;
-  display: inline-block !important;
-}
-
-.q-livre { background: #e5e7eb !important; }
-.q-reservado { background: #ef4444 !important; }
-.q-ocupado { background: #2563eb !important; }
-.q-limpeza { background: #f59e0b !important; }
-.q-manutencao { background: #64748b !important; }
-
-.quartos-situacao-grid {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)) !important;
-  gap: 14px !important;
-}
-
-.situacao-room-card {
-  position: relative !important;
-  min-height: 128px !important;
-  border-radius: 4px !important;
-  padding: 10px 8px !important;
-  text-align: center !important;
-  background: linear-gradient(180deg, #f8fafc, #e5e7eb) !important;
-  border: 1px solid #cbd5e1 !important;
-  color: #334155 !important;
-  box-shadow: 0 10px 20px rgba(15,23,42,.06) !important;
-  cursor: pointer !important;
-  overflow: hidden !important;
-}
-
-.situacao-room-card strong {
-  display: block !important;
-  font-size: 30px !important;
-  line-height: 1 !important;
-  color: rgba(15, 23, 42, .42) !important;
-  -webkit-text-stroke: 1px rgba(15,23,42,.35);
-  margin-top: 3px !important;
-}
-
-.situacao-room-card span {
-  display: block !important;
-  position: absolute !important;
-  left: 6px !important;
-  right: 6px !important;
-  bottom: 20px !important;
-  font-size: 10px !important;
-  color: #334155 !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-.situacao-room-card em {
-  position: absolute !important;
-  left: 6px !important;
-  right: 6px !important;
-  bottom: 6px !important;
-  font-style: normal !important;
-  font-size: 10px !important;
-  color: #64748b !important;
-}
-
-.situacao-room-card small {
-  position: absolute !important;
-  right: 6px !important;
-  top: 8px !important;
-  font-size: 9px !important;
-  background: rgba(255,255,255,.8) !important;
-  border-radius: 999px !important;
-  padding: 2px 5px !important;
-  color: #334155 !important;
-}
-
-.situacao-room-card.reservado {
-  background: linear-gradient(180deg, #ff6b7a, #ef4444) !important;
-  border-color: #dc2626 !important;
-}
-
-.situacao-room-card.ocupado {
-  background: linear-gradient(180deg, #60a5fa, #2563eb) !important;
-  border-color: #1d4ed8 !important;
-}
-
-.situacao-room-card.limpeza {
-  background: linear-gradient(180deg, #fcd34d, #f59e0b) !important;
-  border-color: #d97706 !important;
-}
-
-.situacao-room-card.manutencao {
-  background: linear-gradient(180deg, #94a3b8, #64748b) !important;
-  border-color: #475569 !important;
-}
-
-.situacao-room-card.reservado strong,
-.situacao-room-card.ocupado strong,
-.situacao-room-card.limpeza strong,
-.situacao-room-card.manutencao strong {
-  color: rgba(255,255,255,.75) !important;
-  -webkit-text-stroke: 1px rgba(255,255,255,.68);
-}
-
-.situacao-room-card.reservado span,
-.situacao-room-card.reservado em,
-.situacao-room-card.ocupado span,
-.situacao-room-card.ocupado em,
-.situacao-room-card.limpeza span,
-.situacao-room-card.limpeza em,
-.situacao-room-card.manutencao span,
-.situacao-room-card.manutencao em {
-  color: #ffffff !important;
-}
-
-.debt-badge {
-  position: absolute !important;
-  left: 6px !important;
-  top: 8px !important;
-  background: #991b1b !important;
-  color: #fff !important;
-  border-radius: 999px !important;
-  padding: 3px 6px !important;
-  font-size: 9px !important;
-  z-index: 2 !important;
-}
-
-/* Modal consumo quarto */
-.quarto-conta-modal {
-  width: min(920px, calc(100vw - 56px)) !important;
-  padding: 0 !important;
-  overflow: hidden !important;
-  background: #ffffff !important;
-}
-
-.quarto-conta-modal .modal-head {
-  padding: 22px 24px !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-}
-
-.room-account-summary {
-  display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 12px !important;
-  margin: 20px 24px 18px !important;
-}
-
-.room-account-summary div {
-  background: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 14px !important;
-  padding: 14px !important;
-}
-
-.room-account-summary small {
-  display: block !important;
-  color: #64748b !important;
-  font-weight: 800 !important;
-  font-size: 11px !important;
-  text-transform: uppercase !important;
-}
-
-.room-account-summary b {
-  display: block !important;
-  margin-top: 5px !important;
-  font-size: 21px !important;
-  color: #0f172a !important;
-}
-
-.room-account-summary .saldo-devedor {
-  background: #fff1f2 !important;
-  border-color: #fecdd3 !important;
-}
-
-.room-account-summary .saldo-devedor b {
-  color: #b91c1c !important;
-}
-
-.room-account-summary .saldo-ok {
-  background: #f0fdf4 !important;
-  border-color: #bbf7d0 !important;
-}
-
-.room-consumo-form,
-.quarto-conta-modal .actions,
-.quarto-conta-modal h4,
-.quarto-conta-modal .data-table,
-.empty-room-account,
-.checkout-warning {
-  margin-left: 24px !important;
-  margin-right: 24px !important;
-}
-
-.quarto-conta-modal h4 {
-  margin-top: 18px !important;
-}
-
-.quarto-conta-modal .data-table {
-  margin-bottom: 24px !important;
-}
-
-.empty-room-account {
-  margin-top: 20px !important;
-  margin-bottom: 24px !important;
-  padding: 22px !important;
-  background: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 16px !important;
-}
-
-.checkout-warning {
-  margin-bottom: 24px !important;
-  background: #fff1f2 !important;
-  border: 1px solid #fecdd3 !important;
-  color: #991b1b !important;
-  border-radius: 14px !important;
-  padding: 14px !important;
-  font-weight: 800 !important;
-}
-
-
-/* =========================================================
-   ATUALIZAÇÃO 39 — CORRIGE TELA BRANCA NA ABA QUARTOS
-   Corrige a chamada da aba Quartos no App.jsx.
-   ========================================================= */
-
-.quartos-situacao-page::before {
-  content: none !important;
-}
-
-
-/* =========================================================
-   ATUALIZAÇÃO 40 — ABA QUARTOS ESTILO PAINEL DE SITUAÇÃO
-   Somente CSS. Mantém a função que já voltou a funcionar.
-   ========================================================= */
-
-.quartos-situacao-page {
-  background: #ffffff !important;
-  border-radius: 18px !important;
-  padding: 22px 24px 28px !important;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.05) !important;
-}
-
-/* Cabeçalho da aba igual painel operacional */
-.quartos-title-line {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  gap: 18px !important;
-  padding-bottom: 18px !important;
-  margin-bottom: 20px !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-}
-
-.quartos-title-line h3 {
-  margin: 0 !important;
-  color: #1e293b !important;
-  font-size: 26px !important;
-  font-weight: 750 !important;
-  letter-spacing: -0.03em !important;
-}
-
-.quartos-title-line .hint {
-  margin-top: 6px !important;
-  color: #64748b !important;
-  font-size: 14px !important;
-}
-
-/* Legenda compacta */
-.quartos-legend {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  justify-content: flex-end !important;
-  gap: 8px !important;
-  max-width: 560px !important;
-}
-
-.quartos-legend span {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  background: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 999px !important;
-  padding: 7px 10px !important;
-  color: #475569 !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-}
-
-.quartos-legend i {
-  width: 11px !important;
-  height: 11px !important;
-  border-radius: 3px !important;
-  display: inline-block !important;
-}
-
-/* Grade igual painel FastHotel: cards verticais */
-.quartos-situacao-grid {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)) !important;
-  gap: 14px 16px !important;
-  align-items: stretch !important;
-}
-
-/* Card base do quarto */
-.situacao-room-card {
-  position: relative !important;
-  min-height: 136px !important;
-  height: 136px !important;
-  border-radius: 2px !important;
-  padding: 9px 7px !important;
-  overflow: hidden !important;
-  cursor: pointer !important;
-  text-align: center !important;
-  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%) !important;
-  border: 1px solid #b9c3cf !important;
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.75),
-    0 10px 18px rgba(15,23,42,.06) !important;
-  transition: transform .14s ease, box-shadow .14s ease, filter .14s ease !important;
-}
-
-.situacao-room-card:hover {
-  transform: translateY(-2px) !important;
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.85),
-    0 16px 30px rgba(15,23,42,.12) !important;
-  filter: saturate(1.04) !important;
-}
-
-/* número grande contornado */
-.situacao-room-card strong {
-  display: block !important;
-  margin-top: 4px !important;
-  color: rgba(71, 85, 105, 0.18) !important;
-  -webkit-text-stroke: 1.2px rgba(71,85,105,.62) !important;
-  text-shadow: none !important;
-  font-size: 29px !important;
-  font-weight: 900 !important;
-  line-height: 1 !important;
-  letter-spacing: -0.04em !important;
-}
-
-/* mini traço/ícone de ocupação */
-.situacao-room-card::before {
-  content: "";
-  position: absolute;
-  right: 10px;
-  top: 58px;
-  width: 10px;
-  height: 4px;
-  border: 1px solid currentColor;
-  border-radius: 2px;
-  opacity: .6;
-}
-
-/* tipo do quarto no rodapé */
-.situacao-room-card span {
-  position: absolute !important;
-  left: 5px !important;
-  right: 5px !important;
-  bottom: 20px !important;
-  display: block !important;
-  color: #334155 !important;
-  font-size: 9.5px !important;
-  font-weight: 650 !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-/* status menor */
-.situacao-room-card em {
-  position: absolute !important;
-  left: 6px !important;
-  right: 6px !important;
-  bottom: 6px !important;
-  color: #64748b !important;
-  font-style: normal !important;
-  font-size: 9.5px !important;
-  font-weight: 700 !important;
-}
-
-/* código reserva */
-.situacao-room-card small {
-  position: absolute !important;
-  right: 5px !important;
-  top: 6px !important;
-  max-width: 58px !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-  background: rgba(255,255,255,.82) !important;
-  border: 1px solid rgba(255,255,255,.65) !important;
-  color: #334155 !important;
-  border-radius: 999px !important;
-  padding: 2px 5px !important;
-  font-size: 8.5px !important;
-  font-weight: 800 !important;
-  z-index: 2 !important;
-}
-
-/* Status cores como referência */
-.situacao-room-card.livre {
-  color: #64748b !important;
-  background: linear-gradient(180deg, #f8fafc 0%, #e5e7eb 100%) !important;
-}
-
-.situacao-room-card.reservado {
-  color: #ffffff !important;
-  background: linear-gradient(180deg, #ff6b7d 0%, #ef4444 62%, #dc2626 100%) !important;
-  border-color: #dc2626 !important;
-}
-
-.situacao-room-card.ocupado {
-  color: #ffffff !important;
-  background: linear-gradient(180deg, #5b8df7 0%, #2563eb 65%, #1d4ed8 100%) !important;
-  border-color: #1d4ed8 !important;
-}
-
-.situacao-room-card.limpeza {
-  color: #ffffff !important;
-  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 65%, #d97706 100%) !important;
-  border-color: #d97706 !important;
-}
-
-.situacao-room-card.manutencao {
-  color: #ffffff !important;
-  background: linear-gradient(180deg, #94a3b8 0%, #64748b 70%, #475569 100%) !important;
-  border-color: #475569 !important;
-}
-
-/* textos em cards coloridos */
-.situacao-room-card.reservado strong,
-.situacao-room-card.ocupado strong,
-.situacao-room-card.limpeza strong,
-.situacao-room-card.manutencao strong {
-  color: rgba(255,255,255,.22) !important;
-  -webkit-text-stroke: 1.2px rgba(255,255,255,.76) !important;
-}
-
-.situacao-room-card.reservado span,
-.situacao-room-card.reservado em,
-.situacao-room-card.ocupado span,
-.situacao-room-card.ocupado em,
-.situacao-room-card.limpeza span,
-.situacao-room-card.limpeza em,
-.situacao-room-card.manutencao span,
-.situacao-room-card.manutencao em {
-  color: #ffffff !important;
-}
-
-/* dívida de consumo */
-.debt-badge {
-  position: absolute !important;
-  left: 5px !important;
-  top: 6px !important;
-  z-index: 3 !important;
-  max-width: 70px !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-  background: #7f1d1d !important;
-  color: #ffffff !important;
-  border: 1px solid rgba(255,255,255,.4) !important;
-  border-radius: 999px !important;
-  padding: 2px 5px !important;
-  font-size: 8.5px !important;
-  font-weight: 900 !important;
-}
-
-/* Modal da conta do quarto mais limpo */
-.quarto-conta-modal {
-  width: min(920px, calc(100vw - 56px)) !important;
-  background: #ffffff !important;
-  border-radius: 22px !important;
-  padding: 0 !important;
-  overflow: hidden !important;
-}
-
-.quarto-conta-modal .modal-head {
-  background: linear-gradient(135deg, #f8fbff, #ffffff) !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-  padding: 22px 24px !important;
-}
-
-.quarto-conta-modal .modal-head h3 {
-  margin: 0 0 6px !important;
-  color: #0f172a !important;
-}
-
-.quarto-conta-modal .modal-head p {
-  margin: 0 !important;
-  color: #64748b !important;
-}
-
-.room-account-summary {
-  display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 12px !important;
-  margin: 20px 24px 18px !important;
-}
-
-.room-account-summary div {
-  background: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 14px !important;
-  padding: 14px !important;
-}
-
-.room-account-summary small {
-  display: block !important;
-  color: #64748b !important;
-  font-size: 11px !important;
-  font-weight: 800 !important;
-  text-transform: uppercase !important;
-}
-
-.room-account-summary b {
-  display: block !important;
-  margin-top: 5px !important;
-  color: #0f172a !important;
-  font-size: 21px !important;
-}
-
-.room-account-summary .saldo-devedor {
-  background: #fff1f2 !important;
-  border-color: #fecdd3 !important;
-}
-
-.room-account-summary .saldo-devedor b {
-  color: #b91c1c !important;
-}
-
-.room-account-summary .saldo-ok {
-  background: #f0fdf4 !important;
-  border-color: #bbf7d0 !important;
-}
-
-.room-account-summary .saldo-ok b {
-  color: #15803d !important;
-}
-
-.room-consumo-form,
-.quarto-conta-modal .actions,
-.quarto-conta-modal h4,
-.quarto-conta-modal .data-table,
-.empty-room-account,
-.checkout-warning {
-  margin-left: 24px !important;
-  margin-right: 24px !important;
-}
-
-.quarto-conta-modal .actions {
-  margin-bottom: 18px !important;
-}
-
-.quarto-conta-modal h4 {
-  margin-top: 18px !important;
-  color: #0f172a !important;
-}
-
-.quarto-conta-modal .data-table {
-  margin-bottom: 24px !important;
-}
-
-.empty-room-account {
-  margin-top: 20px !important;
-  margin-bottom: 24px !important;
-  padding: 22px !important;
-  background: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 16px !important;
-}
-
-.checkout-warning {
-  margin-bottom: 24px !important;
-  background: #fff1f2 !important;
-  border: 1px solid #fecdd3 !important;
-  color: #991b1b !important;
-  border-radius: 14px !important;
-  padding: 14px !important;
-  font-weight: 800 !important;
 }
 
 /* Notebook */
 @media (max-width: 1366px) {
-  .quartos-situacao-grid {
-    grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)) !important;
-    gap: 12px !important;
-  }
-
-  .situacao-room-card {
-    min-height: 126px !important;
-    height: 126px !important;
-  }
-
-  .situacao-room-card strong {
-    font-size: 27px !important;
-  }
 }
-
-
-/* =========================================================
-   ATUALIZAÇÃO 41 — CORES DOS STATUS NA ABA QUARTOS
-   Somente CSS. Não altera funções.
-   ========================================================= */
-
-/* Livre: cinza claro, limpo */
-.situacao-room-card.livre {
-  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%) !important;
-  border: 1px solid #cbd5e1 !important;
-  color: #475569 !important;
-}
-
-.situacao-room-card.livre strong {
-  color: rgba(100, 116, 139, .20) !important;
-  -webkit-text-stroke: 1.2px rgba(100,116,139,.65) !important;
-}
-
-.situacao-room-card.livre span,
-.situacao-room-card.livre em {
-  color: #475569 !important;
-}
-
-/* Reservado/futuro: verde */
-.situacao-room-card.reservado {
-  background: linear-gradient(180deg, #4ade80 0%, #22c55e 58%, #16a34a 100%) !important;
-  border-color: #15803d !important;
-  color: #ffffff !important;
-}
-
-.situacao-room-card.reservado strong {
-  color: rgba(255,255,255,.22) !important;
-  -webkit-text-stroke: 1.3px rgba(255,255,255,.78) !important;
-}
-
-.situacao-room-card.reservado span,
-.situacao-room-card.reservado em {
-  color: #ffffff !important;
-}
-
-/* Ocupado/hospedado: azul */
-.situacao-room-card.ocupado {
-  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 62%, #1d4ed8 100%) !important;
-  border-color: #1e40af !important;
-  color: #ffffff !important;
-}
-
-.situacao-room-card.ocupado strong {
-  color: rgba(255,255,255,.22) !important;
-  -webkit-text-stroke: 1.3px rgba(255,255,255,.78) !important;
-}
-
-.situacao-room-card.ocupado span,
-.situacao-room-card.ocupado em {
-  color: #ffffff !important;
-}
-
-/* Limpeza/verificação saída: laranja */
-.situacao-room-card.limpeza {
-  background: linear-gradient(180deg, #fdba74 0%, #f97316 62%, #ea580c 100%) !important;
-  border-color: #c2410c !important;
-  color: #ffffff !important;
-}
-
-.situacao-room-card.limpeza strong {
-  color: rgba(255,255,255,.23) !important;
-  -webkit-text-stroke: 1.3px rgba(255,255,255,.80) !important;
-}
-
-.situacao-room-card.limpeza span,
-.situacao-room-card.limpeza em {
-  color: #ffffff !important;
-}
-
-/* Manutenção: cinza escuro */
-.situacao-room-card.manutencao {
-  background: linear-gradient(180deg, #94a3b8 0%, #64748b 65%, #475569 100%) !important;
-  border-color: #334155 !important;
-  color: #ffffff !important;
-}
-
-.situacao-room-card.manutencao strong {
-  color: rgba(255,255,255,.24) !important;
-  -webkit-text-stroke: 1.3px rgba(255,255,255,.75) !important;
-}
-
-.situacao-room-card.manutencao span,
-.situacao-room-card.manutencao em {
-  color: #ffffff !important;
-}
-
-/* Legenda com as mesmas cores */
-.q-livre {
-  background: #cbd5e1 !important;
-}
-
-.q-reservado {
-  background: #22c55e !important;
-}
-
-.q-ocupado {
-  background: #2563eb !important;
-}
-
-.q-limpeza {
-  background: #f97316 !important;
-}
-
-.q-manutencao {
-  background: #64748b !important;
-}
-
-/* Destaque suave ao passar mouse */
-.situacao-room-card:hover {
-  filter: brightness(1.03) saturate(1.08) !important;
-}
-
-/* Dívida continua visível em qualquer status */
-.debt-badge {
-  background: #7f1d1d !important;
-  color: #ffffff !important;
-}
-
-
-/* =========================================================
-   ATUALIZAÇÃO 42 — REVISÃO GERAL + CORES DOS QUARTOS FUNCIONANDO
-   Corrige botões sem ação e força cores dos cards mesmo sendo <button>.
-   ========================================================= */
-
-/* O estilo global de botões não pode sobrescrever os cards dos quartos */
-button.situacao-room-card,
-button.situacao-room-card:hover,
-button.situacao-room-card:active,
-button.situacao-room-card:focus {
-  min-height: 132px !important;
-  padding: 9px 7px !important;
-  border-radius: 4px !important;
-  box-shadow: 0 10px 20px rgba(15,23,42,.06) !important;
-  transform: none;
-}
-
-/* LIVRE */
-.quartos-situacao-grid button.situacao-room-card.livre {
-  background: linear-gradient(180deg, #ffffff 0%, #eef2f7 100%) !important;
-  border: 1px solid #cbd5e1 !important;
-  color: #475569 !important;
-}
-
-/* RESERVADO / FUTURO */
-.quartos-situacao-grid button.situacao-room-card.reservado {
-  background: linear-gradient(180deg, #4ade80 0%, #22c55e 58%, #16a34a 100%) !important;
-  border: 1px solid #15803d !important;
-  color: #ffffff !important;
-}
-
-/* OCUPADO / HOSPEDADO */
-.quartos-situacao-grid button.situacao-room-card.ocupado {
-  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 62%, #1d4ed8 100%) !important;
-  border: 1px solid #1e40af !important;
-  color: #ffffff !important;
-}
-
-/* LIMPEZA / VERIFICAÇÃO */
-.quartos-situacao-grid button.situacao-room-card.limpeza {
-  background: linear-gradient(180deg, #fdba74 0%, #f97316 62%, #ea580c 100%) !important;
-  border: 1px solid #c2410c !important;
-  color: #ffffff !important;
-}
-
-/* MANUTENÇÃO */
-.quartos-situacao-grid button.situacao-room-card.manutencao {
-  background: linear-gradient(180deg, #94a3b8 0%, #64748b 65%, #475569 100%) !important;
-  border: 1px solid #334155 !important;
-  color: #ffffff !important;
-}
-
-/* número nos cards */
-.quartos-situacao-grid button.situacao-room-card.livre strong {
-  color: rgba(100,116,139,.20) !important;
-  -webkit-text-stroke: 1.2px rgba(100,116,139,.65) !important;
-}
-
-.quartos-situacao-grid button.situacao-room-card.reservado strong,
-.quartos-situacao-grid button.situacao-room-card.ocupado strong,
-.quartos-situacao-grid button.situacao-room-card.limpeza strong,
-.quartos-situacao-grid button.situacao-room-card.manutencao strong {
-  color: rgba(255,255,255,.24) !important;
-  -webkit-text-stroke: 1.3px rgba(255,255,255,.82) !important;
-}
-
-/* textos dos cards coloridos */
-.quartos-situacao-grid button.situacao-room-card.reservado span,
-.quartos-situacao-grid button.situacao-room-card.reservado em,
-.quartos-situacao-grid button.situacao-room-card.ocupado span,
-.quartos-situacao-grid button.situacao-room-card.ocupado em,
-.quartos-situacao-grid button.situacao-room-card.limpeza span,
-.quartos-situacao-grid button.situacao-room-card.limpeza em,
-.quartos-situacao-grid button.situacao-room-card.manutencao span,
-.quartos-situacao-grid button.situacao-room-card.manutencao em {
-  color: #ffffff !important;
-}
-
-/* textos do livre */
-.quartos-situacao-grid button.situacao-room-card.livre span,
-.quartos-situacao-grid button.situacao-room-card.livre em {
-  color: #475569 !important;
-}
-
-/* Hover suave sem perder cor */
-.quartos-situacao-grid button.situacao-room-card:hover {
-  filter: brightness(1.03) saturate(1.05) !important;
-  transform: translateY(-2px) !important;
-}
-
-/* Legenda correta */
-.q-livre { background: #cbd5e1 !important; }
-.q-reservado { background: #22c55e !important; }
-.q-ocupado { background: #2563eb !important; }
-.q-limpeza { background: #f97316 !important; }
-.q-manutencao { background: #64748b !important; }
 
 /* Botões fantasmas com aparência e clique claro */
 button.ghost {
@@ -4838,22 +3417,6 @@ button.ghost:hover {
   font-size: 15px;
 }
 
-.dashboard-date-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 12px 16px;
-  color: #0f172a;
-  box-shadow: 0 10px 24px rgba(15,23,42,.05);
-}
-
-.dashboard-date-pill span {
-  color: #2563eb;
-}
-
 .clean-metrics-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(180px, 1fr));
@@ -4890,11 +3453,6 @@ button.ghost:hover {
   font-size: 26px;
   font-weight: 900;
 }
-
-.clean-metric-card.blue .clean-metric-icon { background: #e8f0ff; color: #2563eb; }
-.clean-metric-card.green .clean-metric-icon { background: #dcfce7; color: #16a34a; }
-.clean-metric-card.orange .clean-metric-icon { background: #ffedd5; color: #f97316; }
-.clean-metric-card.purple .clean-metric-icon { background: #f3e8ff; color: #7c3aed; }
 
 .clean-metric-card small {
   display: block;
@@ -4995,11 +3553,6 @@ button.ghost:hover {
   place-items: center;
   font-weight: 900;
 }
-
-.activity-icon.blue { background: #dbeafe; color: #2563eb; }
-.activity-icon.green { background: #dcfce7; color: #16a34a; }
-.activity-icon.orange { background: #ffedd5; color: #f97316; }
-.activity-icon.purple { background: #f3e8ff; color: #7c3aed; }
 
 .activity-row b {
   display: block;
@@ -5242,35 +3795,6 @@ button.ghost:hover {
   margin: 2px !important;
 }
 
-/* Status mais legíveis */
-.grid-two .panel-card .pill {
-  border-radius: 999px !important;
-  padding: 7px 11px !important;
-  font-size: 11px !important;
-  font-weight: 800 !important;
-  text-transform: capitalize !important;
-}
-
-.grid-two .panel-card .pill.confirmada {
-  background: #dcfce7 !important;
-  color: #166534 !important;
-}
-
-.grid-two .panel-card .pill.pendente {
-  background: #ccfbf1 !important;
-  color: #0f766e !important;
-}
-
-.grid-two .panel-card .pill.hospedado {
-  background: #dbeafe !important;
-  color: #1d4ed8 !important;
-}
-
-.grid-two .panel-card .pill.cancelada {
-  background: #fee2e2 !important;
-  color: #991b1b !important;
-}
-
 /* Melhor proporção da aba Reservas em notebook/monitor */
 .grid-two {
   grid-template-columns: minmax(420px, .9fr) minmax(560px, 1.1fr) !important;
@@ -5293,76 +3817,10 @@ button.ghost:hover {
   }
 }
 
-
-/* =========================================================
-   ATUALIZAÇÃO 47 — VISUAL SEGURO ABA RECEPÇÃO
-   Somente CSS. Não altera App.jsx nem funções.
-   Deixa Recepção mais limpa, parecida com PMS profissional.
-   ========================================================= */
-
-/* Card principal da recepção */
-.recepcao-page,
-.reception-page,
-.mapa-quartos,
-.room-map,
-.panel-card:has(.room-card),
-.panel-card:has(.room-grid),
-.panel-card:has(.fast-status-strip) {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 20px !important;
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.055) !important;
-}
-
 /* Cabeçalho da aba recepção */
 .panel-card h3:has(+ p),
 .panel-card h3 {
   letter-spacing: -0.03em;
-}
-
-/* Indicadores da recepção */
-.fast-status-strip,
-.reception-stats,
-.room-map-stats,
-.status-cards {
-  display: grid !important;
-  grid-template-columns: repeat(5, minmax(130px, 1fr)) !important;
-  gap: 14px !important;
-  margin: 18px 0 22px !important;
-}
-
-.fast-status-strip > div,
-.reception-stats > div,
-.room-map-stats > div,
-.status-cards > div {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 17px !important;
-  min-height: 86px !important;
-  padding: 16px !important;
-  box-shadow: 0 10px 24px rgba(15,23,42,.045) !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: center !important;
-}
-
-.fast-status-strip b,
-.reception-stats b,
-.room-map-stats b,
-.status-cards b {
-  color: #0f172a !important;
-  font-size: 26px !important;
-  font-weight: 850 !important;
-  line-height: 1 !important;
-}
-
-.fast-status-strip span,
-.reception-stats span,
-.room-map-stats span,
-.status-cards span {
-  margin-top: 8px !important;
-  color: #64748b !important;
-  font-size: 13px !important;
 }
 
 /* Filtros da recepção */
@@ -5396,42 +3854,6 @@ button.ghost:hover {
   background: #ffffff !important;
   color: #0f172a !important;
   padding: 10px 13px !important;
-}
-
-/* Legenda de status mais discreta */
-.legend,
-.room-legend,
-.status-legend {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 18px !important;
-  margin: 12px 0 20px !important;
-  padding: 12px !important;
-  background: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 14px !important;
-}
-
-.legend span,
-.room-legend span,
-.status-legend span {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 7px !important;
-  color: #334155 !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
-}
-
-.legend i,
-.room-legend i,
-.status-legend i {
-  width: 10px !important;
-  height: 10px !important;
-  border-radius: 999px !important;
-  display: inline-block !important;
 }
 
 /* Grid de quartos da recepção */
@@ -5494,106 +3916,7 @@ button.ghost:hover {
   line-height: 1.25 !important;
 }
 
-/* Status de quarto — padrão visual da recepção */
-.room-card.disponivel,
-.room-card.livre,
-.reception-room-card.disponivel,
-.reception-room-card.livre,
-.mapa-room-card.disponivel,
-.mapa-room-card.livre {
-  border-color: #bbf7d0 !important;
-  background: linear-gradient(180deg, #ffffff, #f0fdf4) !important;
-}
 
-.room-card.disponivel em,
-.room-card.livre em,
-.reception-room-card.disponivel em,
-.reception-room-card.livre em,
-.mapa-room-card.disponivel em,
-.mapa-room-card.livre em {
-  display: inline-block !important;
-  width: fit-content !important;
-  background: #dcfce7 !important;
-  color: #15803d !important;
-  border-radius: 999px !important;
-  padding: 5px 8px !important;
-  font-weight: 800 !important;
-}
-
-.room-card.ocupado,
-.room-card.hospedado,
-.reception-room-card.ocupado,
-.reception-room-card.hospedado,
-.mapa-room-card.ocupado,
-.mapa-room-card.hospedado {
-  border-color: #bfdbfe !important;
-  background: linear-gradient(180deg, #ffffff, #eff6ff) !important;
-}
-
-.room-card.ocupado em,
-.room-card.hospedado em,
-.reception-room-card.ocupado em,
-.reception-room-card.hospedado em,
-.mapa-room-card.ocupado em,
-.mapa-room-card.hospedado em {
-  display: inline-block !important;
-  width: fit-content !important;
-  background: #dbeafe !important;
-  color: #1d4ed8 !important;
-  border-radius: 999px !important;
-  padding: 5px 8px !important;
-  font-weight: 800 !important;
-}
-
-.room-card.reservado,
-.room-card.confirmada,
-.reception-room-card.reservado,
-.reception-room-card.confirmada,
-.mapa-room-card.reservado,
-.mapa-room-card.confirmada {
-  border-color: #fed7aa !important;
-  background: linear-gradient(180deg, #ffffff, #fff7ed) !important;
-}
-
-.room-card.reservado em,
-.room-card.confirmada em,
-.reception-room-card.reservado em,
-.reception-room-card.confirmada em,
-.mapa-room-card.reservado em,
-.mapa-room-card.confirmada em {
-  display: inline-block !important;
-  width: fit-content !important;
-  background: #ffedd5 !important;
-  color: #c2410c !important;
-  border-radius: 999px !important;
-  padding: 5px 8px !important;
-  font-weight: 800 !important;
-}
-
-.room-card.limpeza,
-.room-card.verificar,
-.reception-room-card.limpeza,
-.reception-room-card.verificar,
-.mapa-room-card.limpeza,
-.mapa-room-card.verificar {
-  border-color: #e9d5ff !important;
-  background: linear-gradient(180deg, #ffffff, #faf5ff) !important;
-}
-
-.room-card.limpeza em,
-.room-card.verificar em,
-.reception-room-card.limpeza em,
-.reception-room-card.verificar em,
-.mapa-room-card.limpeza em,
-.mapa-room-card.verificar em {
-  display: inline-block !important;
-  width: fit-content !important;
-  background: #f3e8ff !important;
-  color: #7e22ce !important;
-  border-radius: 999px !important;
-  padding: 5px 8px !important;
-  font-weight: 800 !important;
-}
 
 /* Bloco lateral de reservas do dia, caso exista */
 .day-reservations,
@@ -5608,13 +3931,6 @@ button.ghost:hover {
 
 /* Notebook */
 @media (max-width: 1366px) {
-  .fast-status-strip,
-  .reception-stats,
-  .room-map-stats,
-  .status-cards {
-    grid-template-columns: repeat(5, minmax(110px, 1fr)) !important;
-    gap: 12px !important;
-  }
 
   .room-grid,
   .rooms-grid,
@@ -5772,40 +4088,6 @@ button.ghost:hover {
   text-overflow: ellipsis !important;
 }
 
-/* Status enviado/aguardando/expirado */
-.grid-two .panel-card .pill,
-.grid-two .panel-card .status,
-.grid-two .panel-card .badge {
-  border-radius: 999px !important;
-  padding: 7px 11px !important;
-  font-size: 11px !important;
-  font-weight: 800 !important;
-}
-
-.grid-two .panel-card .pill.enviado,
-.grid-two .panel-card .pill.confirmada,
-.grid-two .panel-card .badge.enviado,
-.grid-two .panel-card .status.enviado {
-  background: #dcfce7 !important;
-  color: #166534 !important;
-}
-
-.grid-two .panel-card .pill.aguardando,
-.grid-two .panel-card .pill.pendente,
-.grid-two .panel-card .badge.aguardando,
-.grid-two .panel-card .status.aguardando {
-  background: #ffedd5 !important;
-  color: #c2410c !important;
-}
-
-.grid-two .panel-card .pill.expirado,
-.grid-two .panel-card .pill.cancelada,
-.grid-two .panel-card .badge.expirado,
-.grid-two .panel-card .status.expirado {
-  background: #fee2e2 !important;
-  color: #991b1b !important;
-}
-
 /* Botões da aba */
 .grid-two .panel-card button {
   border-radius: 12px !important;
@@ -5960,24 +4242,6 @@ button.ghost:hover {
   background: #f8fbff !important;
 }
 
-/* Status enviado */
-.grid-two > .panel-card .pill,
-.grid-two > .panel-card .badge,
-.grid-two > .panel-card .status {
-  border-radius: 999px !important;
-  padding: 7px 12px !important;
-  font-size: 11px !important;
-  font-weight: 850 !important;
-  text-transform: capitalize !important;
-}
-
-.grid-two > .panel-card .pill.enviado,
-.grid-two > .panel-card .badge.enviado,
-.grid-two > .panel-card .status.enviado {
-  background: #dcfce7 !important;
-  color: #166534 !important;
-}
-
 /* Links longos ficam claros e elegantes */
 .grid-two > .panel-card a {
   display: inline-flex !important;
@@ -6027,20 +4291,6 @@ button.ghost:hover {
   .grid-two > .panel-card {
     padding: 20px !important;
   }
-}
-
-
-/* =========================================================
-   ATUALIZAÇÃO 52 — CORREÇÃO PRODUÇÃO/USUÁRIOS/SERVIÇOS
-   CSS completo preservado.
-   ========================================================= */
-
-.usuarios-page .panel-card,
-.servicos-produtos-page .panel-card {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 20px !important;
-  box-shadow: 0 14px 32px rgba(15, 23, 42, .055) !important;
 }
 
 .servicos-produtos-page {
@@ -6194,17 +4444,6 @@ button.ghost:hover {
 
 
 /* =========================================================
-   ATUALIZAÇÃO 54 — CORREÇÃO CRIAR RESERVA
-   Visual preservado; ajuste operacional no App.jsx.
-   ========================================================= */
-
-.reserva-form-actions .primary,
-.grid-two .panel-card .actions .primary {
-  cursor: pointer !important;
-}
-
-
-/* =========================================================
    ATUALIZAÇÃO 55 — CORREÇÃO BOTÃO SALVAR RESERVA
    ========================================================= */
 button[onclick],
@@ -6252,48 +4491,9 @@ button.primary {
   transform: translateY(-50%) !important;
 }
 
-.painel-profissional .date-col.cell.half-cell .booking-chip,
-.painel-profissional .date-col.cell.half-cell .block-chip,
-.painel-profissional .date-col.cell.half-cell .free-dot {
-  position: relative !important;
-  z-index: 2 !important;
-}
-
 .painel-profissional .date-col.cell.half-cell.cell-selected {
   background: #fff5f5 !important;
   box-shadow: inset 0 0 0 1px rgba(239, 35, 60, .45) !important;
-}
-
-/* AJUSTE: mantém a linha vermelha visível depois de criar meia diária */
-.painel-profissional .date-col.cell.half-cell .booking-chip.half-left,
-.painel-profissional .date-col.cell.half-cell .booking-chip.half-right {
-  position: relative !important;
-  overflow: visible !important;
-  box-shadow: 0 0 0 2px rgba(239, 35, 60, .16) !important;
-}
-
-.painel-profissional .date-col.cell.half-cell .booking-chip.half-left::after,
-.painel-profissional .date-col.cell.half-cell .booking-chip.half-right::after {
-  content: '' !important;
-  position: absolute !important;
-  top: 50% !important;
-  height: 4px !important;
-  border-radius: 999px !important;
-  background: #ef233c !important;
-  box-shadow: 0 0 0 2px rgba(239, 35, 60, .18) !important;
-  transform: translateY(-50%) !important;
-  pointer-events: none !important;
-  z-index: 5 !important;
-}
-
-.painel-profissional .date-col.cell.half-cell .booking-chip.half-left::after {
-  left: 4px !important;
-  right: 50% !important;
-}
-
-.painel-profissional .date-col.cell.half-cell .booking-chip.half-right::after {
-  left: 50% !important;
-  right: 4px !important;
 }
 
 /* =========================================================
@@ -6631,655 +4831,1996 @@ body,
 }
 
 
-/* =========================================================
-   AJUSTE SEGURO — CORES DA ABA QUARTOS
-   Mantém o desenho atual das portinhas; altera somente cores.
-   Livre = branco | Reservado = verde | Ocupado = azul
-   Limpeza = laranja | Manutenção = cinza
-   ========================================================= */
-
-.quartos-situacao-page .situacao-room-card.livre {
-  background: #ffffff !important;
-  border-color: #d7e1ee !important;
-  color: #64748b !important;
-}
-
-.quartos-situacao-page .situacao-room-card.livre strong {
-  color: rgba(100, 116, 139, .18) !important;
-  -webkit-text-stroke: 1.2px rgba(100, 116, 139, .62) !important;
-}
-
-.quartos-situacao-page .situacao-room-card.livre span,
-.quartos-situacao-page .situacao-room-card.livre em {
-  color: #0f172a !important;
-}
-
-.quartos-situacao-page .situacao-room-card.reservado {
-  background: linear-gradient(180deg, #4ade80 0%, #22c55e 62%, #16a34a 100%) !important;
-  border-color: #15803d !important;
-  color: #ffffff !important;
-}
-
-.quartos-situacao-page .situacao-room-card.ocupado {
-  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 62%, #1d4ed8 100%) !important;
-  border-color: #1e40af !important;
-  color: #ffffff !important;
-}
-
-.quartos-situacao-page .situacao-room-card.limpeza {
-  background: linear-gradient(180deg, #fdba74 0%, #f97316 62%, #ea580c 100%) !important;
-  border-color: #c2410c !important;
-  color: #ffffff !important;
-}
-
-.quartos-situacao-page .situacao-room-card.manutencao {
-  background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 62%, #64748b 100%) !important;
-  border-color: #475569 !important;
-  color: #ffffff !important;
-}
-
-.quartos-situacao-page .situacao-room-card.reservado strong,
-.quartos-situacao-page .situacao-room-card.ocupado strong,
-.quartos-situacao-page .situacao-room-card.limpeza strong,
-.quartos-situacao-page .situacao-room-card.manutencao strong {
-  color: rgba(255, 255, 255, .23) !important;
-  -webkit-text-stroke: 1.3px rgba(255, 255, 255, .78) !important;
-}
-
-.quartos-situacao-page .situacao-room-card.reservado span,
-.quartos-situacao-page .situacao-room-card.reservado em,
-.quartos-situacao-page .situacao-room-card.ocupado span,
-.quartos-situacao-page .situacao-room-card.ocupado em,
-.quartos-situacao-page .situacao-room-card.limpeza span,
-.quartos-situacao-page .situacao-room-card.limpeza em,
-.quartos-situacao-page .situacao-room-card.manutencao span,
-.quartos-situacao-page .situacao-room-card.manutencao em {
-  color: #ffffff !important;
-}
-
-.quartos-situacao-page .q-livre { background: #ffffff !important; border: 1px solid #cbd5e1 !important; }
-.quartos-situacao-page .q-reservado { background: #22c55e !important; }
-.quartos-situacao-page .q-ocupado { background: #2563eb !important; }
-.quartos-situacao-page .q-limpeza { background: #f97316 !important; }
-.quartos-situacao-page .q-manutencao { background: #64748b !important; }
-
+:root {}
 
 /* =========================================================
-   ATUALIZAÇÃO 45 — CORES DEFINITIVAS DOS QUARTOS POR STATUS
-   Não altera funções: apenas força a cor visual conforme a classe
-   gerada pelo sistema em App.jsx.
-
-   Livre       = branco
-   Reservado   = verde
-   Ocupado     = azul
-   Limpeza     = laranja
-   Manutenção  = cinza
+   CORREÇÃO REAL — ALINHAMENTO DA TIMELINE COM O GRID
+   Mantém o painel, a barra premium e as demais funções.
+   A régua de datas/ocupação começa somente após a coluna
+   dos quartos, exatamente acima do primeiro quadradinho
+   clicável de reserva.
    ========================================================= */
-
-.quartos-situacao-page .quartos-legend .q-livre,
-.q-livre {
-  background: #ffffff !important;
-  border: 1px solid #cbd5e1 !important;
+.painel-profissional {
+  --reservation-room-col: 150px;
+  --reservation-day-col: 74px;
 }
 
-.quartos-situacao-page .quartos-legend .q-reservado,
-.q-reservado { background: #22c55e !important; }
-
-.quartos-situacao-page .quartos-legend .q-ocupado,
-.q-ocupado { background: #2563eb !important; }
-
-.quartos-situacao-page .quartos-legend .q-limpeza,
-.q-limpeza { background: #f97316 !important; }
-
-.quartos-situacao-page .quartos-legend .q-manutencao,
-.q-manutencao { background: #64748b !important; }
-
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card,
-.quartos-situacao-grid button.situacao-room-card,
-button.situacao-room-card {
-  appearance: none !important;
-  -webkit-appearance: none !important;
-  border-radius: 12px !important;
-  min-height: 136px !important;
-  height: 136px !important;
-  padding: 10px 7px !important;
-  cursor: pointer !important;
-  text-align: center !important;
-  overflow: hidden !important;
-  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease !important;
+.painel-profissional .room-col,
+.painel-profissional .board-header .room-col,
+.painel-profissional .board-row .room-col {
+  flex: 0 0 var(--reservation-room-col) !important;
+  width: var(--reservation-room-col) !important;
+  min-width: var(--reservation-room-col) !important;
+  max-width: var(--reservation-room-col) !important;
 }
 
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card:hover,
-.quartos-situacao-grid button.situacao-room-card:hover,
-button.situacao-room-card:hover {
-  transform: translateY(-2px) !important;
-  filter: brightness(1.03) saturate(1.05) !important;
+.painel-profissional .date-col,
+.painel-profissional .board-header .date-col,
+.painel-profissional .board-row .date-col,
+.painel-profissional .occupancy-ruler .occ-day {
+  flex: 0 0 var(--reservation-day-col) !important;
+  width: var(--reservation-day-col) !important;
+  min-width: var(--reservation-day-col) !important;
+  max-width: var(--reservation-day-col) !important;
+  box-sizing: border-box !important;
 }
 
-/* Livre */
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.livre,
-.quartos-situacao-grid button.situacao-room-card.livre,
-button.situacao-room-card.livre {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-  border: 1px solid #d6e0ec !important;
-  color: #475569 !important;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.9), 0 10px 20px rgba(15,23,42,.06) !important;
-}
-
-/* Reservado */
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.reservado,
-.quartos-situacao-grid button.situacao-room-card.reservado,
-button.situacao-room-card.reservado {
-  background: linear-gradient(180deg, #4ade80 0%, #22c55e 62%, #16a34a 100%) !important;
-  border: 1px solid #15803d !important;
-  color: #ffffff !important;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), 0 12px 24px rgba(34,197,94,.25) !important;
-}
-
-/* Ocupado */
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.ocupado,
-.quartos-situacao-grid button.situacao-room-card.ocupado,
-button.situacao-room-card.ocupado {
-  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 62%, #1d4ed8 100%) !important;
-  border: 1px solid #1e40af !important;
-  color: #ffffff !important;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), 0 12px 24px rgba(37,99,235,.25) !important;
-}
-
-/* Limpeza / verificar saída */
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.limpeza,
-.quartos-situacao-grid button.situacao-room-card.limpeza,
-button.situacao-room-card.limpeza {
-  background: linear-gradient(180deg, #fdba74 0%, #f97316 62%, #ea580c 100%) !important;
-  border: 1px solid #c2410c !important;
-  color: #ffffff !important;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), 0 12px 24px rgba(249,115,22,.25) !important;
-}
-
-/* Manutenção */
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.manutencao,
-.quartos-situacao-grid button.situacao-room-card.manutencao,
-button.situacao-room-card.manutencao {
-  background: linear-gradient(180deg, #cbd5e1 0%, #64748b 66%, #475569 100%) !important;
-  border: 1px solid #334155 !important;
-  color: #ffffff !important;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), 0 12px 24px rgba(100,116,139,.25) !important;
-}
-
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card strong,
-.quartos-situacao-grid button.situacao-room-card strong,
-button.situacao-room-card strong {
-  color: rgba(100,116,139,.18) !important;
-  -webkit-text-stroke: 1.2px rgba(100,116,139,.65) !important;
-}
-
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.reservado strong,
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.ocupado strong,
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.limpeza strong,
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.manutencao strong,
-.quartos-situacao-grid button.situacao-room-card.reservado strong,
-.quartos-situacao-grid button.situacao-room-card.ocupado strong,
-.quartos-situacao-grid button.situacao-room-card.limpeza strong,
-.quartos-situacao-grid button.situacao-room-card.manutencao strong,
-button.situacao-room-card.reservado strong,
-button.situacao-room-card.ocupado strong,
-button.situacao-room-card.limpeza strong,
-button.situacao-room-card.manutencao strong {
-  color: rgba(255,255,255,.24) !important;
-  -webkit-text-stroke: 1.3px rgba(255,255,255,.82) !important;
-}
-
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.livre span,
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.livre em,
-.quartos-situacao-grid button.situacao-room-card.livre span,
-.quartos-situacao-grid button.situacao-room-card.livre em,
-button.situacao-room-card.livre span,
-button.situacao-room-card.livre em {
-  color: #0f172a !important;
-}
-
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.reservado span,
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.reservado em,
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.ocupado span,
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.ocupado em,
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.limpeza span,
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.limpeza em,
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.manutencao span,
-.quartos-situacao-page .quartos-situacao-grid button.situacao-room-card.manutencao em,
-.quartos-situacao-grid button.situacao-room-card.reservado span,
-.quartos-situacao-grid button.situacao-room-card.reservado em,
-.quartos-situacao-grid button.situacao-room-card.ocupado span,
-.quartos-situacao-grid button.situacao-room-card.ocupado em,
-.quartos-situacao-grid button.situacao-room-card.limpeza span,
-.quartos-situacao-grid button.situacao-room-card.limpeza em,
-.quartos-situacao-grid button.situacao-room-card.manutencao span,
-.quartos-situacao-grid button.situacao-room-card.manutencao em,
-button.situacao-room-card.reservado span,
-button.situacao-room-card.reservado em,
-button.situacao-room-card.ocupado span,
-button.situacao-room-card.ocupado em,
-button.situacao-room-card.limpeza span,
-button.situacao-room-card.limpeza em,
-button.situacao-room-card.manutencao span,
-button.situacao-room-card.manutencao em {
-  color: #ffffff !important;
-}
-
-/* =========================================================
-   AJUSTE FINAL — ALINHAMENTO DO PAINEL DE RESERVAS
-   Mantém o alinhamento já corrigido, remove a data duplicada
-   da régua de ocupação e deixa as bordas dos quadrados visíveis.
-   ========================================================= */
+/* A régua superior precisa ter o mesmo recuo da coluna dos quartos.
+   Assim o dia inicial (27/05) fica acima do primeiro quadrado de reserva,
+   e não acima do nome/tipo do quarto. */
 .painel-profissional .occupancy-ruler {
   display: flex !important;
   align-items: stretch !important;
   gap: 0 !important;
   overflow-x: auto !important;
-  padding: 0 !important;
-  margin-bottom: 0 !important;
-  background: #f8fafc !important;
-  border: 1px solid #dbe3ee !important;
-  border-bottom: 0 !important;
-  border-radius: 0 !important;
-}
-
-.painel-profissional .occupancy-ruler .occ-spacer {
-  flex: 0 0 150px !important;
-  width: 150px !important;
-  min-width: 150px !important;
-  max-width: 150px !important;
-  background: #ffffff !important;
-  border-right: 1px solid #cbd5e1 !important;
-}
-
-.painel-profissional .occupancy-ruler .occ-day {
-  flex: 0 0 74px !important;
-  width: 74px !important;
-  min-width: 74px !important;
-  max-width: 74px !important;
-  height: 48px !important;
-  padding: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  background: #f8fafc !important;
-  border-right: 1px solid #cbd5e1 !important;
-  border-bottom: 1px solid #cbd5e1 !important;
-}
-
-.painel-profissional .occupancy-ruler .occ-day b {
+  overflow-y: hidden !important;
+  padding-left: var(--reservation-room-col) !important;
+  padding-top: 0 !important;
+  padding-right: 0 !important;
+  padding-bottom: 0 !important;
   margin: 0 !important;
-  font-size: 14px !important;
-  line-height: 1 !important;
-  color: #0f172a !important;
+  width: max-content !important;
+  min-width: 100% !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  border: 0 !important;
 }
 
-.painel-profissional .occupancy-ruler .occ-day span,
-.painel-profissional .occupancy-ruler .occ-day i {
+/* Se o JSX tiver um espaçador antigo, ele não pode somar outro recuo. */
+.painel-profissional .occupancy-ruler .occ-spacer {
   display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  flex-basis: 0 !important;
 }
 
-.painel-profissional .board-header {
-  border-left: 1px solid #dbe3ee !important;
-  border-right: 1px solid #dbe3ee !important;
-  border-bottom: 1px solid #cbd5e1 !important;
-}
-
-.painel-profissional .board-header .room-col,
+.painel-profissional .occupancy-ruler .occ-day,
 .painel-profissional .board-header .date-col {
-  background: #ffffff !important;
-  border-right: 1px solid #dbe3ee !important;
-  border-bottom: 1px solid #dbe3ee !important;
+  border: 1px solid #cbd5e1 !important;
+  border-left: 0 !important;
+  background: #f8fafc !important;
 }
 
-.painel-profissional .date-col.cell {
+.painel-profissional .occupancy-ruler .occ-day:first-of-type,
+.painel-profissional .board-header .date-col:first-of-type {
+  border-left: 1px solid #cbd5e1 !important;
+}
+
+/* Bordas mais fortes nos quadradinhos clicáveis da reserva. */
+.painel-profissional .date-col.cell,
+.painel-profissional .board-row .date-col.cell,
+.painel-profissional .date-col.cell.half-cell {
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, .32) !important;
   background: #ffffff !important;
-  border-right: 1px solid #d1d5db !important;
-  border-bottom: 1px solid #d1d5db !important;
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, .28) !important;
 }
 
 .painel-profissional .board-row .room-col {
-  border-right: 1px solid #d1d5db !important;
-  border-bottom: 1px solid #d1d5db !important;
+  border-right: 1px solid #cbd5e1 !important;
+  border-bottom: 1px solid #cbd5e1 !important;
 }
 
-/* Barra premium horizontal do painel de reservas */
-.painel-profissional .premium-horizontal-scroll {
-  width: 100% !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  height: 16px !important;
-  margin: -8px 0 6px !important;
-  padding: 2px 0 !important;
-  border-radius: 999px !important;
-  background: linear-gradient(180deg, #f8fafc 0%, #eef3f9 100%) !important;
-  border: 1px solid #d8e1ec !important;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, .08) !important;
-}
-
-.painel-profissional .premium-horizontal-scroll-inner {
-  height: 1px !important;
+.painel-profissional .board-header,
+.painel-profissional .board-row {
+  display: flex !important;
+  align-items: stretch !important;
+  width: max-content !important;
   min-width: 100% !important;
 }
 
-.painel-profissional .premium-horizontal-scroll::-webkit-scrollbar {
-  height: 12px !important;
-}
-
-.painel-profissional .premium-horizontal-scroll::-webkit-scrollbar-track {
-  background: transparent !important;
-  border-radius: 999px !important;
-}
-
-.painel-profissional .premium-horizontal-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(90deg, #2563eb 0%, #60a5fa 50%, #2563eb 100%) !important;
-  border-radius: 999px !important;
-  border: 3px solid #eef3f9 !important;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, .28) !important;
-}
-
-.painel-profissional .premium-horizontal-scroll::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(90deg, #1d4ed8 0%, #3b82f6 50%, #1d4ed8 100%) !important;
-}
-
 /* =========================================================
-   ATUALIZAÇÃO 37 — MODAIS DAS AÇÕES DA RESERVA
-   Corrige as telas abertas pelos botões Receber, Adicionar
-   consumo, Trocar quarto, Remarcar e Cancelar.
+   BARRA PREMIUM SINCRONIZADA — DATAS + GRADE JUNTAS
+   Move a régua superior e os quadradinhos da reserva ao mesmo tempo.
+   Não altera a lógica de reservas nem os modais.
    ========================================================= */
-
-.modal-backdrop {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  z-index: 12000 !important;
-  display: flex !important;
+.painel-profissional .premium-board-scroll {
+  display: grid !important;
+  grid-template-columns: 34px minmax(0, 1fr) 34px !important;
   align-items: center !important;
-  justify-content: center !important;
-  padding: 24px !important;
-  overflow: auto !important;
-  background: rgba(15, 23, 42, 0.48) !important;
-  backdrop-filter: blur(7px) !important;
+  gap: 8px !important;
+  width: 100% !important;
+  margin: 8px 0 10px !important;
+  padding: 4px 0 !important;
 }
 
-/* Os modais menores usam className="modal" no App.jsx */
-.modal {
-  position: relative !important;
-  width: min(640px, calc(100vw - 48px)) !important;
-  max-height: calc(100vh - 48px) !important;
-  overflow: auto !important;
-  margin: auto !important;
-  padding: 28px !important;
-  border-radius: 22px !important;
+.painel-profissional .premium-board-scroll button {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 12px !important;
+  border: 1px solid #d6dee8 !important;
   background: #ffffff !important;
   color: #0f172a !important;
-  border: 1px solid #dbe3ee !important;
-  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.34) !important;
-}
-
-.modal h2 {
-  margin: 0 44px 8px 0 !important;
-  color: #0f172a !important;
-  font-size: 24px !important;
-  line-height: 1.18 !important;
-  font-weight: 900 !important;
-  letter-spacing: -0.04em !important;
-}
-
-.modal p,
-.modal span,
-.modal div,
-.modal b,
-.modal strong,
-.modal small,
-.modal label,
-.modal td,
-.modal th {
-  color: #0f172a !important;
-  opacity: 1 !important;
-  text-shadow: none !important;
-}
-
-.modal p {
-  margin: 0 0 18px !important;
-  color: #475569 !important;
-  font-size: 14px !important;
-}
-
-.modal .modal-close,
-.modal > button:first-child {
-  position: absolute !important;
-  top: 18px !important;
-  right: 18px !important;
-  width: 38px !important;
-  height: 38px !important;
-  min-height: 38px !important;
-  padding: 0 !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, .06) !important;
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  border-radius: 999px !important;
-  background: #ffffff !important;
-  border: 1px solid #dbe3ee !important;
-  color: #64748b !important;
-  font-size: 22px !important;
-  line-height: 1 !important;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.10) !important;
-}
-
-.modal .form-grid {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 14px !important;
-  margin-top: 16px !important;
-}
-
-.modal .form-grid label {
-  font-size: 12px !important;
-  font-weight: 800 !important;
-  color: #334155 !important;
-}
-
-.modal .form-grid input,
-.modal .form-grid select,
-.modal .form-grid textarea {
-  margin-top: 7px !important;
-  width: 100% !important;
-  min-height: 44px !important;
-  border-radius: 12px !important;
-  background: #ffffff !important;
-  color: #0f172a !important;
-  border: 1px solid #cbd5e1 !important;
-  padding: 10px 12px !important;
-  font-size: 14px !important;
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-.modal .form-grid input:focus,
-.modal .form-grid select:focus,
-.modal .form-grid textarea:focus {
-  border-color: #2563eb !important;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12) !important;
-}
-
-.modal .form-grid textarea {
-  min-height: 96px !important;
-  resize: vertical !important;
-}
-
-.modal .form-grid .full,
-.modal label.full {
-  grid-column: 1 / -1 !important;
-}
-
-.modal .info-box {
-  margin: 14px 0 16px !important;
-  padding: 14px 16px !important;
-  border-radius: 16px !important;
-  background: #eff6ff !important;
-  border: 1px solid #bfdbfe !important;
-  color: #1e3a8a !important;
-  font-weight: 700 !important;
-}
-
-.modal .actions {
-  position: sticky !important;
-  bottom: -28px !important;
-  margin: 22px -28px -28px !important;
-  padding: 16px 28px !important;
-  display: flex !important;
-  justify-content: flex-end !important;
-  align-items: center !important;
-  flex-wrap: wrap !important;
-  gap: 10px !important;
-  background: #ffffff !important;
-  border-top: 1px solid #e2e8f0 !important;
-  border-radius: 0 0 22px 22px !important;
-}
-
-.modal .actions button,
-.modal button {
-  min-height: 40px !important;
-  border-radius: 12px !important;
-  padding: 9px 16px !important;
-  font-weight: 800 !important;
-  border: 1px solid #dbe3ee !important;
-  background: #f8fafc !important;
-  color: #334155 !important;
   cursor: pointer !important;
 }
 
-.modal .actions .primary,
-.modal button.primary {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
-  color: #ffffff !important;
-  border-color: transparent !important;
-  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.25) !important;
+.painel-profissional .premium-board-scroll button:hover {
+  border-color: #2563eb !important;
+  color: #2563eb !important;
 }
 
-.modal .danger-btn,
-.modal .actions .danger-btn,
-.modal button.danger-btn {
-  background: #fee2e2 !important;
-  color: #991b1b !important;
-  border-color: #fecaca !important;
+.painel-profissional .premium-board-scroll input[type="range"] {
+  width: 100% !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
 }
 
-@media (max-width: 760px) {
-  .modal {
-    width: calc(100vw - 28px) !important;
-    padding: 22px !important;
-  }
-
-  .modal .form-grid {
-    grid-template-columns: 1fr !important;
-  }
-
-  .modal .actions {
-    margin: 20px -22px -22px !important;
-    padding: 14px 22px !important;
-  }
+.painel-profissional .premium-board-scroll input[type="range"]::-webkit-slider-runnable-track {
+  height: 10px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, #2563eb, #1d4ed8) !important;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .25), 0 8px 18px rgba(37, 99, 235, .18) !important;
 }
+
+.painel-profissional .premium-board-scroll input[type="range"]::-webkit-slider-thumb {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 74px !important;
+  height: 22px !important;
+  margin-top: -6px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, .65) !important;
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, .25) !important;
+}
+
+.painel-profissional .premium-board-scroll input[type="range"]::-moz-range-track {
+  height: 10px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, #2563eb, #1d4ed8) !important;
+}
+
+.painel-profissional .premium-board-scroll input[type="range"]::-moz-range-thumb {
+  width: 74px !important;
+  height: 22px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, .65) !important;
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+}
+
 
 /* =========================================================
-   AJUSTE FINAL — SOMENTE PAINEL DE RESERVAS
-   Reforça a barra premium horizontal sem alterar os modais
-   nem as telas de ações da reserva.
+   ETAPA 2 — PAINEL LIGADO NA FUNÇÃO CENTRAL + CINZA PREMIUM
+   Regra: cor não é salva. A classe vem do getRoomStatus().
    ========================================================= */
-.painel-profissional .premium-horizontal-scroll {
-  display: block !important;
-  width: 100% !important;
-  height: 22px !important;
-  margin: -2px 0 8px !important;
-  padding: 4px 6px !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  border-radius: 999px !important;
-  background: linear-gradient(180deg, #ffffff 0%, #eef4fb 100%) !important;
-  border: 1px solid #cbd8e6 !important;
-  box-shadow:
-    inset 0 1px 3px rgba(15, 23, 42, .12),
-    0 6px 16px rgba(15, 23, 42, .06) !important;
-  scrollbar-color: #2563eb #edf3f9 !important;
-  scrollbar-width: thin !important;
-  cursor: grab !important;
+
+:root {
+  --hb-bg: #2f3338;
+  --hb-bg-2: #353a40;
+  --hb-sidebar: #2d3136;
+  --hb-panel: #454a50;
+  --hb-panel-2: #3d4248;
+  --hb-border: rgba(255, 255, 255, .09);
+  --hb-text: #f4f4f5;
+  --hb-muted: #c6c9ce;
+  --hb-blue: #9ca3af;
+  --hb-blue-2: #6b7280;
+  --hb-cyan: #d1d5db;
+  --hb-shadow: 0 18px 45px rgba(0, 0, 0, .25);
 }
 
-.painel-profissional .premium-horizontal-scroll:active {
-  cursor: grabbing !important;
+body {
+  background:
+    radial-gradient(circle at 30% 0%, rgba(255,255,255,.06), transparent 32%),
+    linear-gradient(135deg, #2b2f34 0%, #383d43 52%, #25292e 100%) !important;
+  color: var(--hb-text) !important;
 }
 
-.painel-profissional .premium-horizontal-scroll-inner {
-  height: 1px !important;
+.hotel-sidebar {
+  background: linear-gradient(180deg, #30343a 0%, #292d32 100%) !important;
+  border-right: 1px solid rgba(255,255,255,.08) !important;
+}
+
+.hotel-topbar {
+  background: rgba(48, 52, 58, .86) !important;
+  border-bottom: 1px solid rgba(255,255,255,.08) !important;
+}
+
+.stat-card,
+.panel-card,
+.config-ops-panel,
+.modal-card {
+  background: linear-gradient(145deg, #4a4f56 0%, #393e44 100%) !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  box-shadow: var(--hb-shadow) !important;
+}
+
+.menu-link.active,
+.card-head button,
+.primary,
+button.primary,
+.quick-actions button,
+.data-table button {
+  background: linear-gradient(145deg, #4b5057, #343940) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,.18) !important;
+}
+
+.menu-link:hover,
+.data-table tr:hover td,
+.board-row:hover,
+.date-col.cell:hover {
+  background: rgba(255,255,255,.06) !important;
+}
+
+/* Alinhamento crítico: datas começam acima do primeiro quadradinho clicável,
+   não acima da coluna de quarto/tipo. */
+.painel-profissional .occupancy-ruler {
+  margin-left: var(--reservation-room-col) !important;
+  width: calc(100% - var(--reservation-room-col)) !important;
+  background: rgba(42,46,52,.82) !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+}
+
+.painel-profissional .board-header,
+.painel-profissional .board-row {
+  display: flex !important;
+  align-items: stretch !important;
+  width: max-content !important;
   min-width: 100% !important;
 }
 
-.painel-profissional .premium-horizontal-scroll::-webkit-scrollbar {
-  height: 14px !important;
+.painel-profissional .room-col,
+.painel-profissional .board-header .room-col,
+.painel-profissional .board-row .room-col {
+  background: #343941 !important;
+  color: #f4f4f5 !important;
+  border-color: rgba(255,255,255,.09) !important;
 }
 
-.painel-profissional .premium-horizontal-scroll::-webkit-scrollbar-track {
-  background: #edf3f9 !important;
-  border-radius: 999px !important;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, .10) !important;
+.painel-profissional .board-header .date-col {
+  background: #3f444b !important;
+  color: #f4f4f5 !important;
+  border-color: rgba(255,255,255,.10) !important;
 }
 
-.painel-profissional .premium-horizontal-scroll::-webkit-scrollbar-thumb {
-  min-width: 72px !important;
-  background: linear-gradient(90deg, #1d4ed8 0%, #60a5fa 50%, #1d4ed8 100%) !important;
-  border-radius: 999px !important;
-  border: 3px solid #edf3f9 !important;
-  box-shadow: 0 2px 10px rgba(37, 99, 235, .34) !important;
+.painel-profissional .board-header .date-col span,
+.painel-profissional .room-col span,
+.hint,
+.panel-card p {
+  color: #c6c9ce !important;
 }
 
-.painel-profissional .premium-horizontal-scroll::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(90deg, #1e40af 0%, #3b82f6 50%, #1e40af 100%) !important;
+.painel-profissional .date-col.cell,
+.painel-profissional .board-row .date-col.cell,
+.painel-profissional .date-col.cell.half-cell {
+  background: #3a3f45 !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.025) !important;
+  color: #f4f4f5 !important;
 }
 
-.painel-profissional .occupancy-ruler,
+.painel-profissional .date-col.cell.room-status-available {
+  background: #3a3f45 !important;
+}
+
+.painel-profissional .date-col.cell.room-status-reserved {
+  background: rgba(34, 197, 94, .16) !important;
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, .34) !important;
+}
+
+.painel-profissional .date-col.cell.room-status-occupied {
+  background: rgba(59, 130, 246, .18) !important;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, .36) !important;
+}
+
+.painel-profissional .date-col.cell.room-status-checkout {
+  background: rgba(234, 179, 8, .18) !important;
+  box-shadow: inset 0 0 0 1px rgba(234, 179, 8, .36) !important;
+}
+
+.painel-profissional .date-col.cell.room-status-maintenance {
+  background: rgba(249, 115, 22, .18) !important;
+  box-shadow: inset 0 0 0 1px rgba(249, 115, 22, .36) !important;
+}
+
+.painel-profissional .date-col.cell.room-status-blocked {
+  background: rgba(239, 68, 68, .18) !important;
+  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, .38) !important;
+}
+
+.painel-profissional .reservation-item {
+  position: relative !important;
+  z-index: 3 !important;
+  width: calc(100% - 8px) !important;
+  min-height: 32px !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(255,255,255,.15) !important;
+  color: #fff !important;
+  font-size: 11px !important;
+  font-weight: 850 !important;
+  cursor: grab !important;
+  box-shadow: 0 8px 18px rgba(0,0,0,.22) !important;
+}
+
+.painel-profissional .reservation-item.room-status-reserved {
+  background: linear-gradient(145deg, #16a34a, #15803d) !important;
+}
+
+.painel-profissional .reservation-item.room-status-occupied {
+  background: linear-gradient(145deg, #2563eb, #1d4ed8) !important;
+}
+
+.painel-profissional .reservation-item.room-status-checkout {
+  background: linear-gradient(145deg, #eab308, #ca8a04) !important;
+  color: #1f2937 !important;
+}
+
+.painel-profissional .manual-block.room-status-blocked {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: calc(100% - 10px) !important;
+  height: 30px !important;
+  border-radius: 8px !important;
+  background: linear-gradient(145deg, #ef4444, #b91c1c) !important;
+  color: #fff !important;
+  font-weight: 950 !important;
+  position: relative !important;
+  z-index: 3 !important;
+}
+
+.painel-profissional .free-dot {
+  color: #aeb4bd !important;
+  opacity: .82 !important;
+}
+
+.painel-profissional .premium-board-scroll button {
+  background: #4a4f56 !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  box-shadow: 0 8px 18px rgba(0,0,0,.18) !important;
+}
+
+.painel-profissional .premium-board-scroll input[type="range"] {
+  accent-color: #777d86 !important;
+}
+
+.painel-profissional .timeline-tools,
 .painel-profissional .reservation-board {
-  overflow-x: auto !important;
+  background: rgba(42,46,52,.72) !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
 }
 
-/* Ajuste solicitado: cores de status na Recepção sem alterar layout/funcionalidade */
-.room-card.status-yellow,
-.legend .box.status-yellow {
-  border-left-color: #eab308 !important;
-  background: rgba(234, 179, 8, 0.22) !important;
+/* =========================================================
+   ETAPA 3 — DRAG SEGURO DO PAINEL DE RESERVAS
+   Mantém a regra da Etapa 1/2: status e cor continuam calculados.
+   ========================================================= */
+.reservation-board,
+.board-row,
+.date-col.cell {
+  user-select: none;
 }
 
-.room-card.status-yellow strong,
-.room-card.status-yellow small,
-.room-card.status-yellow span,
-.room-card.status-yellow em {
+.date-col.cell {
+  cursor: crosshair;
+  position: relative;
+}
+
+.date-col.cell:active {
+  cursor: grabbing;
+}
+
+.reservation-item {
+  cursor: grab !important;
+  touch-action: none;
+}
+
+.reservation-item:active,
+.room-card[draggable="true"]:active {
+  cursor: grabbing !important;
+}
+
+.room-card[draggable="true"] {
+  cursor: grab;
+}
+
+.cell-selected,
+.half-selected {
+  outline: 2px solid rgba(248, 250, 252, .42) !important;
+  outline-offset: -2px;
+}
+
+.half-zone {
+  pointer-events: none;
+}
+
+.reservation-board.dragging-safe .date-col.cell {
+  transition: none !important;
+}
+
+.manual-block {
+  pointer-events: auto;
+}
+
+
+/* =========================================================
+   ETAPA 4 — RECEPÇÃO SINCRONIZADA COM A FUNÇÃO CENTRAL
+   A Recepção agora usa getRoomStatus igual ao Painel.
+   Nenhuma cor é salva: tudo vem de reservations + blocks + selectedDate.
+   ========================================================= */
+
+.recepcao-fast .card-head,
+.recepcao-fast .filters-line,
+.recepcao-fast .floor-section {
+  position: relative !important;
+}
+
+.recepcao-fast .floor-section h4 {
+  margin: 22px 0 12px !important;
+  color: #f4f4f5 !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+  letter-spacing: .02em !important;
+}
+
+.recepcao-fast .rooms-grid.fast-map {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)) !important;
+  gap: 14px !important;
+}
+
+.recepcao-fast .room-card.reception-room {
+  min-height: 128px !important;
+  border-radius: 14px !important;
+  padding: 14px !important;
+  text-align: left !important;
+  color: #f4f4f5 !important;
+  background: linear-gradient(145deg, #454a51, #353a40) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.22) !important;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, filter .16s ease !important;
+}
+
+.recepcao-fast .room-card.reception-room:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 18px 38px rgba(0,0,0,.30) !important;
+  filter: brightness(1.04) !important;
+}
+
+.recepcao-fast .room-card.reception-room strong {
+  display: block !important;
+  color: #ffffff !important;
+  font-size: 30px !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  margin-bottom: 7px !important;
+}
+
+.recepcao-fast .room-card.reception-room small,
+.recepcao-fast .room-card.reception-room span,
+.recepcao-fast .room-card.reception-room em {
+  display: block !important;
+  color: #d5d8dd !important;
+  font-size: 12px !important;
+  line-height: 1.28 !important;
+  margin-top: 5px !important;
+  font-style: normal !important;
+}
+
+.recepcao-fast .room-card.reception-room .room-status-text {
+  display: inline-flex !important;
+  width: auto !important;
+  margin-top: 9px !important;
+  padding: 4px 8px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.12) !important;
+  color: #fff !important;
+  font-weight: 900 !important;
+  font-size: 11px !important;
+}
+
+.recepcao-fast .room-card.reception-room.room-status-available {
+  background: linear-gradient(145deg, #484d54, #383d43) !important;
+  border-color: rgba(255,255,255,.10) !important;
+}
+
+.recepcao-fast .room-card.reception-room.room-status-reserved {
+  background: linear-gradient(145deg, #16a34a, #15803d) !important;
+  border-color: rgba(134,239,172,.42) !important;
+}
+
+.recepcao-fast .room-card.reception-room.room-status-occupied {
+  background: linear-gradient(145deg, #2563eb, #1d4ed8) !important;
+  border-color: rgba(147,197,253,.42) !important;
+}
+
+.recepcao-fast .room-card.reception-room.room-status-checkout {
+  background: linear-gradient(145deg, #eab308, #ca8a04) !important;
+  border-color: rgba(254,240,138,.50) !important;
   color: #1f2937 !important;
 }
 
-.room-card.status-orange,
-.legend .box.status-orange {
-  border-left-color: #f97316 !important;
-  background: rgba(249, 115, 22, 0.24) !important;
-}
-
-.room-card.status-orange strong,
-.room-card.status-orange small,
-.room-card.status-orange span,
-.room-card.status-orange em {
+.recepcao-fast .room-card.reception-room.room-status-checkout strong,
+.recepcao-fast .room-card.reception-room.room-status-checkout small,
+.recepcao-fast .room-card.reception-room.room-status-checkout span,
+.recepcao-fast .room-card.reception-room.room-status-checkout em {
   color: #1f2937 !important;
 }
 
-.room-card.status-green,
-.legend .box.status-green {
-  border-left-color: #16a34a !important;
-  background: rgba(22, 163, 74, 0.18) !important;
+.recepcao-fast .room-card.reception-room.room-status-maintenance {
+  background: linear-gradient(145deg, #f97316, #c2410c) !important;
+  border-color: rgba(253,186,116,.48) !important;
 }
 
-.room-card.status-green strong,
-.room-card.status-green small,
-.room-card.status-green span,
-.room-card.status-green em {
+.recepcao-fast .room-card.reception-room.room-status-blocked {
+  background: linear-gradient(145deg, #ef4444, #b91c1c) !important;
+  border-color: rgba(252,165,165,.48) !important;
+}
+
+.reception-status-legend {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  margin: 14px 0 6px !important;
+}
+
+.reception-status-legend span {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 28px !important;
+  padding: 0 10px !important;
+  border-radius: 999px !important;
+  color: #fff !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  border: 1px solid rgba(255,255,255,.13) !important;
+}
+
+.reception-status-legend .legend-free { background: #484d54 !important; }
+.reception-status-legend .legend-reserved { background: #16a34a !important; }
+.reception-status-legend .legend-occupied { background: #2563eb !important; }
+.reception-status-legend .legend-checkout { background: #eab308 !important; color: #1f2937 !important; }
+.reception-status-legend .legend-maintenance { background: #f97316 !important; }
+.reception-status-legend .legend-blocked { background: #ef4444 !important; }
+
+/* =========================================================
+   CORREÇÃO PAINEL BRANCO — V2
+   Remove o cinza antigo SOMENTE da aba Painel de Reservas.
+   Não altera lógica, status, drag, recepção ou App.jsx.
+   ========================================================= */
+
+.painel-profissional,
+.painel-profissional .panel-card,
+.painel-profissional .timeline-tools,
+.painel-profissional .reservation-board,
+.painel-profissional .premium-board-scroll,
+.painel-profissional .legend,
+.painel-profissional .occupancy-ruler {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .08) !important;
+}
+
+.painel-profissional .card-head,
+.painel-profissional .filters-line,
+.painel-profissional .timeline-tools {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+}
+
+.painel-profissional .card-head h3,
+.painel-profissional h3,
+.painel-profissional h4,
+.painel-profissional label,
+.painel-profissional .timeline-tools label,
+.painel-profissional .timeline-tools .switch,
+.painel-profissional .type-row b,
+.painel-profissional .room-col b,
+.painel-profissional .board-header .date-col b {
+  color: #111827 !important;
+}
+
+.painel-profissional .card-head p,
+.painel-profissional .hint,
+.painel-profissional .type-row span,
+.painel-profissional .room-col span,
+.painel-profissional .board-header .date-col span,
+.painel-profissional .free-dot {
+  color: #6b7280 !important;
+}
+
+.painel-profissional .board-header,
+.painel-profissional .board-row,
+.painel-profissional .room-col,
+.painel-profissional .date-col,
+.painel-profissional .date-col.cell,
+.painel-profissional .type-row,
+.painel-profissional .board-header .room-col,
+.painel-profissional .board-header .date-col,
+.painel-profissional .board-row .room-col,
+.painel-profissional .board-row .date-col.cell {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #edf0f4 !important;
+}
+
+.painel-profissional .type-row {
+  background: #f8fafc !important;
+  border-top: 1px solid #e5e7eb !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.painel-profissional .date-col.cell:hover,
+.painel-profissional .board-row:hover .date-col.cell,
+.painel-profissional .board-row:hover .room-col {
+  background: #f8fafc !important;
+}
+
+.painel-profissional .date-col.cell.cell-selected,
+.painel-profissional .date-col.cell.half-cell.cell-selected,
+.painel-profissional .half-zone.half-selected {
+  background: #dbeafe !important;
+  outline: 2px solid rgba(37, 99, 235, .35) !important;
+}
+
+.painel-profissional .timeline-tools input,
+.painel-profissional .timeline-tools select,
+.painel-profissional input,
+.painel-profissional select,
+.painel-profissional textarea {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+.painel-profissional input::placeholder,
+.painel-profissional textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+.painel-profissional .premium-board-scroll button,
+.painel-profissional button,
+.painel-profissional .primary,
+.painel-profissional button.primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  color: #ffffff !important;
+  border-color: rgba(37, 99, 235, .2) !important;
+}
+
+.painel-profissional .premium-board-scroll input[type="range"] {
+  accent-color: #2563eb !important;
+}
+
+.painel-profissional .reservation-board::-webkit-scrollbar-track {
+  background: #f3f4f6 !important;
+}
+
+.painel-profissional .reservation-board::-webkit-scrollbar-thumb {
+  background: #cbd5e1 !important;
+  border: 3px solid #f3f4f6 !important;
+}
+
+/* Mantém as cores funcionais dos status do painel */
+.painel-profissional .room-status-reserved,
+.painel-profissional .reservation-item.room-status-reserved {
+  background: linear-gradient(145deg, #16a34a, #15803d) !important;
+  color: #ffffff !important;
+  border-color: rgba(22, 163, 74, .45) !important;
+}
+
+.painel-profissional .room-status-occupied,
+.painel-profissional .reservation-item.room-status-occupied {
+  background: linear-gradient(145deg, #2563eb, #1d4ed8) !important;
+  color: #ffffff !important;
+  border-color: rgba(37, 99, 235, .45) !important;
+}
+
+.painel-profissional .room-status-checkout,
+.painel-profissional .reservation-item.room-status-checkout {
+  background: linear-gradient(145deg, #facc15, #eab308) !important;
   color: #1f2937 !important;
+  border-color: rgba(234, 179, 8, .5) !important;
+}
+
+.painel-profissional .room-status-blocked,
+.painel-profissional .manual-block,
+.painel-profissional .reservation-item.room-status-blocked {
+  background: linear-gradient(145deg, #ef4444, #b91c1c) !important;
+  color: #ffffff !important;
+  border-color: rgba(239, 68, 68, .45) !important;
+}
+
+.painel-profissional .room-status-maintenance,
+.painel-profissional .reservation-item.room-status-maintenance {
+  background: linear-gradient(145deg, #f97316, #c2410c) !important;
+  color: #ffffff !important;
+  border-color: rgba(249, 115, 22, .45) !important;
+}
+
+/* =========================================================
+   ETAPA 8 — REVISÃO VISUAL FINAL SEGURA
+   Objetivo: harmonizar fontes, espaços, telas brancas e responsividade.
+   IMPORTANTE: somente CSS. Não altera reservas, drag, getRoomStatus,
+   bloqueios, recepção, check-in ou qualquer lógica funcional.
+   ========================================================= */
+
+:root {
+  --hb-bg: #f4f6f9;
+  --hb-bg-2: #eef2f7;
+  --hb-sidebar: #ffffff;
+  --hb-panel: #ffffff;
+  --hb-panel-2: #f8fafc;
+  --hb-border: #e5e7eb;
+  --hb-border-soft: #eef2f7;
+  --hb-text: #111827;
+  --hb-muted: #64748b;
+  --hb-blue: #2563eb;
+  --hb-blue-2: #1d4ed8;
+  --hb-cyan: #0891b2;
+  --hb-shadow: 0 16px 38px rgba(15, 23, 42, .08);
+  --hb-radius: 14px;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+html,
+body,
+#root {
+  background: var(--hb-bg) !important;
+  color: var(--hb-text) !important;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: linear-gradient(180deg, #f8fafc 0%, #f3f6fa 48%, #eef2f7 100%) !important;
+}
+
+.hotel-layout,
+.hotel-main {
+  background: transparent !important;
+  color: var(--hb-text) !important;
+}
+
+/* Sidebar branca premium, sem cinza escuro residual */
+.hotel-sidebar {
+  background: #ffffff !important;
+  color: var(--hb-text) !important;
+  border-right: 1px solid var(--hb-border) !important;
+  box-shadow: 8px 0 30px rgba(15, 23, 42, .05) !important;
+}
+
+.hotel-brand {
+  border-bottom: 1px solid var(--hb-border-soft) !important;
+}
+
+.hotel-brand h1,
+.sidebar-user strong {
+  color: #111827 !important;
+}
+
+.hotel-brand p,
+.sidebar-user small {
+  color: var(--hb-muted) !important;
+}
+
+.hotel-logo-img {
+  background: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .10), 0 0 0 1px #e5e7eb !important;
+}
+
+.menu-link {
+  color: #334155 !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 12px !important;
+  min-height: 44px !important;
+  font-weight: 760 !important;
+}
+
+.menu-link span {
+  color: #64748b !important;
+}
+
+.menu-link:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  transform: translateX(2px);
+}
+
+.menu-link.active {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  color: #ffffff !important;
+  border-color: rgba(37, 99, 235, .22) !important;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, .18) !important;
+}
+
+.menu-link.active span { color: #ffffff !important; }
+
+.sidebar-user {
+  border-top: 1px solid var(--hb-border-soft) !important;
+}
+
+.user-avatar {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border: 1px solid #dbeafe !important;
+}
+
+/* Topbar limpa e branca */
+.hotel-topbar {
+  background: rgba(255, 255, 255, .92) !important;
+  color: var(--hb-text) !important;
+  border-bottom: 1px solid var(--hb-border) !important;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .05) !important;
+  backdrop-filter: blur(14px) !important;
+}
+
+.topbar-title h2,
+.card-head h3,
+.panel-card h3,
+.stat-card h3 {
+  color: #111827 !important;
+  letter-spacing: -.035em !important;
+}
+
+.topbar-title p,
+.card-head p,
+.panel-card p,
+.hint {
+  color: var(--hb-muted) !important;
+}
+
+.hamburger {
+  color: #111827 !important;
+}
+
+/* Superfícies principais */
+.stat-card,
+.panel-card,
+.config-ops-panel,
+.pre-box,
+.category-list div,
+.occupancy-ruler,
+.legend,
+.timeline-tools,
+.reservation-board,
+.premium-board-scroll {
+  background: #ffffff !important;
+  color: var(--hb-text) !important;
+  border: 1px solid var(--hb-border) !important;
+  border-radius: var(--hb-radius) !important;
+  box-shadow: var(--hb-shadow) !important;
+}
+
+.stat-card {
+  border-left: 4px solid var(--hb-blue) !important;
+  min-height: 126px !important;
+}
+
+.stat-card p {
+  color: #334155 !important;
+  font-weight: 820 !important;
+}
+
+.stat-card small,
+.room-card small,
+.room-card span,
+.room-card em {
+  color: var(--hb-muted) !important;
+}
+
+.stat-icon {
+  color: var(--hb-blue) !important;
+  background: #eff6ff !important;
+  border-radius: 16px !important;
+  padding: 10px !important;
+}
+
+.card-head {
+  border-bottom: 1px solid var(--hb-border-soft) !important;
+}
+
+/* Formulários e filtros */
+input,
+select,
+textarea,
+.search-field input,
+.date-input-top,
+.form-grid input,
+.form-grid select,
+.form-grid textarea,
+.timeline-tools input,
+.timeline-tools select,
+.filters-line select,
+.search-reserva input {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #dbe1ea !important;
+  border-radius: 11px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .03) !important;
+  outline: none !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.search-field input:focus,
+.date-input-top:focus {
+  border-color: rgba(37, 99, 235, .55) !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, .10) !important;
+}
+
+input::placeholder,
+textarea::placeholder,
+.search-field input::placeholder {
+  color: #94a3b8 !important;
+}
+
+label,
+.form-grid label,
+.timeline-tools label,
+.filters-line label {
+  color: #334155 !important;
+  font-weight: 780 !important;
+}
+
+button,
+.primary,
+button.primary,
+.card-head button,
+.quick-actions button,
+.data-table button {
+  border-radius: 11px !important;
+  font-weight: 820 !important;
+}
+
+.primary,
+button.primary,
+.card-head button,
+.quick-actions button,
+.data-table button {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(37, 99, 235, .2) !important;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, .16) !important;
+}
+
+.bell-button {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #dbe1ea !important;
+}
+
+/* Tabelas brancas e legíveis */
+.data-table {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.data-table th {
+  background: #f8fafc !important;
+  color: #475569 !important;
+  border-bottom: 1px solid var(--hb-border) !important;
+  font-weight: 850 !important;
+}
+
+.data-table td {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-bottom: 1px solid #eef2f7 !important;
+}
+
+.data-table tr:hover td {
+  background: #f8fafc !important;
+}
+
+/* Painel de reservas: branco limpo, sem resíduos cinza escuro */
+.painel-profissional,
+.painel-profissional .panel-card,
+.painel-profissional .timeline-tools,
+.painel-profissional .reservation-board,
+.painel-profissional .premium-board-scroll,
+.painel-profissional .legend,
+.painel-profissional .occupancy-ruler,
+.painel-profissional .card-head,
+.painel-profissional .filters-line {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: var(--hb-border) !important;
+  box-shadow: var(--hb-shadow) !important;
+}
+
+.painel-profissional .board-header,
+.painel-profissional .board-row,
+.painel-profissional .room-col,
+.painel-profissional .date-col,
+.painel-profissional .date-col.cell,
+.painel-profissional .board-header .room-col,
+.painel-profissional .board-header .date-col,
+.painel-profissional .board-row .room-col,
+.painel-profissional .board-row .date-col.cell {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #edf2f7 !important;
+}
+
+.painel-profissional .type-row {
+  background: #f8fafc !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+}
+
+.painel-profissional .date-col.cell:hover,
+.painel-profissional .board-row:hover .date-col.cell,
+.painel-profissional .board-row:hover .room-col {
+  background: #f8fafc !important;
+}
+
+.painel-profissional .date-col.cell.cell-selected,
+.painel-profissional .half-zone.half-selected {
+  background: #dbeafe !important;
+}
+
+.painel-profissional .free-dot,
+.painel-profissional .room-col span,
+.painel-profissional .type-row span,
+.painel-profissional .board-header .date-col span {
+  color: #64748b !important;
+}
+
+/* Quartos livres brancos, preservando as cores funcionais de status */
+.room-card:not(.room-status-reserved):not(.room-status-occupied):not(.room-status-checkout):not(.room-status-blocked):not(.room-status-maintenance),
+.recepcao-fast .room-card.reception-room:not(.room-status-reserved):not(.room-status-occupied):not(.room-status-checkout):not(.room-status-blocked):not(.room-status-maintenance) {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid var(--hb-border) !important;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, .06) !important;
+}
+
+.room-card:not(.room-status-reserved):not(.room-status-occupied):not(.room-status-checkout):not(.room-status-blocked):not(.room-status-maintenance) strong,
+.recepcao-fast .room-card.reception-room:not(.room-status-reserved):not(.room-status-occupied):not(.room-status-checkout):not(.room-status-blocked):not(.room-status-maintenance) strong {
+  color: #111827 !important;
+}
+
+/* Modais e telas auxiliares */
+.modal-backdrop {
+  background: rgba(15, 23, 42, .45) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.modal-card {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid var(--hb-border) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 34px 90px rgba(15, 23, 42, .24) !important;
+}
+
+.modal-card h2,
+.modal-card h3,
+.modal-card h4 {
+  color: #111827 !important;
+}
+
+.modal-card p,
+.modal-card small {
+  color: #64748b !important;
+}
+
+/* Mantém as cores funcionais dos status em todas as telas */
+.room-status-reserved,
+.reservation-item.room-status-reserved,
+.recepcao-fast .room-card.reception-room.room-status-reserved {
+  background: linear-gradient(145deg, #16a34a, #15803d) !important;
+  color: #ffffff !important;
+  border-color: rgba(22, 163, 74, .45) !important;
+}
+
+.room-status-occupied,
+.reservation-item.room-status-occupied,
+.recepcao-fast .room-card.reception-room.room-status-occupied {
+  background: linear-gradient(145deg, #2563eb, #1d4ed8) !important;
+  color: #ffffff !important;
+  border-color: rgba(37, 99, 235, .45) !important;
+}
+
+.room-status-checkout,
+.reservation-item.room-status-checkout,
+.recepcao-fast .room-card.reception-room.room-status-checkout {
+  background: linear-gradient(145deg, #facc15, #eab308) !important;
+  color: #1f2937 !important;
+  border-color: rgba(234, 179, 8, .5) !important;
+}
+
+.room-status-blocked,
+.manual-block,
+.reservation-item.room-status-blocked,
+.recepcao-fast .room-card.reception-room.room-status-blocked {
+  background: linear-gradient(145deg, #ef4444, #b91c1c) !important;
+  color: #ffffff !important;
+  border-color: rgba(239, 68, 68, .45) !important;
+}
+
+.room-status-maintenance,
+.reservation-item.room-status-maintenance,
+.recepcao-fast .room-card.reception-room.room-status-maintenance {
+  background: linear-gradient(145deg, #f97316, #c2410c) !important;
+  color: #ffffff !important;
+  border-color: rgba(249, 115, 22, .45) !important;
+}
+
+.room-status-reserved *,
+.room-status-occupied *,
+.room-status-blocked *,
+.room-status-maintenance *,
+.reservation-item.room-status-reserved *,
+.reservation-item.room-status-occupied *,
+.reservation-item.room-status-blocked *,
+.reservation-item.room-status-maintenance * {
+  color: #ffffff !important;
+}
+
+.room-status-checkout *,
+.reservation-item.room-status-checkout * {
+  color: #1f2937 !important;
+}
+
+/* Ajustes de responsividade sem modo celular quebrado */
+@media (max-width: 1366px) {
+  .hotel-main { padding-left: 18px !important; padding-right: 18px !important; }
+  .panel-card { padding: 18px !important; }
+  .stat-card { min-height: 118px !important; padding: 17px !important; }
+  .stat-card h3 { font-size: 28px !important; }
+  .topbar-title h2 { font-size: 24px !important; }
+}
+
+@media (min-width: 1500px) {
+  .panel-card { padding: 24px !important; }
+  .stat-card { min-height: 136px !important; }
+}
+
+@media print {
+  body,
+  #root,
+  .hotel-layout,
+  .hotel-main,
+  .panel-card,
+  .data-table td,
+  .data-table th {
+    background: #ffffff !important;
+    color: #111827 !important;
+    box-shadow: none !important;
+  }
+}
+
+
+
+/* =========================================================
+   AJUSTE VISUAL OPERACIONAL — PAINEL DE RESERVAS FINAL
+   Base segura: SOMENTE CSS. Não altera reservas, drag, bloqueios,
+   getRoomStatus, check-in, saída ou sincronização da recepção.
+   Objetivo: deixar o painel parecido com o modelo operacional gerado:
+   branco premium, grid limpo, reservas mais legíveis e filtros/card mais suaves.
+   ========================================================= */
+
+:root {
+  --ui-bg: #f4f7fb;
+  --ui-surface: #ffffff;
+  --ui-surface-soft: #f8fafc;
+  --ui-border: #dbe4ef;
+  --ui-border-soft: #edf2f7;
+  --ui-text: #0f172a;
+  --ui-muted: #64748b;
+  --ui-blue: #2563eb;
+  --ui-blue-soft: #eff6ff;
+  --ui-green: #16a34a;
+  --ui-green-soft: #dcfce7;
+  --ui-yellow: #f59e0b;
+  --ui-yellow-soft: #fff7db;
+  --ui-red: #dc2626;
+  --ui-red-soft: #fee2e2;
+  --ui-shadow: 0 18px 45px rgba(15, 23, 42, .08);
+  --ui-shadow-soft: 0 10px 28px rgba(15, 23, 42, .06);
+}
+
+html,
+body,
+#root {
+  background: var(--ui-bg) !important;
+  color: var(--ui-text) !important;
+}
+
+body {
+  background: linear-gradient(180deg, #f8fafc 0%, #eef3f9 100%) !important;
+}
+
+.hotel-layout {
+  background: var(--ui-bg) !important;
+  color: var(--ui-text) !important;
+}
+
+.hotel-main {
+  background: var(--ui-bg) !important;
+  color: var(--ui-text) !important;
+}
+
+/* Sidebar branco premium */
+.hotel-sidebar {
+  background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%) !important;
+  border-right: 1px solid var(--ui-border) !important;
+  box-shadow: 10px 0 34px rgba(15, 23, 42, .06) !important;
+}
+
+.hotel-brand {
+  border-bottom: 1px solid var(--ui-border-soft) !important;
+}
+
+.hotel-brand h1,
+.hotel-brand p,
+.menu-link,
+.menu-link span,
+.sidebar-user strong,
+.sidebar-user small {
+  color: var(--ui-text) !important;
+}
+
+.hotel-brand p,
+.sidebar-user small {
+  color: var(--ui-muted) !important;
+}
+
+.menu-link {
+  background: transparent !important;
+  color: #334155 !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+}
+
+.menu-link:hover {
+  background: #eef4fb !important;
+  transform: none !important;
+}
+
+.menu-link.active {
+  background: linear-gradient(135deg, #2f6df6, #2456d9) !important;
+  color: #fff !important;
+  border-color: rgba(37, 99, 235, .28) !important;
+  box-shadow: 0 12px 30px rgba(37, 99, 235, .24) !important;
+}
+
+.menu-link.active span {
+  color: #fff !important;
+}
+
+/* Topbar / cabeçalho */
+.hotel-topbar {
+  background: rgba(248, 250, 252, .86) !important;
+  border-bottom: 1px solid var(--ui-border) !important;
+  backdrop-filter: blur(14px) !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .04) !important;
+}
+
+.topbar-title h2,
+.topbar-title p,
+.topbar-right,
+.date-display,
+.hotel-main h1,
+.hotel-main h2,
+.hotel-main h3,
+.hotel-main h4,
+.hotel-main strong {
+  color: var(--ui-text) !important;
+}
+
+.topbar-title p,
+.hint,
+.panel-card p,
+.card-head p {
+  color: var(--ui-muted) !important;
+}
+
+/* Cards e formulários globais */
+.panel-card,
+.stat-card,
+.config-ops-panel,
+.modal-card,
+.pre-box,
+.legend,
+.category-list div {
+  background: var(--ui-surface) !important;
+  color: var(--ui-text) !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 18px !important;
+  box-shadow: var(--ui-shadow-soft) !important;
+}
+
+.stat-card {
+  border-left: 0 !important;
+}
+
+.stat-card p,
+.stat-card h3,
+.stat-card small,
+.panel-card h3,
+.panel-card label,
+.form-grid label,
+.timeline-tools label,
+.filters-line label {
+  color: var(--ui-text) !important;
+}
+
+.stat-card small,
+.panel-card small,
+.panel-card p,
+.form-grid small {
+  color: var(--ui-muted) !important;
+}
+
+input,
+select,
+textarea,
+.search-field input,
+.date-input-top,
+.form-grid input,
+.form-grid select,
+.form-grid textarea,
+.timeline-tools input,
+.timeline-tools select,
+.filters-line select,
+.search-reserva input {
+  background: #ffffff !important;
+  color: var(--ui-text) !important;
+  border: 1px solid #cfd9e7 !important;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, .02) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+button,
+.primary,
+button.primary,
+.card-head button,
+.quick-actions button,
+.data-table button {
+  border-radius: 12px !important;
+}
+
+.primary,
+button.primary,
+.card-head button:not(.danger),
+.quick-actions button,
+.data-table button:not(.danger) {
+  background: linear-gradient(135deg, #2f6df6, #2456d9) !important;
+  color: #fff !important;
+  border: 1px solid rgba(37, 99, 235, .24) !important;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, .22) !important;
+}
+
+/* =========================================================
+   PAINEL DE RESERVAS — VISUAL OPERACIONAL
+   ========================================================= */
+
+/* Container principal do painel */
+.reservation-board,
+.reservation-panel,
+.panel-board,
+.timeline-wrapper,
+.board-wrapper {
+  background: var(--ui-surface) !important;
+  color: var(--ui-text) !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--ui-shadow-soft) !important;
+}
+
+/* Ferramentas / filtros no topo */
+.timeline-tools,
+.board-tools,
+.panel-tools,
+.filters-line {
+  background: var(--ui-surface) !important;
+  color: var(--ui-text) !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .04) !important;
+  padding: 16px !important;
+}
+
+.timeline-tools input,
+.timeline-tools select,
+.filters-line select {
+  min-height: 44px !important;
+  border-radius: 12px !important;
+}
+
+/* Régua de ocupação */
+.occupancy-ruler,
+.occupancy-row,
+.ruler-row {
+  background: #ffffff !important;
+  color: var(--ui-text) !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .04) !important;
+}
+
+.occupancy-ruler .date-col,
+.occupancy-ruler .date-cell,
+.ruler-row .date-col,
+.ruler-row .date-cell {
+  background: #ffffff !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-border) !important;
+}
+
+/* Barra azul de scroll premium */
+.timeline-scrollbar,
+.premium-scrollbar,
+.board-scrollbar,
+.scroll-track {
+  background: #e8eef6 !important;
+  border-radius: 999px !important;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, .08) !important;
+}
+
+.timeline-scrollbar-thumb,
+.scroll-thumb,
+.premium-scrollbar-thumb {
+  background: linear-gradient(135deg, #2f6df6, #2563eb) !important;
+  border-radius: 999px !important;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, .28) !important;
+}
+
+/* Cabeçalho da grade */
+.board-header,
+.board-row.board-header,
+.timeline-header,
+.date-header-row {
+  background: #ffffff !important;
+  color: var(--ui-text) !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 12px 12px 0 0 !important;
+  overflow: hidden !important;
+}
+
+.board-header .room-col,
+.board-header .date-col,
+.timeline-header .room-col,
+.timeline-header .date-col,
+.date-header-row .date-col {
+  background: #ffffff !important;
+  color: #334155 !important;
+  border-color: var(--ui-border-soft) !important;
+  font-weight: 800 !important;
+}
+
+/* Linhas e células */
+.board-row,
+.room-row,
+.timeline-row {
+  background: #ffffff !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-border-soft) !important;
+}
+
+.board-row:hover,
+.room-row:hover,
+.timeline-row:hover {
+  background: #fbfdff !important;
+}
+
+.room-col {
+  background: #ffffff !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-border-soft) !important;
+  font-weight: 900 !important;
+}
+
+.room-col strong,
+.room-number,
+.room-label strong {
+  color: var(--ui-text) !important;
+  font-weight: 950 !important;
+}
+
+.room-col small,
+.room-label small {
+  color: var(--ui-muted) !important;
+}
+
+.date-col,
+.date-col.cell,
+.board-cell,
+.timeline-cell,
+.room-day-cell {
+  background: #ffffff !important;
+  color: #64748b !important;
+  border: 1px solid var(--ui-border-soft) !important;
+}
+
+.date-col.cell:hover,
+.board-cell:hover,
+.timeline-cell:hover,
+.room-day-cell:hover {
+  background: var(--ui-blue-soft) !important;
+}
+
+/* Grupos/categorias */
+.type-row,
+.category-row,
+.room-type-row {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  color: var(--ui-text) !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 12px !important;
+  font-weight: 900 !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, .03) !important;
+}
+
+.type-row strong,
+.category-row strong,
+.room-type-row strong {
+  color: var(--ui-text) !important;
+}
+
+/* Reservas no painel: mais próximas de barras profissionais */
+.reservation-block,
+.reservation-chip,
+.reservation-pill,
+.booking-block,
+.booking-chip,
+[class*="reservation-bar"],
+[class*="booking-bar"] {
+  min-height: 32px !important;
+  border-radius: 9px !important;
+  font-weight: 900 !important;
+  letter-spacing: -.02em !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255,255,255,.35) !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, .14) !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+.room-status-reserved,
+.reservation-block.reserved,
+.reservation-chip.reserved,
+.booking-block.reserved {
+  background: linear-gradient(135deg, #23b66f, #139653) !important;
+  color: #fff !important;
+}
+
+.room-status-occupied,
+.reservation-block.occupied,
+.reservation-chip.occupied,
+.booking-block.occupied {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+  color: #fff !important;
+}
+
+.room-status-checkout,
+.reservation-block.checkout,
+.reservation-chip.checkout,
+.booking-block.checkout {
+  background: linear-gradient(135deg, #f7c948, #f59e0b) !important;
+  color: #78350f !important;
+}
+
+.room-status-blocked,
+.reservation-block.blocked,
+.reservation-chip.blocked,
+.booking-block.blocked {
+  background: linear-gradient(135deg, #f87171, #dc2626) !important;
+  color: #fff !important;
+}
+
+.room-status-maintenance,
+.reservation-block.maintenance,
+.reservation-chip.maintenance,
+.booking-block.maintenance {
+  background: linear-gradient(135deg, #fb923c, #ea580c) !important;
+  color: #fff !important;
+}
+
+/* Botões de filtro/chips/legendas */
+.legend,
+.status-legend,
+.filter-chips,
+.quick-filters {
+  background: #ffffff !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .04) !important;
+}
+
+.status-chip,
+.legend span,
+.badge,
+.chip,
+.pill {
+  border-radius: 999px !important;
+  font-weight: 900 !important;
+}
+
+/* Tabelas brancas e legíveis */
+.data-table,
+table {
+  color: var(--ui-text) !important;
+  background: #ffffff !important;
+}
+
+.data-table th,
+table th {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border-color: var(--ui-border) !important;
+}
+
+.data-table td,
+table td {
+  background: #ffffff !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-border-soft) !important;
+}
+
+.data-table tr:hover td,
+table tr:hover td {
+  background: #f8fafc !important;
+}
+
+/* Cards de quartos da recepção preservando as cores de status */
+.fast-map,
+.rooms-grid {
+  gap: 14px !important;
+}
+
+.room-card {
+  background: #ffffff !important;
+  color: var(--ui-text) !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .06) !important;
+}
+
+.room-card strong,
+.room-card span {
+  color: var(--ui-text) !important;
+}
+
+.room-card small,
+.room-card em {
+  color: var(--ui-muted) !important;
+}
+
+.room-card.room-status-reserved,
+.room-card.reserved {
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0) !important;
+  border-color: rgba(22, 163, 74, .32) !important;
+}
+
+.room-card.room-status-occupied,
+.room-card.occupied {
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe) !important;
+  border-color: rgba(37, 99, 235, .32) !important;
+}
+
+.room-card.room-status-checkout,
+.room-card.checkout {
+  background: linear-gradient(135deg, #fef3c7, #fde68a) !important;
+  border-color: rgba(245, 158, 11, .38) !important;
+}
+
+.room-card.room-status-blocked,
+.room-card.blocked {
+  background: linear-gradient(135deg, #fee2e2, #fecaca) !important;
+  border-color: rgba(220, 38, 38, .38) !important;
+}
+
+.room-card.room-status-maintenance,
+.room-card.maintenance {
+  background: linear-gradient(135deg, #ffedd5, #fed7aa) !important;
+  border-color: rgba(234, 88, 12, .38) !important;
+}
+
+/* Modais */
+.modal-backdrop {
+  background: rgba(15, 23, 42, .42) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.modal-card {
+  background: #ffffff !important;
+  color: var(--ui-text) !important;
+}
+
+/* Rodapé */
+.hotel-main::after {
+  color: var(--ui-muted) !important;
+}
+
+/* Scrollbar mais discreta */
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #eef2f7;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #c9d4e3;
+  border: 3px solid #eef2f7;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #aebdce;
+}
+
+
+/* =========================================================
+   PAINEL OPERACIONAL — BASE ATUAL App(3)
+   Troca visual da grade por barras contínuas sem alterar status,
+   reservas, bloqueios, drag, check-in ou fonte central.
+   ========================================================= */
+:root {
+  --board-day-width: 74px;
+}
+
+.painel-profissional {
+  background: #ffffff !important;
+  border: 1px solid #dbe4ef !important;
+  box-shadow: 0 20px 55px rgba(15, 23, 42, .08) !important;
+  color: #0f172a !important;
+}
+
+.painel-profissional .card-head,
+.painel-profissional .timeline-tools,
+.painel-profissional .occupancy-ruler,
+.painel-profissional .premium-board-scroll,
+.painel-profissional .reservation-board {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #dbe4ef !important;
+}
+
+.painel-profissional .card-head h3,
+.painel-profissional .room-col b,
+.painel-profissional .type-row b {
+  color: #0f172a !important;
+}
+
+.painel-profissional .hint,
+.painel-profissional .card-head p,
+.painel-profissional .room-col span,
+.painel-profissional .type-row span,
+.painel-profissional .board-header .date-col span {
+  color: #64748b !important;
+}
+
+.painel-profissional .timeline-tools {
+  border-radius: 16px !important;
+  padding: 16px !important;
+  box-shadow: 0 14px 35px rgba(15, 23, 42, .06) !important;
+}
+
+.painel-profissional .timeline-tools input,
+.painel-profissional .timeline-tools select {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, .04) !important;
+}
+
+.painel-profissional .occupancy-ruler {
+  border-radius: 14px !important;
+  box-shadow: inset 0 -8px 0 rgba(226, 232, 240, .9) !important;
+}
+
+.painel-profissional .occ-day {
+  background: #f8fafc !important;
+  border: 1px solid #dbe4ef !important;
+  color: #0f172a !important;
+}
+
+.painel-profissional .reservation-board {
+  border-radius: 14px !important;
+  box-shadow: 0 16px 38px rgba(15, 23, 42, .07) !important;
+}
+
+.painel-profissional .board-header {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-bottom: 1px solid #dbe4ef !important;
+}
+
+.painel-profissional .board-header .date-col,
+.painel-profissional .date-col,
+.painel-profissional .board-row .date-col,
+.painel-profissional .board-row .date-col.cell,
+.painel-profissional .date-col.cell.half-cell {
+  width: var(--board-day-width) !important;
+  min-width: var(--board-day-width) !important;
+  max-width: var(--board-day-width) !important;
+}
+
+.painel-profissional .board-header .date-col {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+.painel-profissional .board-header .date-col b {
+  color: #0f172a !important;
+}
+
+.painel-profissional .type-row {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border: 1px solid #dbe4ef !important;
+  border-radius: 10px !important;
+  min-height: 42px !important;
+}
+
+.painel-profissional .board-row {
+  background: #ffffff !important;
+  min-height: 52px !important;
+  border-bottom: 1px solid #edf2f7 !important;
+}
+
+.painel-profissional .board-row:hover {
+  background: #f8fbff !important;
+}
+
+.painel-profissional .room-col {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+.painel-profissional .date-col.cell,
+.painel-profissional .board-row .date-col.cell,
+.painel-profissional .date-col.cell.half-cell,
+.painel-profissional .date-col.cell.room-status-available,
+.painel-profissional .date-col.cell.room-status-reserved,
+.painel-profissional .date-col.cell.room-status-occupied,
+.painel-profissional .date-col.cell.room-status-checkout,
+.painel-profissional .date-col.cell.room-status-maintenance,
+.painel-profissional .date-col.cell.room-status-blocked {
+  position: relative !important;
+  overflow: visible !important;
+  background: #ffffff !important;
+  border: 1px solid #edf2f7 !important;
+  box-shadow: none !important;
+  color: #0f172a !important;
+}
+
+.painel-profissional .date-col.cell:hover {
+  background: #f8fafc !important;
+}
+
+.painel-profissional .half-zone {
+  z-index: 1 !important;
+}
+
+.painel-profissional .free-dot {
+  color: #94a3b8 !important;
+  font-weight: 900 !important;
+}
+
+.painel-profissional .reservation-continuation {
+  display: block !important;
+  width: 100% !important;
+  height: 34px !important;
+  pointer-events: none !important;
+}
+
+.painel-profissional .reservation-item.reservation-bar,
+.painel-profissional .manual-block.block-bar {
+  position: absolute !important;
+  left: 7px !important;
+  top: 8px !important;
+  z-index: 20 !important;
+  width: calc((var(--board-day-width) * var(--reservation-span, 1)) - 12px) !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 9px !important;
+  border: 1px solid rgba(255,255,255,.45) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  gap: 1px !important;
+  padding: 4px 10px !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  cursor: grab !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .18) !important;
+}
+
+.painel-profissional .reservation-item.reservation-bar b,
+.painel-profissional .manual-block.block-bar b {
+  font-size: 12px !important;
+  line-height: 1.05 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.painel-profissional .reservation-item.reservation-bar span,
+.painel-profissional .manual-block.block-bar small {
+  font-size: 10px !important;
+  line-height: 1.05 !important;
+  opacity: .95 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.painel-profissional .reservation-item.reservation-bar.room-status-reserved {
+  background: linear-gradient(135deg, #20bf73, #159453) !important;
+  color: #ffffff !important;
+}
+
+.painel-profissional .reservation-item.reservation-bar.room-status-occupied {
+  background: linear-gradient(135deg, #3b82f6, #1d5fd6) !important;
+  color: #ffffff !important;
+}
+
+.painel-profissional .reservation-item.reservation-bar.room-status-checkout {
+  background: linear-gradient(135deg, #fde68a, #f59e0b) !important;
+  color: #78350f !important;
+}
+
+.painel-profissional .manual-block.block-bar,
+.painel-profissional .reservation-item.reservation-bar.room-status-blocked {
+  background: linear-gradient(135deg, #fecaca, #ef4444) !important;
+  color: #7f1d1d !important;
+}
+
+.painel-profissional .reservation-item.reservation-bar.room-status-maintenance {
+  background: linear-gradient(135deg, #fdba74, #f97316) !important;
+  color: #7c2d12 !important;
+}
+
+.painel-profissional .cell-selected,
+.painel-profissional .date-col.cell.half-cell.cell-selected {
+  background: rgba(37, 99, 235, .08) !important;
+  box-shadow: inset 0 0 0 2px rgba(37, 99, 235, .28) !important;
 }

@@ -49,6 +49,238 @@ const generateReservationCode = (existing = []) => {
 }
 
 
+// Integração pública do pré check-in com Supabase.
+// Mantém o estado local que já funciona e usa Supabase para o link público do WhatsApp.
+const getPublicAppOrigin = () => {
+  const currentOrigin = String(globalThis.location?.origin || '')
+  if (currentOrigin.includes('localhost') || currentOrigin.includes('127.0.0.1')) {
+    return 'https://cronos-hotel.vercel.app'
+  }
+  return currentOrigin || 'https://cronos-hotel.vercel.app'
+}
+
+const parsePrecheckinTokenParam = (tokenParam = '') => {
+  const clean = decodeURIComponent(String(tokenParam || '').trim())
+  const firstDash = clean.indexOf('-')
+  if (firstDash === -1) return { codigo: '', token: clean, full: clean }
+  return {
+    codigo: clean.slice(0, firstDash),
+    token: clean.slice(firstDash + 1),
+    full: clean,
+  }
+}
+
+const mapSupabaseHospede = (row = {}) => ({
+  id: row.id || id(),
+  reservaId: row.reserva_id || '',
+  reservaCodigo: row.reserva_codigo || '',
+  nome: row.nome_completo || row.nome || '',
+  telefone: row.telefone || '',
+  endereco: row.endereco || '',
+  email: row.email || '',
+  documento: row.documento || '',
+  nascimento: row.nascimento || '',
+  tipo: row.tipo || 'Contratante',
+  origem: row.origem || 'pre_checkin',
+  criadoEm: row.created_at || todayISO(),
+})
+
+const mapSupabasePrecheckin = (row = {}) => ({
+  id: row.id || id(),
+  reservaId: row.reserva_id || '',
+  codigo: row.reserva_codigo || row.codigo || '',
+  token: row.token || '',
+  link: row.link || '',
+  data: row.created_at ? String(row.created_at).slice(0, 10) : todayISO(),
+  nomeCompleto: row.nome_completo || '',
+  telefone: row.telefone || '',
+  endereco: row.endereco || '',
+  email: row.email || '',
+  status: row.status || 'pendente',
+  preenchidoEm: row.preenchido_em || '',
+})
+
+// ETAPA 1 — FONTE ÚNICA DO STATUS REAL DO QUARTO
+// Esta função NÃO muda tela, NÃO muda cor e NÃO mexe no drag.
+// Ela apenas calcula o estado real do quarto a partir de uma única fonte:
+// quartos + reservas + bloqueios + data/período analisado.
+const ROOM_STATUS = Object.freeze({
+  AVAILABLE: 'available',
+  RESERVED: 'reserved',
+  OCCUPIED: 'occupied',
+  CHECKOUT: 'checkout',
+  BLOCKED: 'blocked',
+  MAINTENANCE: 'maintenance',
+})
+
+const normalizeStatusText = (value) => String(value || '')
+  .trim()
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[\s_-]+/g, '-')
+
+const rangesOverlapSlots = (startA, endA, startB, endB) => Number(startA) < Number(endB) && Number(endA) > Number(startB)
+
+const getReservationRangeSlots = (reservation) => ({
+  start: reservationStartSlot(reservation),
+  end: reservationEndSlot(reservation),
+})
+
+const getDateRangeSlots = (startDate, endDate = startDate) => ({
+  start: dateToSlot(startDate, 0),
+  end: endDate === startDate ? dateToSlot(startDate, 1) + 1 : dateToSlot(endDate, 0),
+})
+
+function getRoomIdFromReservation(reservation) {
+  return String(
+    reservation?.quartoId ??
+    reservation?.roomId ??
+    reservation?.quarto ??
+    reservation?.numeroQuarto ??
+    reservation?.roomNumber ??
+    ''
+  )
+}
+
+function isReservationCancelled(reservation) {
+  const status = normalizeStatusText(reservation?.status || reservation?.situacao || reservation?.estado)
+  return Boolean(reservation?.cancelamento) || ['cancelada', 'cancelado', 'cancelled', 'canceled'].includes(status)
+}
+
+function getReservationForRoomPeriod(room, reservations = [], startDate = todayISO(), endDate = startDate) {
+  if (!room?.id) return null
+  const period = getDateRangeSlots(startDate, endDate)
+
+  return reservations.find((reservation) => {
+    if (isReservationCancelled(reservation)) return false
+    if (getRoomIdFromReservation(reservation) !== String(room.id)) return false
+    const reservationRange = getReservationRangeSlots(reservation)
+    return rangesOverlapSlots(reservationRange.start, reservationRange.end, period.start, period.end)
+  }) || null
+}
+
+function getBlockForRoomPeriod(room, blocks = [], startDate = todayISO(), endDate = startDate) {
+  if (!room?.id) return null
+  const period = getDateRangeSlots(startDate, endDate)
+
+  return blocks.find((block) => {
+    if (String(block.quartoId || '') !== String(room.id)) return false
+    const blockRange = { start: blockStartSlot(block), end: blockEndSlot(block) }
+    return rangesOverlapSlots(blockRange.start, blockRange.end, period.start, period.end)
+  }) || null
+}
+
+function getRoomRealStatus({ room, reservations = [], blocks = [], date = todayISO(), endDate = date }) {
+  const operationalStatus = normalizeStatusText(room?.status || room?.statusLimpeza || room?.situacao)
+
+  // Prioridade 1: estados manuais/operacionais do quarto.
+  if (['maintenance', 'manutencao', 'manutencao-preventiva'].includes(operationalStatus)) {
+    return { status: ROOM_STATUS.MAINTENANCE, room, reservation: null, block: null }
+  }
+
+  if (['bloqueado', 'blocked'].includes(operationalStatus)) {
+    return { status: ROOM_STATUS.BLOCKED, room, reservation: null, block: null }
+  }
+
+  if (['reservado', 'reserved'].includes(operationalStatus)) {
+    return { status: ROOM_STATUS.RESERVED, room, reservation: null, block: null }
+  }
+
+  if (['hospedado', 'checkin', 'check-in', 'ocupado', 'occupied'].includes(operationalStatus)) {
+    return { status: ROOM_STATUS.OCCUPIED, room, reservation: null, block: null }
+  }
+
+  if (['blocked', 'bloqueado', 'bloqueio'].includes(operationalStatus)) {
+    return { status: ROOM_STATUS.BLOCKED, room, reservation: null, block: null }
+  }
+
+  const block = getBlockForRoomPeriod(room, blocks, date, endDate)
+  if (block) {
+    return { status: ROOM_STATUS.BLOCKED, room, reservation: null, block }
+  }
+
+  if (['checkout', 'check-out', 'verificar', 'verificar-saida', 'saida', 'limpeza'].includes(operationalStatus)) {
+    return { status: ROOM_STATUS.CHECKOUT, room, reservation: null, block: null }
+  }
+
+  if (['hospedado', 'checkin', 'check-in', 'occupied', 'ocupado'].includes(operationalStatus)) {
+    return { status: ROOM_STATUS.OCCUPIED, room, reservation: null, block: null }
+  }
+
+  // Prioridade 2: reserva real no período analisado.
+  // ETAPA 6: check-in e saída continuam partindo de reservations.
+  // A cor nunca é salva: o status visual é recalculado por esta função central.
+  const reservation = getReservationForRoomPeriod(room, reservations, date, endDate)
+  if (reservation) {
+    const reservationStatus = normalizeStatusText(reservation.status)
+    if (['checkout', 'check-out', 'verificar', 'verificar-saida', 'saida', 'limpeza'].includes(reservationStatus)) {
+      return { status: ROOM_STATUS.CHECKOUT, room, reservation, block: null }
+    }
+    if (['hospedado', 'checkin', 'check-in', 'ocupado'].includes(reservationStatus)) {
+      return { status: ROOM_STATUS.OCCUPIED, room, reservation, block: null }
+    }
+    return { status: ROOM_STATUS.RESERVED, room, reservation, block: null }
+  }
+
+  if (['reserved', 'reservado', 'reserva'].includes(operationalStatus)) {
+    return { status: ROOM_STATUS.RESERVED, room, reservation: null, block: null }
+  }
+
+  // Prioridade 3: quarto livre.
+  return { status: ROOM_STATUS.AVAILABLE, room, reservation: null, block: null }
+}
+
+
+// ETAPA 2 — FUNÇÃO PÚBLICA ÚNICA PARA O PAINEL DE RESERVAS
+// Regra: a cor NÃO é salva. O Painel apenas pergunta o status real,
+// e o visual é aplicado por classe CSS calculada no momento da renderização.
+function getRoomStatus(room, reservations = [], selectedDate = todayISO(), options = {}) {
+  const result = getRoomRealStatus({
+    room,
+    reservations,
+    blocks: options.blocks || [],
+    date: selectedDate,
+    endDate: options.endDate || selectedDate,
+  })
+
+  return {
+    ...result,
+    statusClass: `room-status-${result.status}`,
+    isAvailable: result.status === ROOM_STATUS.AVAILABLE,
+    isReserved: result.status === ROOM_STATUS.RESERVED,
+    isOccupied: result.status === ROOM_STATUS.OCCUPIED,
+    isCheckout: result.status === ROOM_STATUS.CHECKOUT,
+    isBlocked: result.status === ROOM_STATUS.BLOCKED,
+    isMaintenance: result.status === ROOM_STATUS.MAINTENANCE,
+  }
+}
+
+
+
+// ETAPA 3 — REGRAS SEGURAS DO DRAG NO PAINEL
+// O drag NÃO salva cor nem status. Ele só muda o quarto da reserva ou cria
+// uma nova reserva por seleção. Depois disso, a Etapa 1/2 recalcula o visual.
+const RESERVATION_DRAG_TYPE = 'application/x-cronos-reservation-id'
+const TEXT_RESERVATION_DRAG_TYPE = 'text/reserva'
+
+const readReservationDragId = (event) => {
+  const transfer = event?.dataTransfer
+  if (!transfer) return ''
+  return transfer.getData(RESERVATION_DRAG_TYPE) || transfer.getData(TEXT_RESERVATION_DRAG_TYPE) || transfer.getData('reservaId') || transfer.getData('text/plain') || ''
+}
+
+const writeReservationDragId = (event, reservaId) => {
+  const transfer = event?.dataTransfer
+  if (!transfer || !reservaId) return
+  transfer.effectAllowed = 'move'
+  transfer.setData(RESERVATION_DRAG_TYPE, reservaId)
+  transfer.setData(TEXT_RESERVATION_DRAG_TYPE, reservaId)
+  transfer.setData('reservaId', reservaId)
+  transfer.setData('text/plain', reservaId)
+}
+
+
 function useLocalState(key, initialValue) {
   const [state, setState] = useState(initialValue)
   const [synced, setSynced] = useState(false)
@@ -191,7 +423,6 @@ const roomsSeed = roomTypesSeed.flatMap((type, typeIndex) =>
     tipoId: type.id,
     tipo: type.nome,
     andar: Number(numero) < 200 ? 'Térreo' : Number(numero) < 300 ? '1º andar' : '2º andar',
-    statusLimpeza: 'limpo',
   }))
 )
 
@@ -222,8 +453,6 @@ const menu = [
   ['recepcao', '⇄', 'Recepção'],
   ['clientes', '♙', 'Clientes'],
   ['hospedes', '♟', 'Hóspedes'],
-  ['precheckin', '☑', 'Pré check-in'],
-  ['quartos', '▤', 'Quartos'],
   ['tarifas', '◷', 'Tarifas'],
   ['servicos', '⚑', 'Serviços'],
   ['financeiro', '$', 'Financeiro'],
@@ -254,7 +483,6 @@ function App() {
   const [guests, setGuests] = useLocalState('fh_guests_v1', guestsSeed)
   const [blocks, setBlocks] = useLocalState('fh_blocks_v2', [])
   const [rates, setRates] = useLocalState('fh_rates_v2', [])
-  const [precheckins, setPrecheckins] = useLocalState('fh_precheckins_v2', [])
   const [paymentMethods, setPaymentMethods] = useLocalState('fh_payment_methods_v1', paymentMethodsSeed)
   const [auditLogs, setAuditLogs] = useLocalState('fh_audit_logs_v1', [])
   const [methodForm, setMethodForm] = useState({ nome: '', tipo: 'normal', ativo: true })
@@ -279,14 +507,79 @@ function App() {
   })
   const [newClient, setNewClient] = useState({ nome: '', cpf: '', telefone: '', email: '', nascimento: '', endereco: '', observacao: '' })
   const [rateForm, setRateForm] = useState({ tipoId: 'todos', inicio: todayISO(), fim: todayISO(), diasSemana: ['0','1','2','3','4','5','6'], valor: '', acao: 'criar' })
-  const [preBusca, setPreBusca] = useState('')
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadPublicPrecheckins() {
+      try {
+        const { data, error } = await supabase
+          .from('pre_checkins')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(300)
+
+        if (error) {
+          console.warn('Falha ao carregar pré check-ins do Supabase.', error)
+          return
+        }
+
+        if (mounted && Array.isArray(data) && data.length) {
+          const mapped = data.map(mapSupabasePrecheckin)
+          setPrecheckins((current = []) => {
+            const byKey = new Map()
+            ;[...mapped, ...current].forEach(item => {
+              byKey.set(item.token || item.id, item)
+            })
+            return Array.from(byKey.values())
+          })
+        }
+      } catch (error) {
+        console.warn('Falha ao sincronizar pré check-ins públicos.', error)
+      }
+    }
+
+    async function loadPublicHospedes() {
+      try {
+        const { data, error } = await supabase
+          .from('hospedes')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(500)
+
+        if (error) {
+          console.warn('Falha ao carregar hóspedes do Supabase.', error)
+          return
+        }
+
+        if (mounted && Array.isArray(data) && data.length) {
+          const mapped = data.map(mapSupabaseHospede)
+          setGuests((current = []) => {
+            const byKey = new Map()
+            ;[...mapped, ...current].forEach(item => {
+              byKey.set(item.id || `${item.reservaCodigo}-${item.nome}-${item.telefone}`, item)
+            })
+            return Array.from(byKey.values())
+          })
+        }
+      } catch (error) {
+        console.warn('Falha ao sincronizar hóspedes públicos.', error)
+      }
+    }
+
+    loadPublicPrecheckins()
+    loadPublicHospedes()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const publicPrecheckinMatch = window.location.pathname.match(/^\/pre-checkin\/([^/]+)$/)
 
   const dates = useMemo(() => Array.from({ length: Number(periodDays) }, (_, i) => addDays(periodStart, i)), [periodStart, periodDays])
-  const futureReservations = reservations.filter(r => ['pendente', 'confirmada'].includes(r.status))
-  const hospedados = reservations.filter(r => r.status === 'hospedado')
-  const occupiedRoomIds = new Set(hospedados.map(r => r.quartoId))
+  const futureReservations = reservations
+  const occupiedRoomIds = new Set()
   const revenueToday = payments.filter(p => p.data === todayISO() && p.tipo === 'recebimento').reduce((s, p) => s + Number(p.valor), 0)
 
   function notify(msg) {
@@ -348,9 +641,18 @@ function App() {
   function isRoomAvailable(roomId, start, end, ignoreId = '') {
     const startSlot = typeof start === 'number' ? start : dateToSlot(start, 0)
     const endSlot = typeof end === 'number' ? end : dateToSlot(end, 0)
-    const conflictReservation = reservations.some(r => r.id !== ignoreId && r.quartoId === roomId && !['cancelada', 'checkout'].includes(r.status) && startSlot < reservationEndSlot(r) && endSlot > reservationStartSlot(r))
+    const quarto = rooms.find(q => String(q.id) === String(roomId))
+    const manualStatus = normalizeStatusText(quarto?.status || quarto?.statusLimpeza || quarto?.situacao)
+    const statusBloqueiaReserva = [
+      'reservado', 'reserved',
+      'hospedado', 'checkin', 'check-in', 'ocupado', 'occupied',
+      'checkout', 'check-out', 'verificar', 'verificar-saida', 'saida', 'limpeza',
+      'manutencao', 'maintenance', 'manutencao-preventiva',
+      'bloqueado', 'blocked'
+    ].includes(manualStatus)
+    const conflictReservation = reservations.some(r => r.id !== ignoreId && r.quartoId === roomId && startSlot < reservationEndSlot(r) && endSlot > reservationStartSlot(r))
     const conflictBlock = blocks.some(b => b.quartoId === roomId && startSlot < blockEndSlot(b) && endSlot > blockStartSlot(b))
-    return !conflictReservation && !conflictBlock
+    return !statusBloqueiaReserva && !conflictReservation && !conflictBlock
   }
 
   function availableRooms(tipoId = newReservation.tipoId, start = newReservation.entrada, end = newReservation.saida) {
@@ -363,9 +665,10 @@ function App() {
     const startSlot = Math.min(Number(startSlotRaw), Number(endSlotRaw))
     const endSlot = Math.max(Number(startSlotRaw), Number(endSlotRaw)) + 1
     const inicio = slotToDate(startSlot)
-    const fim = slotToDate(endSlot + (endSlot % 2 ? 1 : 0))
+    const fim = slotToDate(endSlot)
     const quarto = roomOf(roomId)
     if (!quarto?.id) return notify('Quarto não encontrado.')
+    if (endSlot <= startSlot) return notify('Selecione um período válido.')
     if (!isRoomAvailable(roomId, startSlot, endSlot)) return notify('Esse período já possui reserva ou bloqueio.')
     setDragReservationRequest({
       roomId: quarto.id,
@@ -379,24 +682,21 @@ function App() {
       periodoTexto: `${slotLabel(startSlot)} até ${slotLabel(endSlot)}`,
       nome: '',
       telefone: '',
-      cpf: '',
-      email: ''
+      cpf: ''
     })
   }
 
   function confirmDragReservation(data) {
-    if (!data || !data.nome || !data.nome.trim()) return notify('Informe o nome completo do hóspede.')
-    if (!data.telefone || !data.telefone.trim()) return notify('Informe o telefone do hóspede.')
-    if (!data.cpf || !data.cpf.trim()) return notify('Informe o CPF ou CNPJ do hóspede.')
+    if (!data || !data.nome || !data.nome.trim()) return notify('Informe o nome do cliente.')
     const quarto = roomOf(data.roomId)
     if (!quarto?.id) return notify('Quarto não encontrado.')
     if (!isRoomAvailable(data.roomId, Number(data.entradaSlot ?? dateToSlot(data.entrada, 0)), Number(data.saidaSlot ?? dateToSlot(data.saida, 0)))) return notify('Esse período já possui reserva ou bloqueio.')
     const cli = {
       id: id(),
       nome: `${data.nome.trim()} ${data.sobrenome || ''}`.trim(),
-      cpf: data.cpf.trim(),
-      telefone: data.telefone.trim(),
-      email: (data.email || '').trim(),
+      cpf: data.cpf || '',
+      telefone: data.telefone || '',
+      email: data.email || '',
       nascimento: data.nascimento || '',
       endereco: '',
       observacao: '',
@@ -417,7 +717,6 @@ function App() {
       adultos: Number(data.adultos || typeOf(quarto.tipoId).capacidade || 1),
       criancas: Number(data.criancas || 0),
       diaria: moneyNumber(data.diaria) || diaria,
-      status: 'pendente',
       canal: data.canal || 'Direto',
       origem: data.origem || 'Painel de reservas',
       observacao: data.observacao || 'Criada arrastando no painel de reservas.'
@@ -436,7 +735,7 @@ function App() {
 
     const quartoSelecionado = newReservation.quartoId || newReservation.quarto || ''
     if (!quartoSelecionado) {
-      notify('Selecione um quarto disponível para criar a reserva.')
+      notify('Selecione um quarto para criar a reserva.')
       return
     }
 
@@ -451,7 +750,7 @@ function App() {
     }
 
     if (!isRoomAvailable(quartoSelecionado, newReservation.entrada, newReservation.saida)) {
-      notify('Esse quarto não está disponível nesse período. Escolha outro quarto.')
+      notify('Esse quarto não pode ser usado nesse período. Escolha outro quarto.')
       return
     }
 
@@ -506,7 +805,6 @@ function App() {
       canal: newReservation.canal || 'Direto',
       origem: newReservation.origem || 'Direto - recepção',
       observacao: newReservation.observacao || '',
-      status: 'pendente',
       criadoEm: todayISO()
     }
 
@@ -541,21 +839,26 @@ function App() {
       setClients(clients.map(c => c.id === cliente.id ? { ...c, credito: Number(c.credito || 0) - valor } : c))
     }
     setPayments([{ id: id(), reservaId: r.id, data: todayISO(), tipo: 'recebimento', forma: form.forma, valor, pagante: cliente.nome, observacao: form.observacao || form.forma }, ...payments])
-    setReservations(reservations.map(x => x.id === r.id ? { ...x, status: balance(x) - valor <= 0 && x.status === 'pendente' ? 'confirmada' : x.status } : x))
+    setReservations(reservations.map(x => x.id === r.id ? { ...x } : x))
     setReceiveReserva(null)
     logAction('Pagamento recebido', `Reserva ${r.codigo}: ${form.forma} no valor de ${BRL.format(valor)}.`)
     notify('Pagamento recebido.')
   }
 
   function doCheckin(r) {
-    if (balance(r) > 0) return notify('Check-in bloqueado: precisa pagar primeiro.')
-    setReservations(reservations.map(x => x.id === r.id ? { ...x, status: 'hospedado' } : x))
-    setSelectedReserva({ ...r, status: 'hospedado' })
+    if (balance(r) > 0) return notify('Check-in marcado: precisa pagar primeiro.')
+    const reservaAtualizada = {
+      ...r,
+      status: 'hospedado',
+      checkinEm: new Date().toISOString(),
+    }
+    setReservations(reservations.map(x => x.id === r.id ? reservaAtualizada : x))
+    setSelectedReserva(reservaAtualizada)
     logAction('Check-in', `Reserva ${r.codigo} entrou no quarto ${r.quartoId}.`)
     notify('Check-in realizado.')
   }
 
-  function doCheckout(r) {
+  function doSaida(r) {
     const totalConsumosAbertos = consumos
       .filter(c => c.reservaId === r.id)
       .reduce((s, c) => s + Number(c.qtd || 1) * Number(c.valor || 0), 0)
@@ -564,16 +867,20 @@ function App() {
       .reduce((s, p) => s + Number(p.valor || 0), 0)
     const saldoConsumo = Math.max(0, totalConsumosAbertos - pagoConsumos)
     if (saldoConsumo > 0) {
-      notify(`Checkout bloqueado. Existe consumo em aberto no quarto: ${BRL.format(saldoConsumo)}.`)
-      setTab('quartos')
+      notify(`Saída marcada. Existe consumo em aberto no quarto: ${BRL.format(saldoConsumo)}.`)
+      setTab('recepcao')
       return
     }
 
-    setReservations(reservations.map(x => x.id === r.id ? { ...x, status: 'checkout' } : x))
-    setRooms(rooms.map(q => q.id === r.quartoId ? { ...q, statusLimpeza: 'verificar' } : q))
+    const reservaAtualizada = {
+      ...r,
+      status: 'checkout',
+      checkoutEm: new Date().toISOString(),
+    }
+    setReservations(reservations.map(x => x.id === r.id ? reservaAtualizada : x))
     setSelectedReserva(null)
-    logAction('Check-out', `Reserva ${r.codigo} saiu do quarto ${r.quartoId}. Quarto marcado para verificar.`)
-    notify('Check-out realizado. Quarto marcado para verificar.')
+    logAction('Saída', `Reserva ${r.codigo} saiu do quarto ${r.quartoId}. Quarto enviado para revisão.`)
+    notify('Saída realizada. Quarto enviado para verificação.')
   }
 
   function cancelWithCredit({ motivo, observacao, multa }) {
@@ -587,11 +894,11 @@ function App() {
     if (credito > 0) newPayments.unshift({ id: id(), reservaId: r.id, data: todayISO(), tipo: 'estorno', forma: 'Crédito do cliente', valor: credito, pagante: cliente.nome, observacao: observacao || 'Cancelamento convertido em crédito' })
     setPayments(newPayments)
     setClients(clients.map(c => c.id === cliente.id ? { ...c, credito: Number(c.credito || 0) + credito } : c))
-    setReservations(reservations.map(x => x.id === r.id ? { ...x, status: 'cancelada', cancelamento: { motivo, observacao, credito, multa: multaValor } } : x))
+    setReservations(reservations.map(x => x.id === r.id ? { ...x, cancelamento: { motivo, observacao, credito, multa: multaValor } } : x))
     setCancelReserva(null)
     setSelectedReserva(null)
-    logAction('Cancelamento / estorno', `Reserva ${r.codigo} cancelada. Crédito gerado: ${BRL.format(credito)}. Multa: ${BRL.format(multaValor)}.`)
-    notify(`Reserva cancelada. Crédito gerado: ${BRL.format(credito)}.`)
+    logAction('Cancelamento / estorno', `Reserva ${r.codigo} com cancelamento. Crédito gerado: ${BRL.format(credito)}. Multa: ${BRL.format(multaValor)}.`)
+    notify(`Cancelamento concluído. Crédito gerado: ${BRL.format(credito)}.`)
   }
 
 
@@ -600,11 +907,10 @@ function App() {
     const r = reservations.find(x => x.id === reservaId)
     if (!r || !novoQuartoId) return
     if (novoQuartoId === r.quartoId) return
-    if (!isRoomAvailable(novoQuartoId, r.entrada, r.saida, r.id)) return notify('Esse quarto não está livre no período da reserva.')
+    if (!isRoomAvailable(novoQuartoId, r.entrada, r.saida, r.id)) return notify('Esse quarto não pode ser usado no período da reserva.')
     const novoQuarto = roomOf(novoQuartoId)
     const reservaAtualizada = { ...r, quartoId: novoQuartoId, tipoId: novoQuarto.tipoId }
     setReservations(reservations.map(x => x.id === r.id ? reservaAtualizada : x))
-    setRooms(rooms.map(q => q.id === r.quartoId ? { ...q, statusLimpeza: 'verificar' } : q))
     setSelectedReserva(reservaAtualizada)
     logAction('Reserva movida no mapa', `Reserva ${r.codigo}: quarto ${r.quartoId} para ${novoQuarto.numero}.`)
     notify(`Reserva movida para o quarto ${novoQuarto.numero}.`)
@@ -615,11 +921,10 @@ function App() {
     if (!r) return
     if (!form.quartoId) return notify('Selecione o novo quarto.')
     if (form.quartoId === r.quartoId) return notify('Esse já é o quarto atual.')
-    if (!isRoomAvailable(form.quartoId, r.entrada, r.saida, r.id)) return notify('O quarto escolhido está indisponível no período da reserva.')
+    if (!isRoomAvailable(form.quartoId, r.entrada, r.saida, r.id)) return notify('O quarto escolhido não pode ser usado no período da reserva.')
     const novoQuarto = roomOf(form.quartoId)
     const reservaAtualizada = { ...r, quartoId: form.quartoId, tipoId: novoQuarto.tipoId, observacao: `${r.observacao || ''} ${form.observacao || 'Troca/alocação de quarto realizada pela recepção.'}`.trim() }
     setReservations(reservations.map(x => x.id === r.id ? reservaAtualizada : x))
-    setRooms(rooms.map(q => q.id === r.quartoId ? { ...q, statusLimpeza: 'verificar' } : q))
     setSelectedReserva(reservaAtualizada)
     setTransferReserva(null)
     logAction('Troca/alocação de quarto', `Reserva ${r.codigo}: quarto ${r.quartoId} para ${novoQuarto.numero}.`)
@@ -633,8 +938,8 @@ function App() {
     if (!r) return
     if (!form.entrada || !form.saida) return notify('Informe entrada e saída.')
     if (form.entrada >= form.saida) return notify('A saída precisa ser depois da entrada.')
-    if (!form.quartoId) return notify('Selecione um quarto disponível para a nova data.')
-    if (!isRoomAvailable(form.quartoId, form.entrada, form.saida, r.id)) return notify('Esse quarto não está livre na nova data.')
+    if (!form.quartoId) return notify('Selecione um quarto para a nova data.')
+    if (!isRoomAvailable(form.quartoId, form.entrada, form.saida, r.id)) return notify('Esse quarto não pode ser usado na nova data.')
     const novoQuarto = roomOf(form.quartoId)
     const novasDiarias = diffDays(form.entrada, form.saida)
     const reservaAtualizada = {
@@ -644,7 +949,6 @@ function App() {
       quartoId: form.quartoId,
       tipoId: novoQuarto.tipoId,
       diaria: moneyNumber(form.diaria) || r.diaria,
-      status: r.status === 'cancelada' ? 'pendente' : r.status,
       observacao: `${r.observacao || ''} ${form.observacao || 'Reserva remarcada pela recepção.'}`.trim(),
       remarcacao: { data: todayISO(), entradaAnterior: r.entrada, saidaAnterior: r.saida, quartoAnterior: r.quartoId, novasDiarias }
     }
@@ -678,10 +982,10 @@ function App() {
 
   function saveBlock(data) {
     if (!data.quartoId || !data.inicio || !data.fim) return notify('Informe quarto e período.')
-    setBlocks([{ id: id(), quartoId: data.quartoId, inicio: data.inicio, fim: data.fim, motivo: data.motivo || 'Bloqueio manual' }, ...blocks])
+    setBlocks([{ id: id(), quartoId: data.quartoId, inicio: data.inicio, fim: data.fim, motivo: data.motivo || 'Período manual' }, ...blocks])
     setBlockModal(null)
-    logAction('Bloqueio manual', `Quarto ${data.quartoId} bloqueado de ${data.inicio} até ${data.fim}.`)
-    notify('Período bloqueado no quarto.')
+    logAction('Período manual', `Quarto ${data.quartoId} marcado de ${data.inicio} até ${data.fim}.`)
+    notify('Período marcado no quarto.')
   }
 
   function saveRate() {
@@ -757,21 +1061,13 @@ function App() {
   }
 
   function createPrecheckin(reserva) {
-    const existente = precheckins.find(p => p.reservaId === reserva.id && p.status !== 'cancelado')
-    if (existente) {
-      const cliente = clientOf(reserva)
-      const msg = `Olá ${cliente.nome}, segue o link do pré check-in da sua reserva ${reserva.codigo}: ${existente.link}`
-      window.open(`https://wa.me/55${String(cliente.telefone || '').replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank')
-      return notify('Já existia link de pré check-in. Reenviei pelo WhatsApp.')
-    }
-    const token = id().slice(0, 8)
-    const link = `${location.origin}/pre-checkin/${reserva.codigo}-${token}`
-    setPrecheckins([{ id: id(), reservaId: reserva.id, codigo: reserva.codigo, token, link, status: 'enviado', data: todayISO(), nomeCompleto: '', selfie: '', documentoFoto: '', endereco: '', nascimento: '', observacao: '' }, ...precheckins])
     const cliente = clientOf(reserva)
+    const token = id().slice(0, 8)
+    const link = `${getPublicAppOrigin()}/pre-checkin/${reserva.codigo}-${token}`
     const msg = `Olá ${cliente.nome}, segue o link do pré check-in da sua reserva ${reserva.codigo}: ${link}`
     window.open(`https://wa.me/55${String(cliente.telefone || '').replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank')
-    logAction('Pré check-in enviado', `Reserva ${reserva.codigo}: link enviado por WhatsApp.`)
-    notify('Link de pré check-in gerado para WhatsApp.')
+    logAction('Pré check-in enviado', `Reserva ${reserva.codigo}: link público enviado por WhatsApp.`)
+    notify('Link de pré check-in enviado pelo WhatsApp.')
   }
 
   function savePaymentMethod() {
@@ -790,33 +1086,8 @@ function App() {
     logAction('Forma de pagamento alterada', 'Forma de pagamento ativada/desativada.')
   }
 
-  function roomStatus(q) {
-    const hosp = hospedados.find(r => r.quartoId === q.id)
-    if (hosp) return ['status-blue', 'Alugado / Check-in']
-    if (q.statusLimpeza === 'manutencao') return ['status-orange', 'Manutenção']
-    if (q.statusLimpeza === 'verificar') return ['status-yellow', 'Verificar saída']
-    const blocked = blocks.find(b => b.quartoId === q.id && todayISO() >= b.inicio && todayISO() < b.fim)
-    if (blocked) return ['status-green', 'Bloqueado']
-    const fut = futureReservations.find(r => r.quartoId === q.id)
-    if (fut) return ['status-green', 'Reserva futura']
-    return ['status-free', 'Disponível']
-  }
-
   function openRoom(q) {
     setSelectedRoom(q)
-  }
-
-  function updateRoomCleaningStatus(roomId, statusLimpeza) {
-    const labels = {
-      limpo: 'limpo/disponível',
-      verificar: 'verificar saída',
-      manutencao: 'manutenção'
-    }
-    const quarto = rooms.find(q => q.id === roomId)
-    setRooms(rooms.map(q => q.id === roomId ? { ...q, statusLimpeza } : q))
-    setSelectedRoom(prev => prev?.id === roomId ? { ...prev, statusLimpeza } : prev)
-    logAction('Status do quarto alterado', `Quarto ${quarto?.numero || roomId} marcado como ${labels[statusLimpeza] || statusLimpeza}.`)
-    notify(`Quarto ${quarto?.numero || ''} marcado como ${labels[statusLimpeza] || statusLimpeza}.`)
   }
 
   function printReceipt(r) {
@@ -854,7 +1125,6 @@ function App() {
       consumos,
       blocks,
       rates,
-      precheckins,
       paymentMethods,
       products,
       auditLogs,
@@ -872,7 +1142,7 @@ function App() {
   }
 
   function clearOperationalData() {
-    const ok = window.confirm('Tem certeza que deseja zerar reservas, clientes, financeiro, consumos, pré check-in, bloqueios e auditoria? Os quartos e categorias serão mantidos.')
+    const ok = window.confirm('Tem certeza que deseja zerar reservas, clientes, financeiro, consumos, pré check-in, períodos e auditoria? Os quartos e categorias serão mantidos.')
     if (!ok) return
     setClients([])
     setReservations([])
@@ -891,7 +1161,6 @@ function App() {
     localStorage.removeItem('fh_consumos_v1')
     localStorage.removeItem('fh_blocks_v2')
     localStorage.removeItem('fh_rates_v2')
-    localStorage.removeItem('fh_precheckins_v2')
     localStorage.removeItem('fh_audit_logs_v1')
     notify('Sistema zerado. Quartos e categorias mantidos.')
   }
@@ -911,7 +1180,7 @@ function App() {
   const permissionsByProfile = {
     Administrador: menu.map(([key]) => key),
     Gerente: menu.map(([key]) => key).filter(key => key !== 'usuarios'),
-    Recepção: ['dashboard', 'painel', 'reservas', 'recepcao', 'clientes', 'hospedes', 'precheckin', 'quartos'],
+    Recepção: ['dashboard', 'painel', 'reservas', 'recepcao', 'clientes', 'hospedes'],
     Financeiro: ['dashboard', 'financeiro', 'caixa', 'relatorios', 'auditoria'],
   }
   const allowedTabs = permissionsByProfile[currentUser?.perfil] || permissionsByProfile.Administrador
@@ -933,7 +1202,7 @@ function App() {
   }
 
   if (publicPrecheckinMatch) {
-    return <PublicPreCheckin tokenParam={publicPrecheckinMatch[1]} precheckins={precheckins} setPrecheckins={setPrecheckins} reservations={reservations} clients={clients} />
+    return <PublicPreCheckin tokenParam={publicPrecheckinMatch[1]} guests={guests} setGuests={setGuests} reservations={reservations} clients={clients} />
   }
 
   if (!currentUser) {
@@ -966,7 +1235,7 @@ function App() {
           <div className="topbar-title"><button className="hamburger">☰</button><div><h2>{pageTitle}</h2><p>Sistema de Gestão do Hotel Brisas</p></div></div>
           <div className="topbar-right">
             <div className="search-field"><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar reserva, hóspede, quarto..." /><span>⌕</span></div>
-            <button className="bell-button">🔔<small>{reservations.filter(r => r.status === 'pendente').length}</small></button>
+            <button className="bell-button">🔔</button>
             <input className="date-input-top" type="date" value={todayISO()} readOnly />
           </div>
         </header>
@@ -975,12 +1244,10 @@ function App() {
         {tab === 'dashboard' && <Dashboard rooms={rooms} reservations={reservations} payments={payments} clients={clients} revenueToday={revenueToday} occupiedRoomIds={occupiedRoomIds} setTab={setTab} clientOf={clientOf} />}
         {tab === 'painel' && <Painel dates={dates} periodStart={periodStart} setPeriodStart={setPeriodStart} periodDays={periodDays} setPeriodDays={setPeriodDays} groupByType={groupByType} setGroupByType={setGroupByType} roomTypes={roomTypes} rooms={rooms} reservations={reservations} blocks={blocks} expandedTypes={expandedTypes} setExpandedTypes={setExpandedTypes} setSelectedReserva={setSelectedReserva} setBlockModal={setBlockModal} clientOf={clientOf} moveReservation={moveReservation} dragSelection={dragSelection} setDragSelection={setDragSelection} createReservationByDrag={createReservationByDrag} />}
         {tab === 'reservas' && <Reservas newReservation={newReservation} setNewReservation={setNewReservation} roomTypes={roomTypes} availableRooms={availableRooms} saveReservation={saveReservation} clients={clients} reservations={reservations} clientOf={clientOf} roomOf={roomOf} balance={balance} setSelectedReserva={setSelectedReserva} setReceiveReserva={setReceiveReserva} doCheckin={doCheckin} />}
-        {tab === 'recepcao' && <Recepcao rooms={rooms} roomTypes={roomTypes} reservations={reservations} roomStatus={roomStatus} clientOf={clientOf} roomOf={roomOf} setSelectedReserva={setSelectedReserva} setSelectedRoom={openRoom} setBlockModal={setBlockModal} moveReservation={moveReservation} />}
+        {tab === 'recepcao' && <Recepcao rooms={rooms} roomTypes={roomTypes} reservations={reservations} blocks={blocks} clientOf={clientOf} roomOf={roomOf} setSelectedReserva={setSelectedReserva} setSelectedRoom={openRoom} setBlockModal={setBlockModal} moveReservation={moveReservation} />}
         {tab === 'clientes' && <Clientes clients={clients} newClient={newClient} setNewClient={setNewClient} saveClient={saveClient} reservations={reservations} />}
         {tab === 'hospedes' && <Hospedes reservations={reservations} guests={guests} setGuests={setGuests} clientOf={clientOf} roomOf={roomOf} logAction={logAction} notify={notify} />}
         {tab === 'usuarios' && <Usuarios usuarios={usuarios} setUsuarios={setUsuarios} usuarioForm={usuarioForm} setUsuarioForm={setUsuarioForm} notify={notify} logAction={logAction} />}
-      {tab === 'precheckin' && <PreCheckin preBusca={preBusca} setPreBusca={setPreBusca} reservations={reservations} precheckins={precheckins} clientOf={clientOf} createPrecheckin={createPrecheckin} />}
-        {tab === 'quartos' && <Quartos roomTypes={roomTypes} rooms={rooms} reservations={reservations} blocks={blocks} clients={clients} consumos={consumos} payments={payments} setConsumos={setConsumos} setPayments={setPayments} setSelectedRoom={openRoom} notify={notify} logAction={logAction} />}
         {tab === 'tarifas' && <Tarifas roomTypes={roomTypes} rateForm={rateForm} setRateForm={setRateForm} saveRate={saveRate} rates={rates} />}
         {tab === 'servicos' && <Servicos products={products} productForm={productForm} setProductForm={setProductForm} saveProduct={saveProduct} consumos={consumos} reservations={reservations} clients={clients} rooms={rooms} />}
         {tab === 'financeiro' && <Financeiro reservations={reservations} payments={payments} clients={clients} clientOf={clientOf} roomOf={roomOf} setReceiveReserva={setReceiveReserva} setCancelReserva={setCancelReserva} balance={balance} paidTotal={paidTotal} reservationTotal={reservationTotal} />}
@@ -990,8 +1257,8 @@ function App() {
         {tab === 'config' && <Config roomTypes={roomTypes} rooms={rooms} clients={clients} reservations={reservations} payments={payments} exportSystemData={exportSystemData} clearOperationalData={clearOperationalData} restoreRoomDefaults={restoreRoomDefaults} paymentMethods={paymentMethods} methodForm={methodForm} setMethodForm={setMethodForm} savePaymentMethod={savePaymentMethod} togglePaymentMethod={togglePaymentMethod} />}
       </main>
 
-      {selectedRoom && <RoomModal room={selectedRoom} status={roomStatus(selectedRoom)} reservations={reservations.filter(r => r.quartoId === selectedRoom.id).sort((a,b)=>a.entrada.localeCompare(b.entrada))} blocks={blocks.filter(b => b.quartoId === selectedRoom.id)} clientOf={clientOf} setSelectedReserva={setSelectedReserva} setBlockModal={setBlockModal} updateRoomCleaningStatus={updateRoomCleaningStatus} onClose={() => setSelectedRoom(null)} />}
-      {selectedReserva && <ReservationModal r={selectedReserva} client={clientOf(selectedReserva)} room={roomOf(selectedReserva.quartoId)} diariaTotal={diariaTotal(selectedReserva)} servicesTotal={servicesTotal(selectedReserva.id)} total={reservationTotal(selectedReserva)} paid={paidTotal(selectedReserva.id)} balance={balance(selectedReserva)} payments={payments.filter(p => p.reservaId === selectedReserva.id)} consumos={consumos.filter(c => c.reservaId === selectedReserva.id)} guests={guests.filter(g => g.reservaId === selectedReserva.id)} onClose={() => setSelectedReserva(null)} onReceive={() => setReceiveReserva(selectedReserva)} onCancel={() => setCancelReserva(selectedReserva)} onCheckin={() => doCheckin(selectedReserva)} onCheckout={() => doCheckout(selectedReserva)} onPre={() => createPrecheckin(selectedReserva)} onService={() => setServiceReserva(selectedReserva)} onTransfer={() => setTransferReserva(selectedReserva)} onReschedule={() => setRescheduleReserva(selectedReserva)} onWhatsapp={() => sendReservationWhatsapp(selectedReserva)} onPrint={() => printReceipt(selectedReserva)} />}
+      {selectedRoom && <RoomModal room={selectedRoom} reservations={reservations.filter(r => r.quartoId === selectedRoom.id).sort((a,b)=>a.entrada.localeCompare(b.entrada))} blocks={blocks.filter(b => b.quartoId === selectedRoom.id)} clientOf={clientOf} setSelectedReserva={setSelectedReserva} setBlockModal={setBlockModal} setRooms={setRooms} rooms={rooms} onRoomUpdated={setSelectedRoom} onClose={() => setSelectedRoom(null)} />}
+      {selectedReserva && <ReservationModal r={selectedReserva} client={clientOf(selectedReserva)} room={roomOf(selectedReserva.quartoId)} diariaTotal={diariaTotal(selectedReserva)} servicesTotal={servicesTotal(selectedReserva.id)} total={reservationTotal(selectedReserva)} paid={paidTotal(selectedReserva.id)} balance={balance(selectedReserva)} payments={payments.filter(p => p.reservaId === selectedReserva.id)} consumos={consumos.filter(c => c.reservaId === selectedReserva.id)} guests={guests.filter(g => g.reservaId === selectedReserva.id)} onClose={() => setSelectedReserva(null)} onReceive={() => { setReceiveReserva(selectedReserva); setSelectedReserva(null) }} onCancel={() => { setCancelReserva(selectedReserva); setSelectedReserva(null) }} onCheckin={() => doCheckin(selectedReserva)} onSaida={() => doSaida(selectedReserva)} onPre={() => createPrecheckin(selectedReserva)} onService={() => { setServiceReserva(selectedReserva); setSelectedReserva(null) }} onTransfer={() => { setTransferReserva(selectedReserva); setSelectedReserva(null) }} onReschedule={() => { setRescheduleReserva(selectedReserva); setSelectedReserva(null) }} onWhatsapp={() => sendReservationWhatsapp(selectedReserva)} onPrint={() => printReceipt(selectedReserva)} />}
       {receiveReserva && <ReceiveModal client={clientOf(receiveReserva)} saldo={balance(receiveReserva)} paymentMethods={paymentMethods} onClose={() => setReceiveReserva(null)} onSave={receivePayment} />}
       {cancelReserva && <CancelModal reserva={cancelReserva} received={paidTotal(cancelReserva.id)} onClose={() => setCancelReserva(null)} onSave={cancelWithCredit} />}
       {rescheduleReserva && <RescheduleModal reserva={rescheduleReserva} rooms={rooms} roomTypes={roomTypes} roomOf={roomOf} availableRooms={availableRooms} onClose={() => setRescheduleReserva(null)} onSave={rescheduleReservation} />}
@@ -1041,9 +1308,6 @@ function DragReservationModal({ data, setData, onClose, onSave }) {
           </label>
           <label>CPF/CNPJ
             <input value={data.cpf} onChange={e => setData({ ...data, cpf: e.target.value })} placeholder="000.000.000-00" />
-          </label>
-          <label>E-mail (opcional)
-            <input type="email" value={data.email || ''} onChange={e => setData({ ...data, email: e.target.value })} placeholder="email@exemplo.com" />
           </label>
         </div>
         <div className="actions modal-actions">
@@ -1124,14 +1388,14 @@ function Usuarios({ usuarios, setUsuarios, usuarioForm, setUsuarioForm, notify, 
       <div className="panel-card">
         <h3>Usuários cadastrados</h3>
         <table className="data-table">
-          <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead>
+          <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Ações</th></tr></thead>
           <tbody>
             {usuarios.map(u => (
               <tr key={u.id}>
                 <td><b>{u.nome}</b></td>
                 <td>{u.email || '-'}</td>
                 <td>{u.perfil}</td>
-                <td><span className={`pill ${u.ativo ? 'confirmada' : 'cancelada'}`}>{u.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                <td>{u.ativo ? 'Ativo' : 'Inativo'}</td>
                 <td><button onClick={() => toggleUsuario(u.id)}>{u.ativo ? 'Desativar' : 'Ativar'}</button></td>
               </tr>
             ))}
@@ -1145,9 +1409,8 @@ function Usuarios({ usuarios, setUsuarios, usuarioForm, setUsuarioForm, notify, 
 
 function Dashboard({ rooms, clients, reservations, payments, setTab }) {
   const today = todayISO()
-  const ocupados = rooms.filter(q => reservations.some(r => r.quartoId === q.id && r.status === 'hospedado')).length
-  const checkinsHoje = reservations.filter(r => r.entrada === today && r.status !== 'cancelada').length
-  const checkoutsHoje = reservations.filter(r => r.saida === today && r.status !== 'cancelada').length
+  const checkinsHoje = reservations.filter(r => r.entrada === today).length
+  const saidasHoje = reservations.filter(r => r.saida === today).length
   const receitaDia = payments
     .filter(p => p.tipo === 'recebimento' && p.data === today)
     .reduce((s, p) => s + Number(p.valor || 0), 0)
@@ -1155,14 +1418,14 @@ function Dashboard({ rooms, clients, reservations, payments, setTab }) {
   const recentes = [
     ...reservations.slice(0, 3).map(r => ({
       icon: '✓',
-      color: 'blue',
-      title: r.status === 'hospedado' ? 'Check-in realizado' : 'Nova reserva criada',
+      visual: 'neutral',
+      title: 'Reserva criada',
       desc: `${clients.find(c => c.id === r.clienteId)?.nome || 'Cliente'} · Quarto ${rooms.find(q => q.id === r.quartoId)?.numero || '-'}`,
       time: 'Hoje'
     })),
     ...payments.slice(0, 2).map(p => ({
       icon: '$',
-      color: 'green',
+      visual: 'neutral',
       title: 'Pagamento recebido',
       desc: BRL.format(Number(p.valor || 0)),
       time: p.data === today ? 'Hoje' : p.data
@@ -1171,27 +1434,27 @@ function Dashboard({ rooms, clients, reservations, payments, setTab }) {
 
   const metricCards = [
     {
-      label: 'Quartos ocupados',
-      value: ocupados,
+      label: 'Quartos',
+      value: rooms.length,
       sub: `de ${rooms.length} quartos`,
       icon: '▭',
-      color: 'blue',
-      action: () => setTab('quartos')
+      visual: 'neutral',
+      action: () => setTab('recepcao')
     },
     {
       label: 'Check-ins hoje',
       value: checkinsHoje,
-      sub: `${reservations.filter(r => r.entrada === today && r.status === 'pendente').length} pendentes`,
+      sub: `${reservations.filter(r => r.entrada === today).length} reservas hoje`,
       icon: '↪',
-      color: 'green',
+      visual: 'neutral',
       action: () => setTab('recepcao')
     },
     {
-      label: 'Check-outs hoje',
-      value: checkoutsHoje,
+      label: 'Saídas hoje',
+      value: saidasHoje,
       sub: 'previstos para hoje',
       icon: '↩',
-      color: 'orange',
+      visual: 'neutral',
       action: () => setTab('recepcao')
     },
     {
@@ -1199,7 +1462,7 @@ function Dashboard({ rooms, clients, reservations, payments, setTab }) {
       value: BRL.format(receitaDia),
       sub: `${payments.filter(p => p.tipo === 'recebimento' && p.data === today).length} pagamentos`,
       icon: '$',
-      color: 'purple',
+      visual: 'neutral',
       action: () => setTab('financeiro')
     }
   ]
@@ -1207,9 +1470,7 @@ function Dashboard({ rooms, clients, reservations, payments, setTab }) {
   const quickActions = [
     ['▣', 'Nova reserva', 'reservas'],
     ['↪', 'Check-in', 'recepcao'],
-    ['↩', 'Check-out', 'recepcao'],
-    ['☑', 'Pré check-in', 'precheckin'],
-    ['▭', 'Ver quartos', 'quartos'],
+    ['↩', 'Saída', 'recepcao'],
     ['$', 'Caixa diário', 'caixa']
   ]
 
@@ -1220,7 +1481,7 @@ function Dashboard({ rooms, clients, reservations, payments, setTab }) {
           <h2>Olá, Administrador</h2>
           <p>Resumo operacional do Hotel Brisas</p>
         </div>
-        <div className="dashboard-date-pill">
+        <div className="dashboard-date-tag">
           <span>▣</span>
           <b>{today.split('-').reverse().join('/')}</b>
         </div>
@@ -1228,7 +1489,7 @@ function Dashboard({ rooms, clients, reservations, payments, setTab }) {
 
       <div className="clean-metrics-grid">
         {metricCards.map(card => (
-          <button key={card.label} className={`clean-metric-card ${card.color}`} onClick={card.action}>
+          <button key={card.label} className="clean-metric-card" onClick={card.action}>
             <div className="clean-metric-icon">{card.icon}</div>
             <div>
               <small>{card.label}</small>
@@ -1260,7 +1521,7 @@ function Dashboard({ rooms, clients, reservations, payments, setTab }) {
 
             {recentes.map((item, index) => (
               <div className="activity-row" key={`${item.title}-${index}`}>
-                <div className={`activity-icon ${item.color}`}>{item.icon}</div>
+                <div className="activity-icon">{item.icon}</div>
                 <div>
                   <b>{item.title}</b>
                   <span>{item.desc}</span>
@@ -1296,61 +1557,27 @@ function Dashboard({ rooms, clients, reservations, payments, setTab }) {
 
 
 function Painel({ dates, periodStart, setPeriodStart, periodDays, setPeriodDays, groupByType, setGroupByType, roomTypes, rooms, reservations, blocks, expandedTypes, setExpandedTypes, setSelectedReserva, setBlockModal, clientOf, moveReservation, dragSelection, setDragSelection, createReservationByDrag }) {
-  const boardRef = useRef(null)
-  const rulerRef = useRef(null)
-  const premiumScrollRef = useRef(null)
-  const [premiumScrollWidth, setPremiumScrollWidth] = useState(0)
+  const [zoom, setZoom] = useState('normal')
   const [onlyProblems, setOnlyProblems] = useState(false)
-  const activeReservations = reservations.filter(r => !['cancelada', 'checkout'].includes(r.status))
+  const rulerRef = useRef(null)
+  const boardRef = useRef(null)
+  const [premiumScrollMax, setPremiumScrollMax] = useState(0)
+  const [premiumScrollLeft, setPremiumScrollLeft] = useState(0)
+  const activeReservations = reservations
   const groups = groupByType ? roomTypes.map(t => ({ id: t.id, nome: t.nome, rooms: rooms.filter(q => q.tipoId === t.id) })).filter(g => g.rooms.length) : [{ id: 'todos', nome: 'Todos os quartos', rooms }]
-  const isOccupied = (q, d) => activeReservations.some(r => r.quartoId === q.id && dateToSlot(d, 0) < reservationEndSlot(r) && dateToSlot(d, 1) + 1 > reservationStartSlot(r))
+  const isOccupied = (q, d) => [ROOM_STATUS.RESERVED, ROOM_STATUS.OCCUPIED, ROOM_STATUS.CHECKOUT, ROOM_STATUS.BLOCKED].includes(getRoomStatus(q, activeReservations, d, { blocks }).status)
   const dayOcc = (d) => rooms.length ? Math.round((rooms.filter(q => isOccupied(q, d)).length / rooms.length) * 100) : 0
   const problems = activeReservations.filter(r => !r.quartoId || r.entrada >= r.saida)
 
-  useEffect(() => {
-    function updatePremiumScrollWidth() {
-      const board = boardRef.current
-      if (board) setPremiumScrollWidth(board.scrollWidth)
-    }
-
-    updatePremiumScrollWidth()
-    window.addEventListener('resize', updatePremiumScrollWidth)
-    return () => window.removeEventListener('resize', updatePremiumScrollWidth)
-  }, [dates.length, groupByType, expandedTypes])
-
-  function syncHorizontalScroll(e) {
-    const left = e.currentTarget.scrollLeft
-    ;[boardRef.current, rulerRef.current, premiumScrollRef.current].forEach(el => {
-      if (el && el !== e.currentTarget) el.scrollLeft = left
-    })
+  function roomStatusOn(q, d) {
+    return getRoomStatus(q, activeReservations, d, { blocks })
   }
-
-  useEffect(() => {
-    if (!dragSelection) return
-
-    function autoScrollWhenDragging(e) {
-      const board = boardRef.current
-      if (!board) return
-
-      const rect = board.getBoundingClientRect()
-      const margin = 90
-      const speed = 28
-
-      if (e.clientX > rect.right - margin) board.scrollLeft += speed
-      if (e.clientX < rect.left + margin) board.scrollLeft -= speed
-      if (e.clientY > window.innerHeight - margin) window.scrollBy(0, speed)
-      if (e.clientY < margin) window.scrollBy(0, -speed)
-    }
-
-    window.addEventListener('mousemove', autoScrollWhenDragging)
-    return () => window.removeEventListener('mousemove', autoScrollWhenDragging)
-  }, [dragSelection])
 
   function reservationOn(q, d) {
-    return activeReservations.find(r => r.quartoId === q.id && dateToSlot(d, 0) < reservationEndSlot(r) && dateToSlot(d, 1) + 1 > reservationStartSlot(r))
+    return roomStatusOn(q, d).reservation
   }
   function blockOn(q, d) {
-    return blocks.find(b => b.quartoId === q.id && dateToSlot(d, 0) < blockEndSlot(b) && dateToSlot(d, 1) + 1 > blockStartSlot(b))
+    return roomStatusOn(q, d).block
   }
 
   function halfFromEvent(e) {
@@ -1377,6 +1604,8 @@ function Painel({ dates, periodStart, setPeriodStart, periodDays, setPeriodDays,
   }
 
   function startCellSelection(q, d, e) {
+    if (e.button !== 0) return
+    if (e.target?.closest?.('.reservation-item, .manual-block')) return
     const half = halfFromEvent(e)
     if (halfHasReservation(q, d, half) || halfHasBlock(q, d, half)) return
     const slot = dateToSlot(d, half)
@@ -1385,8 +1614,13 @@ function Painel({ dates, periodStart, setPeriodStart, periodDays, setPeriodDays,
 
   function moveCellSelection(q, d, e) {
     if (!dragSelection || dragSelection.roomId !== q.id) return
+    if (e.buttons !== 1) return
     const slot = dateToSlot(d, halfFromEvent(e))
     setDragSelection({ ...dragSelection, endSlot: slot })
+  }
+
+  function cancelCellSelection() {
+    if (dragSelection) setDragSelection(null)
   }
 
   function finishCellSelection(q, d, e) {
@@ -1404,21 +1638,55 @@ function Painel({ dates, periodStart, setPeriodStart, periodDays, setPeriodDays,
     createReservationByDrag(q.id, current.startSlot, current.endSlot)
   }
 
+  function updatePremiumScrollLimit() {
+    const board = boardRef.current
+    if (!board) return
+    setPremiumScrollMax(Math.max(0, board.scrollWidth - board.clientWidth))
+    setPremiumScrollLeft(board.scrollLeft || 0)
+  }
+
+  function syncPremiumScroll(left) {
+    const next = Math.max(0, Number(left) || 0)
+    if (boardRef.current && Math.abs(boardRef.current.scrollLeft - next) > 1) boardRef.current.scrollLeft = next
+    if (rulerRef.current && Math.abs(rulerRef.current.scrollLeft - next) > 1) rulerRef.current.scrollLeft = next
+    setPremiumScrollLeft(next)
+  }
+
+  useEffect(() => {
+    updatePremiumScrollLimit()
+    window.addEventListener('resize', updatePremiumScrollLimit)
+    return () => window.removeEventListener('resize', updatePremiumScrollLimit)
+  }, [dates.length, periodDays, groupByType, zoom, rooms.length, activeReservations.length])
+
+  useEffect(() => {
+    const clearSelection = () => setDragSelection(null)
+    window.addEventListener('mouseup', clearSelection)
+    window.addEventListener('blur', clearSelection)
+    return () => {
+      window.removeEventListener('mouseup', clearSelection)
+      window.removeEventListener('blur', clearSelection)
+    }
+  }, [setDragSelection])
+
   return <section className="panel-card painel-profissional">
-    <div className="card-head sticky-head"><div><h3>Painel de reservas profissional</h3><p className="hint">Visual por período, agrupado por categoria. Arraste uma reserva para outro quarto livre no mesmo período.</p></div><div className="actions"><button onClick={()=>setOnlyProblems(!onlyProblems)}>{onlyProblems?'Ver todos':'Ver conflitos'}</button><button className="primary" onClick={() => setBlockModal({quartoId: rooms[0]?.id || '', inicio: periodStart, fim: addDays(periodStart,1), motivo: ''})}>Bloquear dia</button></div></div>
-    <div className="timeline-tools"><label>Início<input type="date" value={periodStart} onChange={e=>setPeriodStart(e.target.value)}/></label><label>Dias<select value={periodDays} onChange={e=>setPeriodDays(e.target.value)}><option>7</option><option>14</option><option>21</option><option>30</option><option>45</option></select></label><label className="switch"><input type="checkbox" checked={groupByType} onChange={e=>setGroupByType(e.target.checked)}/> Agrupar por tipo</label></div>
-    <div className="premium-horizontal-scroll" ref={premiumScrollRef} onScroll={syncHorizontalScroll} aria-label="Mover painel de reservas para os lados"><div className="premium-horizontal-scroll-inner" style={{ width: premiumScrollWidth || (145 + dates.length * 68) }}></div></div>
-    <div className="occupancy-ruler" ref={rulerRef} onScroll={syncHorizontalScroll}><div className="occ-spacer" aria-hidden="true"></div>{dates.map(d=><div key={d} className="occ-day"><b>{dayOcc(d)}%</b><i style={{height:`${Math.max(8, dayOcc(d))}%`}}></i></div>)}</div>
+    <div className="card-head sticky-head"><div><h3>Painel de reservas profissional</h3><p className="hint">Visual por período, agrupado por categoria. Arraste uma reserva para outro quarto no mesmo período.</p></div><div className="actions"><button onClick={()=>setOnlyProblems(!onlyProblems)}>{onlyProblems?'Ver todos':'Ver conflitos'}</button><button className="primary" onClick={() => setBlockModal({quartoId: rooms[0]?.id || '', inicio: periodStart, fim: addDays(periodStart,1), motivo: ''})}>Bloquear dia</button></div></div>
+    <div className="timeline-tools"><label>Início<input type="date" value={periodStart} onChange={e=>setPeriodStart(e.target.value)}/></label><label>Dias<select value={periodDays} onChange={e=>setPeriodDays(e.target.value)}><option>7</option><option>14</option><option>21</option><option>30</option><option>45</option></select></label><label>Visual<select value={zoom} onChange={e=>setZoom(e.target.value)}><option value="compacto">Compacto</option><option value="normal">Normal</option><option value="grande">Grande</option></select></label><label className="switch"><input type="checkbox" checked={groupByType} onChange={e=>setGroupByType(e.target.checked)}/> Agrupar por tipo</label></div>
+    <div className="occupancy-ruler" ref={rulerRef} onScroll={e=>syncPremiumScroll(e.currentTarget.scrollLeft)}>{dates.map(d=><div key={d} className="occ-day"><b>{dayOcc(d)}%</b><span>{d.slice(5).split('-').reverse().join('/')}</span><i style={{height:`${Math.max(8, dayOcc(d))}%`}}></i></div>)}</div>
     {onlyProblems && <div className="info-box"><b>Conflitos encontrados:</b> {problems.length || 'nenhum'}. Reservas sem quarto, datas invertidas ou sobrepostas aparecem aqui quando existirem.</div>}
-    <div className="reservation-board normal" ref={boardRef} onScroll={syncHorizontalScroll}>
+    <div className="premium-board-scroll" aria-label="Mover painel de reservas para os lados">
+      <button type="button" onClick={()=>syncPremiumScroll(premiumScrollLeft - 220)}>‹</button>
+      <input type="range" min="0" max={premiumScrollMax} value={Math.min(premiumScrollLeft, premiumScrollMax)} onChange={e=>syncPremiumScroll(e.target.value)} />
+      <button type="button" onClick={()=>syncPremiumScroll(premiumScrollLeft + 220)}>›</button>
+    </div>
+    <div className={`reservation-board ${zoom}`} ref={boardRef} onScroll={e=>syncPremiumScroll(e.currentTarget.scrollLeft)}>
       <div className="board-header"><div className="room-col">Quarto / tipo</div>{dates.map(d=><div className="date-col" key={d}><b>{new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','')}</b><span>{d.slice(8)}/{d.slice(5,7)}</span></div>)}</div>
       {groups.map(g => <div className="type-group" key={g.id}>
         <button className="type-row" onClick={()=>setExpandedTypes({...expandedTypes, [g.id]: !expandedTypes[g.id]})}><b>{g.nome}</b><span>{g.rooms.length} quartos · {activeReservations.filter(r=>g.rooms.some(q=>q.id===r.quartoId)).length} reservas</span></button>
-        {(expandedTypes[g.id] !== false) && g.rooms.map(q => <div className="board-row" key={q.id} onDragOver={e=>e.preventDefault()} onDrop={e=>moveReservation(e.dataTransfer.getData('text/reserva'), q.id)}>
+        {(expandedTypes[g.id] !== false) && g.rooms.map(q => <div className="board-row" key={q.id} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); const reservaId = readReservationDragId(e); if (reservaId) moveReservation(reservaId, q.id)}}>
           <div className="room-col"><b>{q.numero}</b><span>{q.andar}</span></div>
-          {dates.map(d => { const r = reservationOn(q,d); const b = blockOn(q,d); const isStart = r && slotToDate(reservationStartSlot(r)) === d; const selectedFirst = isSelectedHalf(q,d,0); const selectedSecond = isSelectedHalf(q,d,1); const halfReservation = (half) => r && dateToSlot(d, half) < reservationEndSlot(r) && (dateToSlot(d, half) + 1) > reservationStartSlot(r); const firstBusy = halfReservation(0); const secondBusy = halfReservation(1); return <div className={`date-col cell half-cell ${(selectedFirst || selectedSecond) ? 'cell-selected' : ''}`} key={d} onMouseDown={(e)=>startCellSelection(q,d,e)} onMouseEnter={(e)=>moveCellSelection(q,d,e)} onMouseUp={(e)=>finishCellSelection(q,d,e)} onDoubleClick={()=>setBlockModal({quartoId:q.id,inicio:d,fim:addDays(d,1),motivo:'Bloqueio manual'})}>
+          {dates.map(d => { const statusInfo = roomStatusOn(q,d); const r = statusInfo.reservation; const b = statusInfo.block; const isStart = r && slotToDate(reservationStartSlot(r)) === d; const selectedFirst = isSelectedHalf(q,d,0); const selectedSecond = isSelectedHalf(q,d,1); const halfReservation = (half) => r && dateToSlot(d, half) < reservationEndSlot(r) && (dateToSlot(d, half) + 1) > reservationStartSlot(r); return <div className={`date-col cell half-cell ${statusInfo.statusClass} ${(selectedFirst || selectedSecond) ? 'cell-selected' : ''}`} data-room-status={statusInfo.status} key={d} onMouseDown={(e)=>startCellSelection(q,d,e)} onMouseEnter={(e)=>moveCellSelection(q,d,e)} onMouseUp={(e)=>finishCellSelection(q,d,e)} onDoubleClick={()=>setBlockModal({quartoId:q.id,inicio:d,fim:addDays(d,1),motivo:'Período manual'})}>
             <div className={`half-zone left ${selectedFirst ? 'half-selected' : ''}`}></div><div className={`half-zone right ${selectedSecond ? 'half-selected' : ''}`}></div>
-            {r ? <button draggable onDragStart={e=>e.dataTransfer.setData('text/reserva', r.id)} onClick={()=>setSelectedReserva(r)} className={`booking-chip ${r.status} ${isStart?'start':''} ${firstBusy && !secondBusy ? 'half-left' : !firstBusy && secondBusy ? 'half-right' : ''}`}>{isStart ? <><b>{r.codigo}</b><span>{clientOf(r).nome.split(' ')[0]}</span></> : '→'}</button> : b ? <span className="block-chip">Bloq.</span> : <span className="free-dot">·</span>}</div>})}
+            {r ? <button draggable onDragStart={e=>writeReservationDragId(e, r.id)} onClick={()=>setSelectedReserva(r)} className={`reservation-item ${statusInfo.statusClass}`}>{isStart ? <><b>{r.codigo}</b><span>{clientOf(r).nome.split(' ')[0]}</span></> : '→'}</button> : b ? <span className={`manual-block ${statusInfo.statusClass}`}>—</span> : <span className="free-dot">·</span>}</div>})}
         </div>)}
       </div>)}
     </div>
@@ -1433,7 +1701,7 @@ function Reservas({ newReservation, setNewReservation, roomTypes, availableRooms
       <label>Canal de venda<select value={newReservation.canal} onChange={e=>setNewReservation({...newReservation, canal:e.target.value})}><option>Direto</option><option>WhatsApp</option><option>Telefone</option><option>Booking</option></select></label>
       <label>Agência/origem<input value={newReservation.origem} onChange={e=>setNewReservation({...newReservation, origem:e.target.value})}/></label>
       <label>Tipo de quarto<select value={newReservation.tipoId} onChange={e=>{const t=roomTypes.find(x=>x.id===e.target.value);setNewReservation({...newReservation,tipoId:e.target.value, diaria:t?.diaria||0, quartoId:''})}}>{roomTypes.map(t=><option key={t.id} value={t.id}>{t.nome}</option>)}</select></label>
-      <label>Quarto disponível<select value={newReservation.quartoId} onChange={e=>setNewReservation({...newReservation, quartoId:e.target.value})}><option value="">Selecione</option>{quartosDisponiveis.map(q=><option key={q.id} value={q.id}>Quarto {q.numero} - {q.andar}</option>)}</select></label>
+      <label>Quarto<select value={newReservation.quartoId} onChange={e=>setNewReservation({...newReservation, quartoId:e.target.value})}><option value="">Selecione</option>{quartosDisponiveis.map(q=><option key={q.id} value={q.id}>Quarto {q.numero} - {q.andar}</option>)}</select></label>
       <label>Entrada<input type="date" value={newReservation.entrada} onChange={e=>setNewReservation({...newReservation, entrada:e.target.value, quartoId:''})}/></label>
       <label>Saída<input type="date" value={newReservation.saida} onChange={e=>setNewReservation({...newReservation, saida:e.target.value, quartoId:''})}/></label>
       <label>Adultos<input type="number" value={newReservation.adultos} onChange={e=>setNewReservation({...newReservation, adultos:e.target.value})}/></label>
@@ -1447,27 +1715,49 @@ function Reservas({ newReservation, setNewReservation, roomTypes, availableRooms
         tipoId: 'triplo', quartoId: '', clienteId: '', nome: '', cpf: '', telefone: '', email: '',
         entrada: todayISO(), saida: addDays(todayISO(), 1), adultos: 2, criancas: 0, diaria: 300, canal: 'Direto', origem: 'Direto - recepção', observacao: ''
       })}>Descartar</button><button type="button" className="primary" onClick={(e) => saveReservation(e)}>Reservar</button></div><p className="hint">Regra: o check-in só libera quando o saldo da reserva estiver pago.</p></div>
-    <div className="panel-card"><h3>Lista de reservas</h3><table className="data-table"><thead><tr><th>Código</th><th>Cliente</th><th>Quarto</th><th>Saldo</th><th>Status</th><th>Ações</th></tr></thead><tbody>{reservations.map(r=><tr key={r.id}><td>{r.codigo}</td><td>{clientOf(r).nome}</td><td>{roomOf(r.quartoId).numero}</td><td>{BRL.format(balance(r))}</td><td><span className={`pill ${r.status}`}>{r.status}</span></td><td><button onClick={()=>setSelectedReserva(r)}>Abrir</button><button onClick={()=>setReceiveReserva(r)}>Receber</button><button onClick={()=>doCheckin(r)}>Check-in</button></td></tr>)}</tbody></table></div>
+    <div className="panel-card"><h3>Lista de reservas</h3><table className="data-table"><thead><tr><th>Código</th><th>Cliente</th><th>Quarto</th><th>Saldo</th><th>Ações</th></tr></thead><tbody>{reservations.map(r=><tr key={r.id}><td>{r.codigo}</td><td>{clientOf(r).nome}</td><td>{roomOf(r.quartoId).numero}</td><td>{BRL.format(balance(r))}</td><td><button onClick={()=>setSelectedReserva(r)}>Abrir</button><button onClick={()=>setReceiveReserva(r)}>Receber</button><button onClick={()=>doCheckin(r)}>Check-in</button></td></tr>)}</tbody></table></div>
   </section>
 }
 
-function Recepcao({ rooms, roomTypes, reservations, roomStatus, clientOf, setSelectedReserva, setSelectedRoom, setBlockModal, moveReservation }) {
+function Recepcao({ rooms, roomTypes, reservations, blocks = [], clientOf, setSelectedReserva, setSelectedRoom, setBlockModal, moveReservation }) {
   const [filtroTipo, setFiltroTipo] = useState('todos')
   const [filtroAndar, setFiltroAndar] = useState('todos')
+  // ETAPA 5 — RECEPÇÃO PASSA A ENXERGAR RESERVAS FUTURAS.
+  // Antes ela calculava só o dia atual. Por isso o bloqueio aparecia,
+  // mas uma reserva criada para os próximos dias podia continuar como "Livre".
+  // A cor continua NÃO sendo salva: ela é calculada aqui pela função central.
+  const selectedDate = todayISO()
+  const receptionEndDate = addDays(selectedDate, 365)
   const andares = [...new Set(rooms.map(q => q.andar))]
   const filtrados = rooms.filter(q => (filtroTipo === 'todos' || q.tipoId === filtroTipo) && (filtroAndar === 'todos' || q.andar === filtroAndar))
   const grupos = andares.map(andar => ({ andar, quartos: filtrados.filter(q => q.andar === andar) })).filter(g => g.quartos.length)
-  const ocupados = rooms.filter(q => roomStatus(q)[0] === 'status-blue').length
-  const futuras = rooms.filter(q => roomStatus(q)[0] === 'status-green').length
-  const verificar = rooms.filter(q => roomStatus(q)[0] === 'status-yellow').length
+
+  function statusLabel(status) {
+    if (status === ROOM_STATUS.RESERVED) return 'Reservado'
+    if (status === ROOM_STATUS.OCCUPIED) return 'Ocupado / check-in'
+    if (status === ROOM_STATUS.CHECKOUT) return 'Verificar saída'
+    if (status === ROOM_STATUS.BLOCKED) return 'Bloqueado'
+    if (status === ROOM_STATUS.MAINTENANCE) return 'Manutenção'
+    return 'Livre'
+  }
 
   return <section className="panel-card recepcao-fast">
-    <div className="card-head"><div><h3>Mapa visual de quartos</h3><p className="hint">Clique no quarto ocupado/reservado para abrir a reserva. Arraste uma reserva do painel para trocar de quarto. Dois cliques bloqueia.</p></div><button className="primary" onClick={() => setBlockModal({quartoId: rooms[0]?.id || '', inicio: todayISO(), fim: addDays(todayISO(),1), motivo: ''})}>Bloquear quarto</button></div>
-    <div className="fast-status-strip"><div><b>{rooms.length}</b><span>Total</span></div><div><b>{ocupados}</b><span>Alugados</span></div><div><b>{futuras}</b><span>Reservas futuras</span></div><div><b>{verificar}</b><span>Verificar saída</span></div><div><b>{rooms.length - ocupados - futuras - verificar}</b><span>Disponíveis</span></div></div>
+    <div className="card-head"><div><h3>Mapa visual de quartos</h3><p className="hint">Etapa 5: Recepção sincronizada com reservas futuras. A cor é calculada por reservations + bloqueios, sem salvar cor no quarto.</p></div><button className="primary" onClick={() => setBlockModal({quartoId: rooms[0]?.id || '', inicio: todayISO(), fim: addDays(todayISO(),1), motivo: ''})}>Marcar período</button></div>
     <div className="filters-line"><label>Tipo de quarto<select value={filtroTipo} onChange={e=>setFiltroTipo(e.target.value)}><option value="todos">Todos</option>{roomTypes.map(t=><option key={t.id} value={t.id}>{t.nome}</option>)}</select></label><label>Andar<select value={filtroAndar} onChange={e=>setFiltroAndar(e.target.value)}><option value="todos">Todos</option>{andares.map(a=><option key={a}>{a}</option>)}</select></label></div>
-    <div className="legend"><span className="box status-free"></span> Disponível <span className="box status-green"></span> Reserva futura <span className="box status-blue"></span> Alugado/Check-in <span className="box status-yellow"></span> Verificar saída <span className="box status-orange"></span> Manutenção <span className="box status-green"></span> Bloqueado</div>
+    <div className="reception-status-legend"><span className="legend-free">Livre</span><span className="legend-reserved">Reservado</span><span className="legend-occupied">Ocupado</span><span className="legend-checkout">Verificar saída</span><span className="legend-maintenance">Manutenção</span><span className="legend-blocked">Bloqueado</span></div>
     {grupos.map(g => <div className="floor-section" key={g.andar}><h4>{g.andar}</h4><div className="rooms-grid fast-map">
-      {g.quartos.map(q => { const [cls, label] = roomStatus(q); const r = reservations.find(x => x.quartoId === q.id && !['cancelada','checkout'].includes(x.status)); return <button key={q.id} className={`room-card ${cls}`} onDragOver={e=>e.preventDefault()} onDrop={e=>moveReservation(e.dataTransfer.getData('reservaId'), q.id)} onClick={()=> r ? setSelectedReserva(r) : setSelectedRoom(q)} onDoubleClick={()=>setBlockModal({quartoId:q.id,inicio:todayISO(),fim:addDays(todayISO(),1),motivo:''})}><strong>{q.numero}</strong><small>{q.tipo}</small><span>{label}</span>{r && <em>{r.codigo} · {clientOf(r).nome.split(' ')[0]}</em>}</button>})}
+      {g.quartos.map(q => {
+        const statusInfo = getRoomStatus(q, reservations, selectedDate, { blocks, endDate: receptionEndDate })
+        const r = statusInfo.reservation
+        const b = statusInfo.block
+        return <button key={q.id} className={`room-card reception-room ${statusInfo.statusClass}`} data-room-status={statusInfo.status} draggable={Boolean(r)} onDragStart={e=>r && writeReservationDragId(e, r.id)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); const reservaId = readReservationDragId(e); if (reservaId) moveReservation(reservaId, q.id)}} onClick={()=> r ? setSelectedReserva(r) : setSelectedRoom(q)} onDoubleClick={()=>setBlockModal({quartoId:q.id,inicio:todayISO(),fim:addDays(todayISO(),1),motivo:''})}>
+          <strong>{q.numero}</strong>
+          <small>{q.tipo}</small>
+          <span className="room-status-text">{statusLabel(statusInfo.status)}</span>
+          {r && <em>{r.codigo} · {clientOf(r).nome.split(' ')[0]}</em>}
+          {!r && b && <em>{b.motivo || 'Período manual'}</em>}
+        </button>
+      })}
     </div></div>)}
   </section>
 }
@@ -1478,301 +1768,138 @@ function Clientes({ clients, newClient, setNewClient, saveClient, reservations }
 
 
 function Hospedes({ reservations, guests, setGuests, clientOf, roomOf, logAction, notify }) {
-  const reservasAtivas = reservations.filter(r => !['cancelada', 'checkout'].includes(r.status))
-  const [form, setForm] = useState({ reservaId: '', nome: '', documento: '', nascimento: '', telefone: '', endereco: '', tipo: 'Acompanhante', observacao: '' })
+  const reservasAtivas = reservations
+  const [form, setForm] = useState({ reservaId: '', nome: '', documento: '', nascimento: '', telefone: '', endereco: '', email: '', tipo: 'Acompanhante', observacao: '' })
   const reserva = reservasAtivas.find(r => r.id === form.reservaId)
-  function saveGuest() {
+
+  async function saveGuest() {
     if (!form.reservaId) return notify('Selecione a reserva para vincular o hóspede.')
     if (!form.nome.trim()) return notify('Informe o nome completo do hóspede.')
-    if (!form.documento.trim()) return notify('Informe o documento com foto do hóspede.')
-    if (!form.nascimento) return notify('Informe a data de nascimento do hóspede.')
-    const novo = { id: id(), ...form, criadoEm: todayISO() }
+    if (!form.telefone.trim()) return notify('Informe o telefone/WhatsApp do hóspede.')
+    if (!form.endereco.trim()) return notify('Informe o endereço do hóspede.')
+
+    const novo = { id: id(), ...form, reservaCodigo: reserva?.codigo || '', criadoEm: todayISO() }
     setGuests([novo, ...guests])
-    setForm({ reservaId: form.reservaId, nome: '', documento: '', nascimento: '', telefone: '', endereco: '', tipo: 'Acompanhante', observacao: '' })
+
+    try {
+      const { error } = await supabase
+        .from('hospedes')
+        .insert({
+          reserva_id: String(form.reservaId || ''),
+          reserva_codigo: String(reserva?.codigo || ''),
+          nome_completo: form.nome.trim(),
+          telefone: form.telefone.trim(),
+          endereco: form.endereco.trim(),
+          email: form.email || null,
+          origem: 'cadastro_manual',
+        })
+
+      if (error) console.warn('Falha ao salvar hóspede no Supabase.', error)
+    } catch (error) {
+      console.warn('Falha ao conectar hóspede ao Supabase.', error)
+    }
+
+    setForm({ reservaId: form.reservaId, nome: '', documento: '', nascimento: '', telefone: '', endereco: '', email: '', tipo: 'Acompanhante', observacao: '' })
     logAction('Hóspede vinculado', `${novo.nome} vinculado à reserva ${reserva?.codigo || novo.reservaId}.`)
     notify('Hóspede vinculado à reserva.')
   }
+
   return <section className="grid-two">
-    <div className="panel-card"><h3>Cadastro de hóspedes por reserva</h3><p className="hint">Use para registrar contratante, acompanhantes e documentos obrigatórios. O pré check-in também pode trazer esses dados.</p><div className="form-grid">
+    <div className="panel-card"><h3>Cadastro de hóspedes por reserva</h3><p className="hint">Use para registrar contratante, acompanhantes e dados recebidos pelo pré check-in.</p><div className="form-grid">
       <label>Reserva<select value={form.reservaId} onChange={e=>setForm({...form,reservaId:e.target.value})}><option value="">Selecione</option>{reservasAtivas.map(r=><option key={r.id} value={r.id}>{r.codigo} - {clientOf(r).nome} - quarto {roomOf(r.quartoId).numero}</option>)}</select></label>
       <label>Tipo<select value={form.tipo} onChange={e=>setForm({...form,tipo:e.target.value})}><option>Contratante</option><option>Acompanhante</option><option>Criança</option><option>Visitante</option></select></label>
       <label>Nome completo<input value={form.nome} onChange={e=>setForm({...form,nome:e.target.value})}/></label>
-      <label>Documento com foto<input value={form.documento} onChange={e=>setForm({...form,documento:e.target.value})} placeholder="RG, CPF, CNH ou passaporte"/></label>
-      <label>Data de nascimento<input type="date" value={form.nascimento} onChange={e=>setForm({...form,nascimento:e.target.value})}/></label>
-      <label>Telefone<input value={form.telefone} onChange={e=>setForm({...form,telefone:e.target.value})}/></label>
+      <label>Telefone/WhatsApp<input value={form.telefone} onChange={e=>setForm({...form,telefone:e.target.value})}/></label>
       <label className="full">Endereço<input value={form.endereco} onChange={e=>setForm({...form,endereco:e.target.value})}/></label>
+      <label className="full">E-mail opcional<input value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label>
+      <label>Documento opcional<input value={form.documento} onChange={e=>setForm({...form,documento:e.target.value})} placeholder="RG, CPF, CNH ou passaporte"/></label>
+      <label>Data de nascimento opcional<input type="date" value={form.nascimento} onChange={e=>setForm({...form,nascimento:e.target.value})}/></label>
       <label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label>
     </div><button className="primary" onClick={saveGuest}>Vincular hóspede</button></div>
-    <div className="panel-card"><h3>Hóspedes cadastrados</h3><table className="data-table"><thead><tr><th>Reserva</th><th>Quarto</th><th>Nome</th><th>Documento</th><th>Tipo</th></tr></thead><tbody>{guests.length ? guests.map(g=>{const r=reservations.find(x=>x.id===g.reservaId);return <tr key={g.id}><td>{r?.codigo || '-'}</td><td>{r ? roomOf(r.quartoId).numero : '-'}</td><td><b>{g.nome}</b></td><td>{g.documento}</td><td>{g.tipo}</td></tr>}) : <tr><td colSpan="5">Nenhum hóspede cadastrado ainda.</td></tr>}</tbody></table></div>
+    <div className="panel-card"><h3>Hóspedes cadastrados</h3><table className="data-table"><thead><tr><th>Reserva</th><th>Quarto</th><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Origem</th></tr></thead><tbody>{guests.length ? guests.map(g=>{const r=reservations.find(x=>x.id===g.reservaId || x.codigo===g.reservaCodigo);return <tr key={g.id}><td>{r?.codigo || g.reservaCodigo || g.reserva_codigo || '-'}</td><td>{r ? roomOf(r.quartoId).numero : '-'}</td><td><b>{g.nome || g.nomeCompleto || g.nome_completo}</b></td><td>{g.telefone || '-'}</td><td>{g.email || '-'}</td><td>{g.origem === 'pre_checkin' ? 'Pré check-in' : (g.tipo || 'Manual')}</td></tr>}) : <tr><td colSpan="6">Nenhum hóspede cadastrado ainda.</td></tr>}</tbody></table></div>
   </section>
 }
 
-function PreCheckin({ preBusca, setPreBusca, reservations, precheckins, clientOf, createPrecheckin }) {
-  const reserva = reservations.find(r => r.codigo === preBusca.trim())
-  return <section className="grid-two"><div className="panel-card"><h3>Pré check-in por número da reserva</h3><div className="search-reserva"><input value={preBusca} onChange={e=>setPreBusca(e.target.value)} placeholder="Digite o número da reserva" /></div>{reserva ? <div className="pre-box"><h3>Reserva {reserva.codigo}</h3><p>{clientOf(reserva).nome}</p><p>Obrigatório para o cliente: nome completo, selfie, documento com foto, endereço, data de nascimento e observação.</p><button className="primary" onClick={()=>createPrecheckin(reserva)}>Enviar link pelo WhatsApp</button></div> : <p className="hint">Digite o código para localizar a reserva.</p>}</div><div className="panel-card"><h3>Links enviados</h3><table className="data-table"><thead><tr><th>Reserva</th><th>Status</th><th>Link</th><th>Data</th></tr></thead><tbody>{precheckins.length ? precheckins.map(p=><tr key={p.id}><td>{p.codigo}</td><td><span className={`pill ${p.status === 'preenchido' ? 'hospedado' : 'confirmada'}`}>{p.status}</span></td><td><input value={p.link} readOnly onFocus={e=>e.target.select()} /></td><td>{p.data}</td></tr>) : <tr><td colSpan="4">Nenhum link enviado.</td></tr>}</tbody></table></div></section>
-}
-
-function PublicPreCheckin({ tokenParam, precheckins, setPrecheckins, reservations, clients }) {
-  const item = precheckins.find(p => `${p.codigo}-${p.token}` === tokenParam)
-  const reserva = reservations.find(r => r.id === item?.reservaId)
+function PublicPreCheckin({ tokenParam, guests = [], setGuests, reservations, clients }) {
+  const parsed = parsePrecheckinTokenParam(tokenParam)
+  const reserva = reservations.find(r => r.codigo === parsed.codigo)
   const cliente = clients.find(c => c.id === reserva?.clienteId)
-  const [form, setForm] = useState({
-    nomeCompleto: item?.nomeCompleto || cliente?.nome || '',
-    documentoFoto: item?.documentoFoto || '',
-    endereco: item?.endereco || cliente?.endereco || '',
-    nascimento: item?.nascimento || cliente?.nascimento || '',
-    selfie: item?.selfie || '',
-    observacao: item?.observacao || ''
-  })
+  const reservaCodigo = reserva?.codigo || parsed.codigo || ''
+  const reservaId = reserva?.id || ''
   const [sent, setSent] = useState(false)
+  const [form, setForm] = useState({
+    nomeCompleto: cliente?.nome || '',
+    telefone: cliente?.telefone || '',
+    endereco: cliente?.endereco || '',
+    email: cliente?.email || '',
+  })
 
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault()
-    if (!item) return
-    if (!form.nomeCompleto.trim() || !form.documentoFoto.trim() || !form.endereco.trim() || !form.nascimento) return alert('Preencha nome, documento, endereço e data de nascimento.')
-    setPrecheckins(precheckins.map(p => p.id === item.id ? { ...p, ...form, status: 'preenchido', preenchidoEm: new Date().toISOString() } : p))
-    setSent(true)
+    const nomeCompleto = form.nomeCompleto.trim()
+    const telefone = form.telefone.trim()
+    const endereco = form.endereco.trim()
+    const email = form.email.trim()
+
+    if (!nomeCompleto || !telefone || !endereco) {
+      alert('Preencha nome completo, telefone/WhatsApp e endereço.')
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('hospedes')
+        .insert({
+          reserva_id: String(reservaId || ''),
+          reserva_codigo: String(reservaCodigo || ''),
+          nome_completo: nomeCompleto,
+          telefone,
+          endereco,
+          email: email || null,
+          origem: 'pre_checkin',
+        })
+        .select('*')
+        .maybeSingle()
+
+      if (error) throw error
+
+      const novoHospede = data ? mapSupabaseHospede(data) : {
+        id: id(),
+        reservaId,
+        reservaCodigo,
+        nome: nomeCompleto,
+        telefone,
+        endereco,
+        email,
+        origem: 'pre_checkin',
+        tipo: 'Contratante',
+        criadoEm: todayISO(),
+      }
+
+      if (setGuests) setGuests([novoHospede, ...guests])
+      setSent(true)
+    } catch (error) {
+      console.warn('Falha ao salvar hóspede no Supabase.', error)
+      alert('Não foi possível salvar agora. Tente novamente em alguns segundos.')
+    }
   }
 
-  if (!item || !reserva) return <main className="login-page"><div className="login-card"><h2>Pré check-in não encontrado</h2><p className="hint">Confira se o link recebido está completo.</p></div></main>
-  if (sent) return <main className="login-page"><div className="login-card"><h2>Pré check-in enviado</h2><p>Obrigado. Seus dados foram registrados para a reserva {reserva.codigo}.</p></div></main>
+  if (sent) return <main className="login-page"><div className="login-card public-precheckin"><h2>Pré check-in enviado</h2><p>Obrigado. Seus dados foram registrados{reservaCodigo ? ` para a reserva ${reservaCodigo}` : ''}.</p></div></main>
 
-  return <main className="login-page"><form className="login-card public-precheckin" onSubmit={submit}>
-    <h2>Pré check-in · Reserva {reserva.codigo}</h2>
-    <p className="hint">Quarto {reserva.quartoId} · entrada {reserva.entrada} · saída {reserva.saida}</p>
-    <label>Nome completo*<input value={form.nomeCompleto} onChange={e=>setForm({...form,nomeCompleto:e.target.value})} /></label>
-    <label>Documento com foto*<input value={form.documentoFoto} onChange={e=>setForm({...form,documentoFoto:e.target.value})} placeholder="RG, CPF, CNH ou passaporte" /></label>
-    <label>Endereço completo*<input value={form.endereco} onChange={e=>setForm({...form,endereco:e.target.value})} /></label>
-    <label>Data de nascimento*<input type="date" value={form.nascimento} onChange={e=>setForm({...form,nascimento:e.target.value})} /></label>
-    <label>Selfie / link do arquivo<input value={form.selfie} onChange={e=>setForm({...form,selfie:e.target.value})} placeholder="Cole um link da selfie/documento, se houver" /></label>
-    <label>Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label>
-    <button className="primary">Enviar pré check-in</button>
+  return <main className="login-page mobile-precheckin-page"><form className="login-card public-precheckin mobile-precheckin-card" onSubmit={submit}>
+    <h2>Pré check-in</h2>
+    <p>{reservaCodigo ? `Reserva ${reservaCodigo}` : 'Preencha seus dados para agilizar sua chegada.'}</p>
+    <label>Nome completo *</label>
+    <input value={form.nomeCompleto} onChange={e=>setForm({...form, nomeCompleto:e.target.value})} placeholder="Digite seu nome completo" autoComplete="name" />
+    <label>Telefone/WhatsApp *</label>
+    <input value={form.telefone} onChange={e=>setForm({...form, telefone:e.target.value})} placeholder="(00) 00000-0000" autoComplete="tel" inputMode="tel" />
+    <label>Endereço *</label>
+    <input value={form.endereco} onChange={e=>setForm({...form, endereco:e.target.value})} placeholder="Rua, número, bairro, cidade" autoComplete="street-address" />
+    <label>E-mail <span>opcional</span></label>
+    <input value={form.email} onChange={e=>setForm({...form, email:e.target.value})} placeholder="email@exemplo.com" autoComplete="email" inputMode="email" />
+    <button className="primary" type="submit">Enviar pré check-in</button>
   </form></main>
 }
-
-function Quartos({ roomTypes = [], rooms = [], reservations = [], blocks = [], clients = [], consumos = [], payments = [], setConsumos = () => {}, setPayments = () => {}, setSelectedRoom = () => {}, notify = () => {}, logAction = () => {} }) {
-  const [roomAccount, setRoomAccount] = useState(null)
-
-  function tipoNome(room) {
-    return room.tipo || roomTypes.find(t => t.id === room.tipoId)?.nome || 'Quarto'
-  }
-
-  function activeReservation(roomId) {
-    return reservations.find(r => r.quartoId === roomId && ['hospedado','confirmada','pendente'].includes(r.status))
-  }
-
-  function clienteDaReserva(r) {
-    return clients.find(c => c.id === r?.clienteId) || { nome: 'Cliente' }
-  }
-
-  function statusRoom(room) {
-    const r = activeReservation(room.id)
-    const limpeza = String(room.statusLimpeza || room.status || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .trim()
-    const bloqueado = blocks.some(b => b.quartoId === room.id && todayISO() >= b.inicio && todayISO() < b.fim)
-
-    // Prioridade correta dos status da aba Quartos:
-    // manutenção = laranja; bloqueado/reserva futura = verde; verificar saída = amarelo;
-    // hospedado = azul; livre = cinza claro.
-    if (limpeza === 'manutencao' || limpeza === 'manutencao preventiva' || limpeza === 'manutencao corretiva') return 'manutencao'
-    if (bloqueado) return 'bloqueado'
-    if (limpeza === 'verificar' || limpeza === 'verificar saida' || limpeza === 'saida') return 'verificar'
-    if (r?.status === 'hospedado') return 'ocupado'
-    if (r && ['confirmada', 'pendente'].includes(r.status)) return 'reservado'
-    if (limpeza === 'limpeza' || limpeza === 'limpar') return 'limpeza'
-    return 'livre'
-  }
-
-  function consumosReserva(reservaId) {
-    return consumos.filter(c => c.reservaId === reservaId)
-  }
-
-  function totalConsumo(reservaId) {
-    return consumosReserva(reservaId).reduce((s, c) => s + Number(c.qtd || 1) * Number(c.valor || 0), 0)
-  }
-
-  function pagoConsumo(reservaId) {
-    return payments
-      .filter(p => p.reservaId === reservaId && p.tipo === 'recebimento' && String(p.observacao || '').toLowerCase().includes('consumo'))
-      .reduce((s, p) => s + Number(p.valor || 0), 0)
-  }
-
-  function abrirConta(room) {
-    const r = activeReservation(room.id)
-    setRoomAccount({
-      roomId: room.id,
-      reservaId: r?.id || '',
-      item: '',
-      qtd: 1,
-      valor: ''
-    })
-  }
-
-  function adicionarConsumo() {
-    const room = rooms.find(q => q.id === roomAccount.roomId)
-    const reserva = reservations.find(r => r.id === roomAccount.reservaId) || activeReservation(roomAccount.roomId)
-    if (!reserva) return notify('Esse quarto não possui reserva ativa para lançar consumo.')
-    if (!roomAccount.item || !roomAccount.item.trim()) return notify('Informe o item consumido.')
-    const valor = moneyNumber(roomAccount.valor)
-    if (valor <= 0) return notify('Informe o valor do item.')
-    const novo = {
-      id: id(),
-      reservaId: reserva.id,
-      data: todayISO(),
-      item: roomAccount.item.trim(),
-      qtd: Number(roomAccount.qtd || 1),
-      valor
-    }
-    setConsumos([novo, ...consumos])
-    setRoomAccount({ ...roomAccount, item: '', qtd: 1, valor: '' })
-    logAction?.('Consumo lançado no quarto', `${room?.numero}: ${novo.item} x${novo.qtd} - ${BRL.format(valor)}`)
-    notify('Consumo lançado no quarto.')
-  }
-
-  function receberConsumo(reservaId) {
-    const saldo = Math.max(0, totalConsumo(reservaId) - pagoConsumo(reservaId))
-    if (saldo <= 0) return notify('Não há consumo em aberto.')
-    setPayments([{
-      id: id(),
-      reservaId,
-      tipo: 'recebimento',
-      forma: 'PIX',
-      valor: saldo,
-      data: todayISO(),
-      observacao: 'Recebimento de consumo do quarto'
-    }, ...payments])
-    notify('Consumo recebido.')
-  }
-
-  const room = roomAccount ? rooms.find(q => q.id === roomAccount.roomId) : null
-  const reserva = room ? (reservations.find(r => r.id === roomAccount.reservaId) || activeReservation(room.id)) : null
-  const cliente = clienteDaReserva(reserva)
-  const itens = reserva ? consumosReserva(reserva.id) : []
-  const total = reserva ? totalConsumo(reserva.id) : 0
-  const pago = reserva ? pagoConsumo(reserva.id) : 0
-  const saldo = Math.max(0, total - pago)
-
-  const statusText = {
-    livre: 'Livre',
-    reservado: 'Reservado',
-    ocupado: 'Ocupado',
-    limpeza: 'Limpeza',
-    verificar: 'Verificar saída',
-    bloqueado: 'Bloqueado',
-    manutencao: 'Manutenção'
-  }
-
-  return (
-    <section className="panel-card quartos-situacao-page">
-      <div className="quartos-title-line">
-        <div>
-          <h3>Painel de situação atual</h3>
-          <p className="hint">Clique no quarto para abrir conta, ver consumos e lançar itens manualmente.</p>
-        </div>
-        <div className="quartos-legend">
-          <span><i className="q-livre"></i>Livre</span>
-          <span><i className="q-reservado"></i>Reservado</span>
-          <span><i className="q-ocupado"></i>Ocupado</span>
-          <span><i className="q-limpeza"></i>Limpeza</span>
-          <span><i className="q-manutencao"></i>Manutenção</span>
-        </div>
-      </div>
-
-      <div className="quartos-situacao-grid">
-        {rooms.map(room => {
-          const st = statusRoom(room)
-          const r = activeReservation(room.id)
-          const debt = r ? Math.max(0, totalConsumo(r.id) - pagoConsumo(r.id)) : 0
-          return (
-            <button
-              key={room.id}
-              className={`situacao-room-card ${st}`}
-              onClick={() => abrirConta(room)}
-              onDoubleClick={() => setSelectedRoom?.(room)}
-            >
-              <strong>{room.numero}</strong>
-              <span>{tipoNome(room)}</span>
-              <em>{statusText[st]}</em>
-              {r && <small>{r.codigo}</small>}
-              {debt > 0 && <b className="debt-badge">{BRL.format(debt)}</b>}
-            </button>
-          )
-        })}
-      </div>
-
-      {roomAccount && room && (
-        <div className="modal-backdrop">
-          <div className="modal-card quarto-conta-modal">
-            <div className="modal-head">
-              <div>
-                <h3>Quarto {room.numero}</h3>
-                <p>{tipoNome(room)} · {reserva ? `Reserva ${reserva.codigo} — ${cliente.nome}` : 'Sem reserva ativa'}</p>
-              </div>
-              <button className="modal-close" onClick={() => setRoomAccount(null)}>×</button>
-            </div>
-
-            {!reserva && (
-              <div className="empty-room-account">
-                <b>Quarto sem reserva ativa.</b>
-                <span>Para lançar consumo, primeiro crie ou vincule uma reserva ao quarto.</span>
-              </div>
-            )}
-
-            {reserva && (
-              <>
-                <div className="room-account-summary">
-                  <div><small>Total consumido</small><b>{BRL.format(total)}</b></div>
-                  <div><small>Pago</small><b>{BRL.format(pago)}</b></div>
-                  <div className={saldo > 0 ? 'saldo-devedor' : 'saldo-ok'}><small>Saldo</small><b>{BRL.format(saldo)}</b></div>
-                </div>
-
-                <div className="form-grid room-consumo-form">
-                  <label>Item / Produto
-                    <input value={roomAccount.item} onChange={e => setRoomAccount({ ...roomAccount, item: e.target.value })} placeholder="Ex: Água, refrigerante, almoço..." />
-                  </label>
-                  <label>Qtd.
-                    <input type="number" min="1" value={roomAccount.qtd} onChange={e => setRoomAccount({ ...roomAccount, qtd: e.target.value })} />
-                  </label>
-                  <label>Valor unitário
-                    <input value={roomAccount.valor} onChange={e => setRoomAccount({ ...roomAccount, valor: e.target.value })} placeholder="R$" />
-                  </label>
-                </div>
-
-                <div className="actions room-account-actions">
-                  <button onClick={adicionarConsumo}>Adicionar item</button>
-                  {saldo > 0 && <button className="primary" onClick={() => receberConsumo(reserva.id)}>Receber consumo</button>}
-                </div>
-
-                <h4>Itens consumidos no quarto</h4>
-                <table className="data-table">
-                  <thead><tr><th>Data</th><th>Item</th><th>Qtd.</th><th>Valor</th><th>Total</th></tr></thead>
-                  <tbody>
-                    {itens.length === 0 && <tr><td colSpan="5">Nenhum consumo lançado.</td></tr>}
-                    {itens.map(c => (
-                      <tr key={c.id}>
-                        <td>{c.data}</td>
-                        <td>{c.item}</td>
-                        <td>{c.qtd}</td>
-                        <td>{BRL.format(Number(c.valor || 0))}</td>
-                        <td>{BRL.format(Number(c.qtd || 1) * Number(c.valor || 0))}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {saldo > 0 && <div className="checkout-warning">Checkout bloqueado enquanto houver consumo em aberto neste quarto.</div>}
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </section>
-  )
-}
-
 
 function Tarifas({ roomTypes, rateForm, setRateForm, saveRate, rates }) {
   const tipoLabel = rateForm.tipoId === 'todos'
@@ -1965,7 +2092,7 @@ function Servicos({ products = [], productForm = { nome: '', categoria: 'Frigoba
 function Financeiro({ reservations, payments, clients, clientOf, roomOf, setReceiveReserva, setCancelReserva, balance, paidTotal, reservationTotal }) {
   const totalRecebido = payments.filter(p=>p.tipo==='recebimento').reduce((s,p)=>s+Number(p.valor||0),0)
   const totalCredito = clients.reduce((s,c)=>s+Number(c.credito||0),0)
-  return <section className="panel-card"><div className="finance-summary"><div><small>Recebido</small><b>{BRL.format(totalRecebido)}</b></div><div><small>Crédito clientes</small><b>{BRL.format(totalCredito)}</b></div><div><small>Reservas abertas</small><b>{reservations.filter(r=>!['cancelada','checkout'].includes(r.status)).length}</b></div><div><small>Pendências</small><b>{reservations.filter(r=>balance(r)>0&&!['cancelada','checkout'].includes(r.status)).length}</b></div></div><h3>Contas de reserva</h3><table className="data-table"><thead><tr><th>Reserva</th><th>Cliente</th><th>Quarto</th><th>Despesas</th><th>Recebido</th><th>Saldo</th><th>Ações</th></tr></thead><tbody>{reservations.map(r=><tr key={r.id}><td>{r.codigo}</td><td>{clientOf(r).nome}</td><td>{roomOf(r.quartoId).numero}</td><td>{BRL.format(reservationTotal(r))}</td><td>{BRL.format(paidTotal(r.id))}</td><td>{BRL.format(balance(r))}</td><td><button onClick={()=>setReceiveReserva(r)}>Receber</button><button onClick={()=>setCancelReserva(r)}>Cancelar/estornar</button></td></tr>)}</tbody></table><h3>Crédito de clientes</h3><div className="credit-list">{clients.filter(c=>Number(c.credito||0)>0).map(c=><div key={c.id}><b>{c.nome}</b><span>{BRL.format(c.credito)}</span></div>)}</div></section>
+  return <section className="panel-card"><div className="finance-summary"><div><small>Recebido</small><b>{BRL.format(totalRecebido)}</b></div><div><small>Crédito clientes</small><b>{BRL.format(totalCredito)}</b></div><div><small>Reservas</small><b>{reservations.length}</b></div><div><small>Pendências</small><b>{reservations.filter(r=>balance(r)>0).length}</b></div></div><h3>Contas de reserva</h3><table className="data-table"><thead><tr><th>Reserva</th><th>Cliente</th><th>Quarto</th><th>Despesas</th><th>Recebido</th><th>Saldo</th><th>Ações</th></tr></thead><tbody>{reservations.map(r=><tr key={r.id}><td>{r.codigo}</td><td>{clientOf(r).nome}</td><td>{roomOf(r.quartoId).numero}</td><td>{BRL.format(reservationTotal(r))}</td><td>{BRL.format(paidTotal(r.id))}</td><td>{BRL.format(balance(r))}</td><td><button onClick={()=>setReceiveReserva(r)}>Receber</button><button onClick={()=>setCancelReserva(r)}>Cancelar/estornar</button></td></tr>)}</tbody></table><h3>Crédito de clientes</h3><div className="credit-list">{clients.filter(c=>Number(c.credito||0)>0).map(c=><div key={c.id}><b>{c.nome}</b><span>{BRL.format(c.credito)}</span></div>)}</div></section>
 }
 
 
@@ -1988,17 +2115,17 @@ function CaixaDiario({ payments, consumos, reservations, clientOf, roomOf }) {
       <div className="cash-summary"><div><span>Recebido</span><b>{BRL.format(totalRecebido)}</b></div><div><span>Estornado/crédito</span><b>{BRL.format(totalEstornado)}</b></div><div><span>Multas</span><b>{BRL.format(totalMulta)}</b></div><div><span>Saldo caixa</span><b>{BRL.format(totalRecebido + totalMulta - totalEstornado)}</b></div></div>
       <h4>Por forma de pagamento</h4><div className="payment-bars">{porForma.map(f=><div key={f.forma}><span>{f.forma}</span><b>{BRL.format(f.valor)}</b><i style={{width:`${Math.min(100, Math.abs(f.valor)/(Math.max(1,totalRecebido))*100)}%`}}></i></div>)}</div>
     </div>
-    <div className="panel-card"><h3>Movimentos do dia</h3><table className="data-table"><thead><tr><th>Tipo</th><th>Cliente</th><th>Quarto</th><th>Forma</th><th>Valor</th></tr></thead><tbody>{movimentos.map(m=><tr key={m.id}><td><span className={`pill ${m.tipo}`}>{m.tipo}</span></td><td>{m.cliente}</td><td>{m.quarto}</td><td>{m.forma}</td><td>{BRL.format(m.valor)}</td></tr>)}</tbody></table></div>
+    <div className="panel-card"><h3>Movimentos do dia</h3><table className="data-table"><thead><tr><th>Tipo</th><th>Cliente</th><th>Quarto</th><th>Forma</th><th>Valor</th></tr></thead><tbody>{movimentos.map(m=><tr key={m.id}><td>{m.tipo}</td><td>{m.cliente}</td><td>{m.quarto}</td><td>{m.forma}</td><td>{BRL.format(m.valor)}</td></tr>)}</tbody></table></div>
     <div className="panel-card wide"><h3>Consumos lançados</h3><table className="data-table"><thead><tr><th>Reserva</th><th>Item</th><th>Qtd</th><th>Valor unit.</th><th>Total</th></tr></thead><tbody>{consumosDia.map(c=><tr key={c.id}><td>{c.reservaId}</td><td>{c.item}</td><td>{c.qtd}</td><td>{BRL.format(c.valor)}</td><td>{BRL.format(Number(c.qtd||1)*Number(c.valor||0))}</td></tr>)}</tbody></table></div>
   </section>
 }
 
 function Relatorios({ reservations, payments, clients, rooms, clientOf, roomOf, printReceipt, notify }) {
-  const ativos = reservations.filter(r=>!['cancelada','checkout'].includes(r.status)).length
+  const ativos = reservations.length
   const recebidos = payments.filter(p=>p.tipo==='recebimento').reduce((s,p)=>s+Number(p.valor||0),0)
   const creditos = clients.reduce((s,c)=>s+Number(c.credito||0),0)
-  const ocupacao = rooms.length ? Math.round((reservations.filter(r=>r.status==='hospedado').length/rooms.length)*100) : 0
-  return <section className="panel-card"><h3>Relatórios e comprovantes</h3><div className="finance-summary"><div><small>Reservas ativas</small><b>{ativos}</b></div><div><small>Ocupação</small><b>{ocupacao}%</b></div><div><small>Recebido</small><b>{BRL.format(recebidos)}</b></div><div><small>Créditos</small><b>{BRL.format(creditos)}</b></div></div><div className="actions"><button onClick={()=>window.print()}>Imprimir tela atual</button><button onClick={()=>{ notify('Relatório operacional pronto para impressão.'); setTimeout(() => window.print(), 250) }}>Relatório operacional</button></div><table className="data-table"><thead><tr><th>Reserva</th><th>Cliente</th><th>Quarto</th><th>Entrada</th><th>Saída</th><th>Status</th><th>Imprimir</th></tr></thead><tbody>{reservations.map(r=><tr key={r.id}><td>{r.codigo}</td><td>{clientOf(r).nome}</td><td>{roomOf(r.quartoId).numero}</td><td>{r.entrada}</td><td>{r.saida}</td><td><span className={`pill ${r.status}`}>{r.status}</span></td><td><button onClick={()=>printReceipt(r)}>Relatório formato FastHotel</button></td></tr>)}</tbody></table></section>
+  const reservaPercentual = 0
+  return <section className="panel-card"><h3>Relatórios e comprovantes</h3><div className="finance-summary"><div><small>Reservas ativas</small><b>{ativos}</b></div><div><small>Reservas</small><b>{reservaPercentual}%</b></div><div><small>Recebido</small><b>{BRL.format(recebidos)}</b></div><div><small>Créditos</small><b>{BRL.format(creditos)}</b></div></div><div className="actions"><button onClick={()=>window.print()}>Imprimir tela atual</button><button onClick={()=>{ notify('Relatório operacional pronto para impressão.'); setTimeout(() => window.print(), 250) }}>Relatório operacional</button></div><table className="data-table"><thead><tr><th>Reserva</th><th>Cliente</th><th>Quarto</th><th>Entrada</th><th>Saída</th><th>Imprimir</th></tr></thead><tbody>{reservations.map(r=><tr key={r.id}><td>{r.codigo}</td><td>{clientOf(r).nome}</td><td>{roomOf(r.quartoId).numero}</td><td>{r.entrada}</td><td>{r.saida}</td><td><button onClick={()=>printReceipt(r)}>Relatório formato FastHotel</button></td></tr>)}</tbody></table></section>
 }
 
 function Auditoria({ auditLogs }) {
@@ -2021,40 +2148,85 @@ function Config({ roomTypes, rooms = [], clients = [], reservations = [], paymen
       <button className="danger" onClick={clearOperationalData}>Zerar movimentações</button>
     </div>
   </div>
-  <h3>Formas de pagamento</h3><p className="hint">Crie novas formas sem mexer no código. A forma "Crédito do cliente" é usada para abater saldos gerados por estorno/cancelamento.</p><div className="form-grid"><label>Nome da forma<input value={methodForm.nome} onChange={e=>setMethodForm({...methodForm,nome:e.target.value})} placeholder="Ex.: Transferência, Cortesia, Crédito interno" /></label><label>Tipo<select value={methodForm.tipo} onChange={e=>setMethodForm({...methodForm,tipo:e.target.value})}><option value="normal">Normal</option><option value="cartao">Cartão</option><option value="credito">Crédito/saldo</option><option value="cortesia">Cortesia</option></select></label></div><button className="primary" onClick={savePaymentMethod}>Criar forma de pagamento</button><table className="data-table"><thead><tr><th>Forma</th><th>Tipo</th><th>Status</th><th>Ação</th></tr></thead><tbody>{paymentMethods.map(f=><tr key={f.id}><td>{f.nome}</td><td>{f.tipo}</td><td>{f.ativo ? 'Ativa' : 'Inativa'}</td><td><button onClick={()=>togglePaymentMethod(f.id)}>{f.ativo ? 'Desativar' : 'Ativar'}</button></td></tr>)}</tbody></table></div><div className="panel-card"><h3>Tipos de quarto e tarifas padrão</h3>{roomTypes.map(t=><p key={t.id}>✓ {t.nome} — {BRL.format(t.diaria)}</p>)}<div className="info-box">Para alterar valores por período, use a aba <b>Tarifas</b>. Para ver os quartos por categoria, use a aba <b>Quartos</b>.</div></div></section>
+  <h3>Formas de pagamento</h3><p className="hint">Crie novas formas sem mexer no código. A forma "Crédito do cliente" é usada para abater saldos gerados por estorno/cancelamento.</p><div className="form-grid"><label>Nome da forma<input value={methodForm.nome} onChange={e=>setMethodForm({...methodForm,nome:e.target.value})} placeholder="Ex.: Transferência, Cortesia, Crédito interno" /></label><label>Tipo<select value={methodForm.tipo} onChange={e=>setMethodForm({...methodForm,tipo:e.target.value})}><option value="normal">Normal</option><option value="cartao">Cartão</option><option value="credito">Crédito/saldo</option><option value="cortesia">Cortesia</option></select></label></div><button className="primary" onClick={savePaymentMethod}>Criar forma de pagamento</button><table className="data-table"><thead><tr><th>Forma</th><th>Tipo</th><th>Ação</th></tr></thead><tbody>{paymentMethods.map(f=><tr key={f.id}><td>{f.nome}</td><td>{f.tipo}</td><td>{f.ativo ? 'Ativa' : 'Inativa'}</td><td><button onClick={()=>togglePaymentMethod(f.id)}>{f.ativo ? 'Desativar' : 'Ativar'}</button></td></tr>)}</tbody></table></div><div className="panel-card"><h3>Tipos de quarto e tarifas padrão</h3>{roomTypes.map(t=><p key={t.id}>✓ {t.nome} — {BRL.format(t.diaria)}</p>)}<div className="info-box">Para alterar valores por período, use a aba <b>Tarifas</b>. Para ver os quartos por categoria, use a aba <b>Quartos</b>.</div></div></section>
 }
 
 
-function RoomModal({ room, status, reservations, blocks, clientOf, setSelectedReserva, setBlockModal, updateRoomCleaningStatus, onClose }) {
+function RoomModal({ room, reservations, blocks, clientOf, setSelectedReserva, setBlockModal, setRooms, rooms, onRoomUpdated, onClose }) {
   const reservasDoQuarto = reservations.filter(r => r.quartoId === room.id)
-  const futuras = reservasDoQuarto.filter(r => ['pendente', 'confirmada'].includes(r.status))
-  const hospedado = reservasDoQuarto.find(r => r.status === 'hospedado')
-  const historico = reservasDoQuarto.filter(r => ['checkout', 'cancelada'].includes(r.status))
-  const [cls, label] = status
-  const marcar = (statusLimpeza) => updateRoomCleaningStatus(room.id, statusLimpeza)
+  const futuras = reservasDoQuarto
+  const historico = []
+  const statusInfo = getRoomStatus(room, reservations, todayISO(), { blocks, endDate: addDays(todayISO(), 365) })
+
+  function statusLabel(status) {
+    if (status === ROOM_STATUS.RESERVED) return 'Reservado'
+    if (status === ROOM_STATUS.OCCUPIED) return 'Ocupado'
+    if (status === ROOM_STATUS.CHECKOUT) return 'Verificar saída'
+    if (status === ROOM_STATUS.BLOCKED) return 'Bloqueado'
+    if (status === ROOM_STATUS.MAINTENANCE) return 'Manutenção'
+    return 'Livre'
+  }
+
+  function applyRoomStatus(statusValue) {
+    const cleanRoom = {
+      ...room,
+      status: statusValue,
+      statusLimpeza: statusValue,
+      situacao: statusValue,
+      atualizadoEm: new Date().toISOString(),
+    }
+
+    let nextRoom = cleanRoom
+    if (statusValue === 'livre') {
+      const { status, statusLimpeza, situacao, atualizadoEm, ...rest } = cleanRoom
+      nextRoom = { ...rest, atualizadoEm }
+    }
+
+    setRooms(rooms.map(q => String(q.id) === String(room.id) ? nextRoom : q))
+    onRoomUpdated?.(nextRoom)
+  }
+
+  const statusActions = [
+    { label: 'Livre', value: 'livre', status: ROOM_STATUS.AVAILABLE },
+    { label: 'Reservado', value: 'reservado', status: ROOM_STATUS.RESERVED },
+    { label: 'Ocupado', value: 'hospedado', status: ROOM_STATUS.OCCUPIED },
+    { label: 'Verificar saída', value: 'checkout', status: ROOM_STATUS.CHECKOUT },
+    { label: 'Manutenção', value: 'manutencao', status: ROOM_STATUS.MAINTENANCE },
+    { label: 'Bloqueado', value: 'bloqueado', status: ROOM_STATUS.BLOCKED },
+  ]
 
   return <div className="modal-backdrop"><div className="modal-card large room-detail-modal"><button className="modal-close" onClick={onClose}>×</button>
-    <div className="reservation-head"><div><h2>Quarto {room.numero}</h2><p>{room.tipo} · {room.andar}</p></div><span className={`pill ${cls}`}>{label}</span></div>
+    <div className="reservation-head"><div><h2>Quarto {room.numero}</h2><p>{room.tipo} · {room.andar}</p></div></div>
     <div className="room-detail-grid">
-      <section className="room-now-card">
+      <section className={`room-now-card room-now-status ${statusInfo.statusClass}`} data-room-status={statusInfo.status}>
         <h3>Situação atual</h3>
-        {hospedado ? <div><p><b>Hospedado:</b> {clientOf(hospedado).nome}</p><p><b>Reserva:</b> {hospedado.codigo}</p><p><b>Saída:</b> {hospedado.saida} 11:59</p><button className="primary" onClick={()=>setSelectedReserva(hospedado)}>Abrir conta da reserva</button></div> : <p className="hint">Sem hóspede no momento.</p>}
-        <div className="room-fast-actions"><button onClick={()=>marcar('limpo')}>Marcar limpo</button><button onClick={()=>marcar('verificar')}>Verificar saída</button><button onClick={()=>marcar('manutencao')}>Manutenção</button><button onClick={()=>setBlockModal({quartoId:room.id,inicio:todayISO(),fim:addDays(todayISO(),1),motivo:'Bloqueio manual'})}>Bloquear período</button></div>
+        <p className="room-current-status">{statusLabel(statusInfo.status)}</p>
+        <div className="room-status-actions">
+          {statusActions.map(action => (
+            <button
+              type="button"
+              key={action.value}
+              className={`room-status-action room-status-${action.status} ${statusInfo.status === action.status ? 'active' : ''}`}
+              onClick={() => applyRoomStatus(action.value)}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
       </section>
       <section className="room-now-card"><h3>Próximas reservas</h3>{futuras.length ? futuras.map(r=><div className="mini-reservation" key={r.id}><b>{r.codigo} · {clientOf(r).nome}</b><span>{r.entrada} até {r.saida}</span><button onClick={()=>setSelectedReserva(r)}>Abrir</button></div>) : <p className="hint">Nenhuma reserva futura.</p>}</section>
     </div>
     <h3>Linha do tempo do quarto</h3>
-    <div className="room-history">{reservasDoQuarto.map(r=><button key={r.id} className={`history-item ${r.status}`} onClick={()=>setSelectedReserva(r)}><b>{r.codigo}</b><span>{clientOf(r).nome}</span><small>{r.entrada} → {r.saida}</small></button>)}{blocks.map(b=><div key={b.id} className="history-item bloqueado"><b>Bloqueio</b><span>{b.motivo}</span><small>{b.inicio} → {b.fim}</small></div>)}{historico.length === 0 && blocks.length === 0 && futuras.length === 0 && !hospedado && <p className="hint">Ainda não existe histórico nesse quarto.</p>}</div>
+    <div className="room-history">{reservasDoQuarto.map(r=><button key={r.id} className="history-item" onClick={()=>setSelectedReserva(r)}><b>{r.codigo}</b><span>{clientOf(r).nome}</span><small>{r.entrada} → {r.saida}</small></button>)}{blocks.map(b=><div key={b.id} className="history-item"><b>Período</b><span>{b.motivo}</span><small>{b.inicio} → {b.fim}</small></div>)}{historico.length === 0 && blocks.length === 0 && futuras.length === 0 && <p className="hint">Ainda não existe histórico nesse quarto.</p>}</div>
   </div></div>
 }
 
-function ReservationModal({ r, client, room, diariaTotal, servicesTotal, total, paid, balance, payments, consumos, onClose, onReceive, onCancel, onCheckin, onCheckout, onPre, onService, onTransfer, onReschedule, onWhatsapp, onPrint }) {
+function ReservationModal({ r, client, room, diariaTotal, servicesTotal, total, paid, balance, payments, consumos, onClose, onReceive, onCancel, onCheckin, onSaida, onPre, onService, onTransfer, onReschedule, onWhatsapp, onPrint }) {
   return (
     <div className="modal-backdrop">
       <div className="modal-card reserva-detalhe-modal">
         <div className="reserva-modal-header">
           <div>
-            <span className={`pill ${r.status}`}>{r.status}</span>
             <h3>Reserva {r.codigo}</h3>
             <p>Quarto {room.numero} — {client.nome}</p>
           </div>
@@ -2070,7 +2242,7 @@ function ReservationModal({ r, client, room, diariaTotal, servicesTotal, total, 
               <div><small>Quarto</small><b>{room.numero} — {room.tipo}</b></div>
               <div><small>Hóspedes</small><b>PAX {r.adultos}/{r.criancas}</b></div>
               <div><small>Tipo contratado</small><b>{room.tipo}</b></div>
-              <div><small>Confirmação</small><b>{r.status === 'pendente' ? 'Pendente de pagamento' : r.status}</b></div>
+
             </div>
             <p className="reserva-note"><b>Observação interna:</b> {r.observacao || 'Não definida'}</p>
           </section>
@@ -2118,8 +2290,8 @@ function ReservationModal({ r, client, room, diariaTotal, servicesTotal, total, 
           <button onClick={onPre}>Pré check-in</button>
           <button onClick={onPrint}>Imprimir</button>
           <button className="danger" onClick={onCancel}>Cancelar</button>
-          {r.status !== 'hospedado' && <button className="primary" onClick={onCheckin}>Check-in</button>}
-          {r.status === 'hospedado' && <button className="primary" onClick={onCheckout}>Check-out</button>}
+          <button className="primary" onClick={onCheckin}>Check-in</button>
+          <button className="primary" onClick={onSaida}>Saída</button>
         </div>
       </div>
     </div>
@@ -2129,12 +2301,12 @@ function ReservationModal({ r, client, room, diariaTotal, servicesTotal, total, 
 
 function ReceiveModal({ client, saldo, paymentMethods, onClose, onSave }) {
   const [form, setForm] = useState({ forma: 'PIX', valor: String(saldo > 0 ? saldo : ''), observacao: '' })
-  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}>×</button><h2>Receber</h2><p>Recebido: {BRL.format(0)}<br/>A receber: {BRL.format(saldo)}</p><div className="info-box">Caso cancele uma reserva, o valor pode voltar como saldo/crédito do cliente. Use a forma <b>Crédito do cliente</b> para abater em nova reserva.</div><div className="form-grid"><label>Ponto de venda<select><option>Recepção</option></select></label><label>Forma de recebimento<select value={form.forma} onChange={e=>setForm({...form,forma:e.target.value})}>{paymentMethods.filter(m=>m.ativo).map(m=><option key={m.id}>{m.nome}</option>)}</select></label><label>Pagante<input value={client.nome} readOnly /></label><label>Documento<input value={client.cpf || ''} readOnly /></label><label>Valor<input value={form.valor} onChange={e=>setForm({...form,valor:e.target.value})}/></label><label>Comprovante<input type="file"/></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Receber</button></div></div></div>
+  return <div className="modal-backdrop"><div className="modal-card"><button className="modal-close" onClick={onClose}>×</button><h2>Receber</h2><p>Recebido: {BRL.format(0)}<br/>A receber: {BRL.format(saldo)}</p><div className="info-box">Caso cancele uma reserva, o valor pode voltar como saldo/crédito do cliente. Use a forma <b>Crédito do cliente</b> para abater em nova reserva.</div><div className="form-grid"><label>Ponto de venda<select><option>Recepção</option></select></label><label>Forma de recebimento<select value={form.forma} onChange={e=>setForm({...form,forma:e.target.value})}>{paymentMethods.filter(m=>m.ativo).map(m=><option key={m.id}>{m.nome}</option>)}</select></label><label>Pagante<input value={client.nome} readOnly /></label><label>Documento<input value={client.cpf || ''} readOnly /></label><label>Valor<input value={form.valor} onChange={e=>setForm({...form,valor:e.target.value})}/></label><label>Comprovante<input type="file"/></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Receber</button></div></div></div>
 }
 
 function CancelModal({ reserva, received, onClose, onSave }) {
   const [form, setForm] = useState({ motivo: 'Lançamento errado', observacao: '', multa: '0' })
-  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}>×</button><h2>Cancelar reserva {reserva.codigo}</h2><p>Recebido: {BRL.format(received)}. O restante voltará como crédito do cliente.</p><div className="form-grid"><label>Motivo<select value={form.motivo} onChange={e=>setForm({...form,motivo:e.target.value})}><option>Lançamento errado</option><option>Desistência do cliente</option><option>Remarcação</option><option>Problema operacional</option></select></label><label>Multa de cancelamento<input value={form.multa} onChange={e=>setForm({...form,multa:e.target.value})}/></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="danger-btn" onClick={()=>onSave(form)}>Cancelar e gerar crédito</button></div></div></div>
+  return <div className="modal-backdrop"><div className="modal-card"><button className="modal-close" onClick={onClose}>×</button><h2>Cancelar reserva {reserva.codigo}</h2><p>Recebido: {BRL.format(received)}. O restante voltará como crédito do cliente.</p><div className="form-grid"><label>Motivo<select value={form.motivo} onChange={e=>setForm({...form,motivo:e.target.value})}><option>Lançamento errado</option><option>Desistência do cliente</option><option>Remarcação</option><option>Problema operacional</option></select></label><label>Multa de cancelamento<input value={form.multa} onChange={e=>setForm({...form,multa:e.target.value})}/></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="danger-btn" onClick={()=>onSave(form)}>Cancelar e gerar crédito</button></div></div></div>
 }
 
 
@@ -2142,27 +2314,27 @@ function CancelModal({ reserva, received, onClose, onSave }) {
 function RescheduleModal({ reserva, rooms, roomTypes, roomOf, availableRooms, onClose, onSave }) {
   const current = roomOf(reserva.quartoId)
   const [form, setForm] = useState({ entrada: reserva.entrada, saida: reserva.saida, tipoId: reserva.tipoId, quartoId: reserva.quartoId, diaria: String(reserva.diaria || ''), observacao: '' })
-  const disponiveis = rooms.filter(q => q.tipoId === form.tipoId && (q.id === reserva.quartoId || availableRooms(form.tipoId, form.entrada, form.saida).some(a => a.id === q.id)))
+  const listaQuartos = rooms.filter(q => q.tipoId === form.tipoId && (q.id === reserva.quartoId || availableRooms(form.tipoId, form.entrada, form.saida).some(a => a.id === q.id)))
   const tipoAtual = roomTypes.find(t => t.id === form.tipoId)
   const totalPrevisto = diffDays(form.entrada, form.saida) * (moneyNumber(form.diaria) || Number(tipoAtual?.diaria || 0))
-  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}>×</button><h2>Remarcar reserva {reserva.codigo}</h2><p>Quarto atual {current.numero} ({current.tipo}). A remarcação recalcula o período e permite trocar o quarto disponível.</p><div className="info-box">Use quando o cliente mudar datas. O pagamento já lançado fica preservado e o saldo será recalculado automaticamente.</div><div className="form-grid"><label>Entrada<input type="date" value={form.entrada} onChange={e=>setForm({...form,entrada:e.target.value,quartoId:''})}/></label><label>Saída<input type="date" value={form.saida} onChange={e=>setForm({...form,saida:e.target.value,quartoId:''})}/></label><label>Tipo de quarto<select value={form.tipoId} onChange={e=>{const t=roomTypes.find(x=>x.id===e.target.value);setForm({...form,tipoId:e.target.value,diaria:String(t?.diaria||''),quartoId:''})}}>{roomTypes.map(t=><option key={t.id} value={t.id}>{t.nome}</option>)}</select></label><label>Quarto disponível<select value={form.quartoId} onChange={e=>setForm({...form,quartoId:e.target.value})}><option value="">Selecione</option>{disponiveis.map(q=><option key={q.id} value={q.id}>{q.numero} - {q.tipo}</option>)}</select></label><label>Diária<input value={form.diaria} onChange={e=>setForm({...form,diaria:e.target.value})}/></label><label>Total previsto<input value={BRL.format(totalPrevisto)} readOnly /></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})} placeholder="Motivo da remarcação, autorização, diferença de valor..."></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Salvar remarcação</button></div></div></div>
+  return <div className="modal-backdrop"><div className="modal-card"><button className="modal-close" onClick={onClose}>×</button><h2>Remarcar reserva {reserva.codigo}</h2><p>Quarto atual {current.numero} ({current.tipo}). A remarcação recalcula o período e permite trocar o quarto.</p><div className="info-box">Use quando o cliente mudar datas. O pagamento já lançado permanece mantido e o saldo será recalculado automaticamente.</div><div className="form-grid"><label>Entrada<input type="date" value={form.entrada} onChange={e=>setForm({...form,entrada:e.target.value,quartoId:''})}/></label><label>Saída<input type="date" value={form.saida} onChange={e=>setForm({...form,saida:e.target.value,quartoId:''})}/></label><label>Tipo de quarto<select value={form.tipoId} onChange={e=>{const t=roomTypes.find(x=>x.id===e.target.value);setForm({...form,tipoId:e.target.value,diaria:String(t?.diaria||''),quartoId:''})}}>{roomTypes.map(t=><option key={t.id} value={t.id}>{t.nome}</option>)}</select></label><label>Quarto<select value={form.quartoId} onChange={e=>setForm({...form,quartoId:e.target.value})}><option value="">Selecione</option>{listaQuartos.map(q=><option key={q.id} value={q.id}>{q.numero} - {q.tipo}</option>)}</select></label><label>Diária<input value={form.diaria} onChange={e=>setForm({...form,diaria:e.target.value})}/></label><label>Total previsto<input value={BRL.format(totalPrevisto)} readOnly /></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})} placeholder="Motivo da remarcação, autorização, diferença de valor..."></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Salvar remarcação</button></div></div></div>
 }
 
 function TransferModal({ reserva, rooms, roomOf, availableRooms, onClose, onSave }) {
   const current = roomOf(reserva.quartoId)
   const list = rooms.filter(q => q.tipoId === reserva.tipoId && (q.id === reserva.quartoId || availableRooms(reserva.tipoId, reserva.entrada, reserva.saida).some(a => a.id === q.id)))
   const [form, setForm] = useState({ quartoId: reserva.quartoId, observacao: '' })
-  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}>×</button><h2>Alocar / trocar quarto</h2><p>Reserva {reserva.codigo} — quarto atual {current.numero} ({current.tipo})</p><div className="info-box">Ao trocar o quarto, o quarto anterior fica marcado para verificar saída. Só aparecem quartos disponíveis no mesmo período da reserva.</div><div className="form-grid"><label>Novo quarto<select value={form.quartoId} onChange={e=>setForm({...form,quartoId:e.target.value})}>{list.map(q=><option key={q.id} value={q.id}>{q.numero} - {q.tipo}</option>)}</select></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})} placeholder="Motivo da troca, pedido do cliente, manutenção..."></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Confirmar troca</button></div></div></div>
+  return <div className="modal-backdrop"><div className="modal-card"><button className="modal-close" onClick={onClose}>×</button><h2>Alocar / trocar quarto</h2><p>Reserva {reserva.codigo} — quarto atual {current.numero} ({current.tipo})</p><div className="info-box">Ao trocar o quarto, o quarto anterior fica marcado para revisão do quarto. Só aparecem quartos listados no mesmo período da reserva.</div><div className="form-grid"><label>Novo quarto<select value={form.quartoId} onChange={e=>setForm({...form,quartoId:e.target.value})}>{list.map(q=><option key={q.id} value={q.id}>{q.numero} - {q.tipo}</option>)}</select></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})} placeholder="Motivo da troca, pedido do cliente, ajuste interno..."></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Confirmar troca</button></div></div></div>
 }
 
 function ServiceModal({ reserva, client, room, onClose, onSave }) {
   const [form, setForm] = useState({ item: 'Água mineral', qtd: '1', valor: '', observacao: '' })
-  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}>×</button><h2>Adicionar consumo no quarto {room.numero}</h2><p>Reserva {reserva.codigo} — {client.nome}</p><div className="form-grid"><label>Produto/serviço<input value={form.item} onChange={e=>setForm({...form,item:e.target.value})}/></label><label>Quantidade<input type="number" min="1" value={form.qtd} onChange={e=>setForm({...form,qtd:e.target.value})}/></label><label>Valor unitário<input value={form.valor} onChange={e=>setForm({...form,valor:e.target.value})} placeholder="R$"/></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Lançar consumo</button></div></div></div>
+  return <div className="modal-backdrop"><div className="modal-card"><button className="modal-close" onClick={onClose}>×</button><h2>Adicionar consumo no quarto {room.numero}</h2><p>Reserva {reserva.codigo} — {client.nome}</p><div className="form-grid"><label>Produto/serviço<input value={form.item} onChange={e=>setForm({...form,item:e.target.value})}/></label><label>Quantidade<input type="number" min="1" value={form.qtd} onChange={e=>setForm({...form,qtd:e.target.value})}/></label><label>Valor unitário<input value={form.valor} onChange={e=>setForm({...form,valor:e.target.value})} placeholder="R$"/></label><label className="full">Observação<textarea value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Lançar consumo</button></div></div></div>
 }
 
 function BlockModal({ rooms, data, onClose, onSave }) {
   const [form, setForm] = useState(data)
-  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}>×</button><h2>Bloquear período manualmente</h2><div className="form-grid"><label>Quarto<select value={form.quartoId} onChange={e=>setForm({...form,quartoId:e.target.value})}>{rooms.map(q=><option key={q.id} value={q.id}>{q.numero} - {q.tipo}</option>)}</select></label><label>Início<input type="date" value={form.inicio} onChange={e=>setForm({...form,inicio:e.target.value})}/></label><label>Fim<input type="date" value={form.fim} onChange={e=>setForm({...form,fim:e.target.value})}/></label><label className="full">Motivo<textarea value={form.motivo || ''} onChange={e=>setForm({...form,motivo:e.target.value})}></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Salvar bloqueio</button></div></div></div>
+  return <div className="modal-backdrop"><div className="modal-card"><button className="modal-close" onClick={onClose}>×</button><h2>Bloquear período manualmente</h2><div className="form-grid"><label>Quarto<select value={form.quartoId} onChange={e=>setForm({...form,quartoId:e.target.value})}>{rooms.map(q=><option key={q.id} value={q.id}>{q.numero} - {q.tipo}</option>)}</select></label><label>Início<input type="date" value={form.inicio} onChange={e=>setForm({...form,inicio:e.target.value})}/></label><label>Fim<input type="date" value={form.fim} onChange={e=>setForm({...form,fim:e.target.value})}/></label><label className="full">Motivo<textarea value={form.motivo || ''} onChange={e=>setForm({...form,motivo:e.target.value})}></textarea></label></div><div className="actions"><button onClick={onClose}>Descartar</button><button className="primary" onClick={()=>onSave(form)}>Salvar período</button></div></div></div>
 }
 
 export default App
